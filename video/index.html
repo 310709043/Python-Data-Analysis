@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyVoca — 品牌影片 Brand Film</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #050507;
+    color: #f5f6fa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 22px;
+  }
+  .frame {
+    width: 100%;
+    max-width: 1180px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.06);
+    background: #000;
+  }
+  video { display: block; width: 100%; height: auto; background: #000; }
+  .caption { text-align: center; max-width: 640px; }
+  .caption h1 { font-size: clamp(20px, 3vw, 28px); font-weight: 800; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .caption p { font-size: 14px; color: #9c9cb2; line-height: 1.6; margin: 0; }
+  .back {
+    position: fixed; top: 20px; left: 20px;
+    font-size: 13px; color: #9c9cb2; text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+    padding: 7px 15px; background: rgba(255,255,255,0.03);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .back:hover { color: #f5f6fa; border-color: rgba(255,255,255,0.3); }
+</style>
+</head>
+<body>
+  <a class="back" href="../">← 返回</a>
+  <div class="frame">
+    <video src="./myvoca-intro.mp4" controls autoplay muted playsinline poster="">
+      您的瀏覽器不支援影片播放，<a href="./myvoca-intro.mp4">請點此下載</a>。
+    </video>
+  </div>
+  <div class="caption">
+    <h1>同一套企業 AI，懂你的知識、流程、更懂你的客戶</h1>
+    <p>90 秒品牌影片 · MyClaw Enterprise AI Agent Platform · 台灣大哥大 Taiwan Mobile</p>
+  </div>
+</body>
+</html>

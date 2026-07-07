@@ -48,13 +48,17 @@
     transition: border-color 0.25s, transform 0.25s;
   }
   a.card:hover { border-color: rgba(255,107,0,0.4); transform: translateY(-2px); }
+  a.card.hero { grid-column: 1 / -1; margin-bottom: 16px; }
+  a.card.hero:hover { border-color: rgba(59,130,246,0.5); }
   a.card .tag {
     display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--brand-light);
     border: 1px solid rgba(255,107,0,0.3); background: rgba(255,107,0,0.08);
     border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
   }
+  a.card.hero .tag { color: #9db8ff; border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
   a.card .title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  a.card.hero .title { font-size: 22px; }
   a.card .desc { font-size: 13.5px; color: var(--ink-300); line-height: 1.5; }
   .foot { margin-top: 40px; font-size: 12px; color: var(--ink-300); opacity: 0.7; }
 </style>
@@ -77,6 +81,11 @@
     <h1>MyVoca <span class="accent">AI Service Intelligence</span></h1>
     <p class="lede">MyClaw Enterprise AI Agent Platform · 台灣大哥大 Taiwan Mobile</p>
     <div class="cards">
+      <a class="card hero" href="./video/">
+        <span class="tag">品牌影片</span>
+        <div class="title">90 秒品牌影片 →</div>
+        <div class="desc">一鏡到底的沉浸式影像：從一通進線電話，到聽出購買意願、生成訂單，再到同一套企業 AI 跨越電信、金融、零售</div>
+      </a>
       <a class="card" href="./prototype/">
         <span class="tag">互動 Demo</span>
         <div class="title">完整 Prototype →</div>
