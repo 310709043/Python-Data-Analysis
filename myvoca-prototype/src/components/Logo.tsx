@@ -1,28 +1,62 @@
-// MyClaw brand mark — placeholder SVG in Taiwan Mobile orange.
-// Swap the <svg> below for the official logo asset when available.
-export function ClawMark({ size = 32 }: { size?: number }) {
+// Taiwan Mobile brand mark — the classic 12-faceted "彩球" (colorful sphere),
+// redrawn as SVG after the 2020 5G-era identity: vibrant orange with momo pink,
+// green (sustainability) and blue-purple (unity) facets.
+// Swap for the official logo asset when brand files are available.
+export function BrandMark({ size = 36 }: { size?: number }) {
+  // Geometry: central pentagon (r=20) + 5 inner triangles + 5 outer arc facets
+  // on a circle of r=47, all centered at (50,50).
+  const P = [
+    [50, 30],
+    [69.02, 43.82],
+    [61.76, 66.18],
+    [38.24, 66.18],
+    [30.98, 43.82],
+  ]
+  const M = [
+    [77.64, 11.98],
+    [94.7, 64.52],
+    [50, 97],
+    [5.3, 64.52],
+    [22.36, 11.98],
+  ]
+  const triColors = ['#FFB600', '#FF7300', '#E4007F', '#8DC63F', '#5C4E9E']
+  const outerColors = ['#FF9E1B', '#FF6B00', '#F0417F', '#A6CE39', '#7C6BB5']
+  const gap = { stroke: '#0C0C12', strokeWidth: 1.6, strokeLinejoin: 'round' as const }
+
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-label="MyClaw logo">
-      <defs>
-        <linearGradient id="clawGrad" x1="8" y1="8" x2="40" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FFA76B" />
-          <stop offset="0.5" stopColor="#FF6B00" />
-          <stop offset="1" stopColor="#E85D00" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#clawGrad)" />
-      {/* stylized claw / signal mark */}
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-label="Taiwan Mobile logo">
+      {/* outer arc facets */}
+      {M.map((m, i) => {
+        const prev = M[(i + 4) % 5]
+        const p = P[i]
+        return (
+          <path
+            key={`o${i}`}
+            d={`M ${prev[0]} ${prev[1]} A 47 47 0 0 1 ${m[0]} ${m[1]} L ${p[0]} ${p[1]} Z`}
+            fill={outerColors[i]}
+            {...gap}
+          />
+        )
+      })}
+      {/* inner triangles */}
+      {P.map((p, i) => {
+        const next = P[(i + 1) % 5]
+        const m = M[i]
+        return (
+          <path
+            key={`t${i}`}
+            d={`M ${p[0]} ${p[1]} L ${m[0]} ${m[1]} L ${next[0]} ${next[1]} Z`}
+            fill={triColors[i]}
+            {...gap}
+          />
+        )
+      })}
+      {/* central pentagon */}
       <path
-        d="M14 33c0-8 3.5-16 10-16s10 8 10 16"
-        stroke="white"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        fill="none"
+        d={`M ${P.map((p) => `${p[0]} ${p[1]}`).join(' L ')} Z`}
+        fill="#FF7300"
+        {...gap}
       />
-      <circle cx="14" cy="15" r="2.6" fill="white" />
-      <circle cx="24" cy="11" r="2.6" fill="white" />
-      <circle cx="34" cy="15" r="2.6" fill="white" />
-      <circle cx="24" cy="33" r="3" fill="white" opacity="0.9" />
     </svg>
   )
 }
@@ -30,7 +64,7 @@ export function ClawMark({ size = 32 }: { size?: number }) {
 export function BrandLockup() {
   return (
     <div className="flex items-center gap-3">
-      <ClawMark size={36} />
+      <BrandMark size={38} />
       <div className="leading-tight">
         <div className="flex items-baseline gap-2">
           <span className="text-lg font-extrabold tracking-tight text-white">MyVoca</span>
@@ -39,7 +73,7 @@ export function BrandLockup() {
           </span>
         </div>
         <div className="text-[11px] text-ink-300">
-          MyClaw Enterprise AI Agent Platform · Taiwan Mobile
+          MyClaw Enterprise AI Agent Platform · 台灣大哥大 Taiwan Mobile
         </div>
       </div>
     </div>
