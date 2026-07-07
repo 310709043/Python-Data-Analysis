@@ -28,6 +28,9 @@ export interface Metrics {
   retentionPlansTriggered: number
   kbLookupCount: number
   vipRiskCount: number
+  /** Calls handed off to a human agent this demo session — surfaced on
+   *  Eric Chen's row in OperationDashboard's team table. */
+  agentHandoffCount: number
 }
 
 export interface AppState {
@@ -87,6 +90,7 @@ function initialState(industryId: IndustryId = 'telecom'): AppState {
       retentionPlansTriggered: 0,
       kbLookupCount: 0,
       vipRiskCount: INITIAL_VIP_RISK_COUNT,
+      agentHandoffCount: 0,
     },
     showReasoning: false,
   }
@@ -176,6 +180,7 @@ function reducer(state: AppState, action: Action): AppState {
           aiResolutionCount: state.metrics.aiResolutionCount + (action.resolution === 'ai' ? 1 : 0),
           humanTransferCount: state.metrics.humanTransferCount + (action.resolution === 'human' ? 1 : 0),
           minutesSavedEstimate: state.metrics.minutesSavedEstimate + (action.resolution === 'ai' ? 8 : 0),
+          agentHandoffCount: state.metrics.agentHandoffCount + (action.resolution === 'human' ? 1 : 0),
         },
       }
     }

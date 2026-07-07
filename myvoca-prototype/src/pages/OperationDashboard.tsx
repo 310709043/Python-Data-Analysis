@@ -223,7 +223,16 @@ export function OperationDashboard() {
                       transition={{ delay: 0.5 + i * 0.08 }}
                       className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.03]"
                     >
-                      <td className="py-2.5 font-medium text-ink-100">{a.name}</td>
+                      <td className="py-2.5 font-medium text-ink-100">
+                        <span className="flex items-center gap-2">
+                          {a.name}
+                          {a.name === 'Eric Chen' && state.metrics.agentHandoffCount > 0 && (
+                            <span className="chip border-brand-400/25 bg-brand-400/10 text-[10px] text-brand-300">
+                              +<AnimatedNumber value={state.metrics.agentHandoffCount} duration={0.5} /> 本次 Demo 交接
+                            </span>
+                          )}
+                        </span>
+                      </td>
                       <td className="py-2.5">
                         <span className="inline-flex items-center gap-1.5 text-xs capitalize text-ink-300">
                           <StatusDot color={agentStatusColor[a.status]} pulse={a.status === 'online'} />

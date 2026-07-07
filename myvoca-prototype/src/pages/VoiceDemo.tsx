@@ -32,6 +32,7 @@ import { VoiceWave } from '../components/VoiceWave'
 import { StatusDot } from '../components/StatusDot'
 import { ReasoningPanel } from '../components/ReasoningPanel'
 import { MPlusNotification } from '../components/MPlusNotification'
+import { HandoffBriefing } from '../components/HandoffBriefing'
 import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
 import { createDealFromAnalysis, type Deal } from '../data/deals'
 import type { CustomerId } from '../data/customers'
@@ -517,12 +518,14 @@ export function VoiceDemo() {
                   <div className="w-full text-left">
                     <MPlusNotification deal={lastDeal} />
                   </div>
+                ) : resolved === 'human' ? (
+                  <HandoffBriefing
+                    customer={customer}
+                    analysis={analysis}
+                    lastUtterance={turns[turns.length - 1]?.text ?? ''}
+                  />
                 ) : (
-                  <div className="text-xs text-ink-300">
-                    {resolved === 'ai'
-                      ? '對應處理流程已啟動 · 客戶簡訊已通知'
-                      : '客戶不需重述問題 — AI 已將意圖、情緒與建議傳給客服'}
-                  </div>
+                  <div className="text-xs text-ink-300">對應處理流程已啟動 · 客戶簡訊已通知</div>
                 )}
                 <button
                   onClick={() => setResolved(null)}
@@ -566,6 +569,30 @@ export function VoiceDemo() {
                     </motion.div>
                   )
                 })}
+
+                {(() => {
+                  const suggestHuman =
+                    analysis.intentId === 'churn' ||
+                    analysis.emotionId === 'frustrated' ||
+                    analysis.intentConfidence < 90
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.65 }}
+                      className={`chip ${
+                        suggestHuman
+                          ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                          : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                      }`}
+                    >
+                      <BrainCircuit size={12} />
+                      {suggestHuman
+                        ? `AI 建議：轉真人客服（${analysis.emotionId === 'frustrated' ? '情緒不穩' : analysis.intentId === 'churn' ? '流失風險高' : '信心不足'}）`
+                        : `AI 建議：可自動處理（信心 ${analysis.intentConfidence}%）`}
+                    </motion.div>
+                  )
+                })()}
 
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
