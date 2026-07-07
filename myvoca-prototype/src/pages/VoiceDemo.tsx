@@ -27,10 +27,16 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
-import { Typewriter } from '../components/Typewriter'
+import { TranscriptBubble } from '../components/TranscriptBubble'
 import { VoiceWave } from '../components/VoiceWave'
 import { StatusDot } from '../components/StatusDot'
-import { analyzeUtterance, callScenarios, quickReplies, type AnalysisResult } from '../data/aiEngine'
+import { ReasoningPanel } from '../components/ReasoningPanel'
+import { MPlusNotification } from '../components/MPlusNotification'
+import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
+import { createDealFromAnalysis, type Deal } from '../data/deals'
+import type { CustomerId } from '../data/customers'
+import { industries } from '../data/industries'
+import { useAppActions, useAppState } from '../state/appStore'
 
 type CallStage = 'incoming' | 'connecting' | 'live'
 type Phase = 'typing-ai' | 'typing-customer' | 'analyzing' | 'ready'
@@ -59,15 +65,27 @@ const emotionStyle: Record<string, { chip: string; icon: typeof Frown }> = {
   Neutral: { chip: 'border-sky-400/30 bg-sky-400/10 text-sky-300', icon: Meh },
 }
 
+const scenarioLabel: Record<string, string> = {
+  network: '網路投訴',
+  billing: '帳務爭議',
+  churn: '流失風險',
+}
+
 export function VoiceDemo() {
-  const [scenarioIdx, setScenarioIdx] = useState(0)
-  const scenario = callScenarios[scenarioIdx]
+  const state = useAppState()
+  const actions = useAppActions()
+  const customerIds = Object.keys(state.customers) as CustomerId[]
+
+  const [selectedId, setSelectedId] = useState<CustomerId>('wang')
+  const customer = state.customers[selectedId]
+  const serviceOverride = industries[state.industryId].serviceOverride
 
   const [stage, setStage] = useState<CallStage>('incoming')
   const [phase, setPhase] = useState<Phase>('typing-ai')
   const [turns, setTurns] = useState<Turn[]>([])
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const [resolved, setResolved] = useState<'ai' | 'human' | null>(null)
+  const [lastDeal, setLastDeal] = useState<Deal | null>(null)
   const [liveInput, setLiveInput] = useState('')
   const turnIdRef = useRef(0)
   const transcriptEndRef = useRef<HTMLDivElement>(null)
@@ -78,24 +96,27 @@ export function VoiceDemo() {
         setStage('live')
         setPhase('typing-ai')
         turnIdRef.current += 1
-        setTurns([{ id: turnIdRef.current, speaker: 'ai', name: 'MyVoca AI', text: scenario.openingLine }])
+        setTurns([{ id: turnIdRef.current, speaker: 'ai', name: 'MyVoca AI', text: customer.openingLine }])
       }, 1400)
       return () => clearTimeout(t)
     }
-  }, [stage, scenario])
+  }, [stage, customer])
 
   useEffect(() => {
     if (phase === 'analyzing') {
       const t = setTimeout(() => {
         const last = turns[turns.length - 1]
-        const result = analyzeUtterance(last?.text ?? '', scenario.customerName)
+        const result = analyzeUtterance(last?.text ?? '', customer.name, serviceOverride)
         setAnalysis(result)
         setResolved(null)
+        setLastDeal(null)
         setPhase('ready')
+        actions.recordUtteranceAnalyzed(selectedId, result, 'voice')
       }, 2000)
       return () => clearTimeout(t)
     }
-  }, [phase, turns, scenario.customerName])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -103,7 +124,7 @@ export function VoiceDemo() {
 
   const onAiGreetingDone = () => {
     turnIdRef.current += 1
-    setTurns((t) => [...t, { id: turnIdRef.current, speaker: 'customer', name: scenario.customerName, text: scenario.customerLine }])
+    setTurns((t) => [...t, { id: turnIdRef.current, speaker: 'customer', name: customer.name, text: customer.customerLine }])
     setPhase('typing-customer')
   }
 
@@ -113,17 +134,18 @@ export function VoiceDemo() {
     const clean = text.trim()
     if (!clean || phase !== 'ready') return
     turnIdRef.current += 1
-    setTurns((t) => [...t, { id: turnIdRef.current, speaker: 'customer', name: scenario.customerName, text: clean }])
+    setTurns((t) => [...t, { id: turnIdRef.current, speaker: 'customer', name: customer.name, text: clean }])
     setPhase('typing-customer')
     setLiveInput('')
   }
 
-  const selectScenario = (idx: number) => {
-    setScenarioIdx(idx)
+  const selectCustomer = (id: CustomerId) => {
+    setSelectedId(id)
     setStage('incoming')
     setTurns([])
     setAnalysis(null)
     setResolved(null)
+    setLastDeal(null)
     setPhase('typing-ai')
   }
 
@@ -132,11 +154,22 @@ export function VoiceDemo() {
     setTurns([])
     setAnalysis(null)
     setResolved(null)
+    setLastDeal(null)
     setPhase('typing-ai')
     setLiveInput('')
   }
 
-  const emotionLabel = analysis?.emotionLabel ?? scenario.emotion
+  const resolve = (resolution: 'ai' | 'human') => {
+    setResolved(resolution)
+    actions.recordCallResolved(selectedId, resolution)
+    if (resolution === 'ai' && analysis?.purchaseSignal) {
+      const deal = createDealFromAnalysis(selectedId, customer.name, analysis, 'voice')
+      setLastDeal(deal)
+      actions.recordDealCreated(deal)
+    }
+  }
+
+  const emotionLabel = customer.emotion
   const emo = emotionStyle[emotionLabel] ?? emotionStyle.Neutral
   const EmoIcon = emo.icon
   const busy = phase === 'typing-customer' || phase === 'typing-ai' || phase === 'analyzing'
@@ -166,7 +199,7 @@ export function VoiceDemo() {
         )}
       </motion.div>
 
-      {/* Incoming call overlay + scenario picker */}
+      {/* Incoming call overlay + customer picker */}
       <AnimatePresence>
         {stage !== 'live' && (
           <motion.div
@@ -178,19 +211,22 @@ export function VoiceDemo() {
             className="mx-auto max-w-xl"
           >
             <div className="mb-4 flex justify-center gap-2">
-              {callScenarios.map((s, i) => (
-                <button
-                  key={s.id}
-                  onClick={() => selectScenario(i)}
-                  className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
-                    i === scenarioIdx
-                      ? 'bg-brand-500 text-white'
-                      : 'border border-white/10 bg-white/[0.04] text-ink-300 hover:text-white'
-                  }`}
-                >
-                  {s.customerName} · {s.id === 'network' ? '網路投訴' : s.id === 'billing' ? '帳務爭議' : '流失風險'}
-                </button>
-              ))}
+              {customerIds.map((id) => {
+                const c = state.customers[id]
+                return (
+                  <button
+                    key={id}
+                    onClick={() => selectCustomer(id)}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                      id === selectedId
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-white/10 bg-white/[0.04] text-ink-300 hover:text-white'
+                    }`}
+                  >
+                    {c.name} · {scenarioLabel[c.scenarioTag]}
+                  </button>
+                )
+              })}
             </div>
 
             <div className="glass relative flex min-h-[400px] flex-col items-center justify-center overflow-hidden p-10 text-center">
@@ -222,9 +258,9 @@ export function VoiceDemo() {
               <div className="relative text-sm font-medium uppercase tracking-[0.2em] text-brand-300">
                 Incoming Call · TAIPBX
               </div>
-              <div className="relative mt-2 text-3xl font-extrabold text-white">{scenario.customerName}</div>
+              <div className="relative mt-2 text-3xl font-extrabold text-white">{customer.name}</div>
               <div className="relative mt-1 text-sm text-ink-300">
-                {scenario.phone} · {scenario.tier} · 已識別身分
+                {customer.phone} · {customer.tier} · 已識別身分
               </div>
 
               {stage === 'incoming' ? (
@@ -262,9 +298,9 @@ export function VoiceDemo() {
                 </span>
               </div>
               <div>
-                <div className="text-lg font-bold text-white">{scenario.customerName}</div>
+                <div className="text-lg font-bold text-white">{customer.name}</div>
                 <div className="chip mt-1 border-amber-400/30 bg-amber-400/10 text-amber-300">
-                  <Crown size={12} /> {scenario.tier}
+                  <Crown size={12} /> {customer.tier}
                 </div>
               </div>
             </div>
@@ -293,7 +329,7 @@ export function VoiceDemo() {
                 <Clock size={13} /> 歷史互動
               </div>
               <div className="space-y-2">
-                {scenario.history.map((h) => (
+                {customer.history.map((h) => (
                   <div
                     key={h.date + h.summary}
                     className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-2.5 text-xs"
@@ -399,6 +435,8 @@ export function VoiceDemo() {
                       <Sparkles size={13} /> {analysis.purchaseNote}
                     </motion.div>
                   )}
+
+                  {state.showReasoning && <ReasoningPanel analysis={analysis} />}
                 </motion.div>
               )}
               <div ref={transcriptEndRef} />
@@ -467,19 +505,25 @@ export function VoiceDemo() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.94 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex h-64 flex-col items-center justify-center gap-3 text-center"
+                className="flex flex-col items-center gap-3 text-center"
               >
                 <CheckCircle2 size={40} className="text-emerald-400" />
                 <div className="text-sm font-semibold text-white">
                   {resolved === 'ai'
                     ? 'AI 已自動建立處理流程'
-                    : `已轉接真人客服，AI 同步交接完整脈絡`}
+                    : '已轉接真人客服，AI 同步交接完整脈絡'}
                 </div>
-                <div className="text-xs text-ink-300">
-                  {resolved === 'ai'
-                    ? '對應處理流程已啟動 · 補償 / 方案已送出審核 · 客戶簡訊已通知'
-                    : '客戶不需重述問題 — AI 已將意圖、情緒與建議傳給客服'}
-                </div>
+                {lastDeal ? (
+                  <div className="w-full text-left">
+                    <MPlusNotification deal={lastDeal} />
+                  </div>
+                ) : (
+                  <div className="text-xs text-ink-300">
+                    {resolved === 'ai'
+                      ? '對應處理流程已啟動 · 客戶簡訊已通知'
+                      : '客戶不需重述問題 — AI 已將意圖、情緒與建議傳給客服'}
+                  </div>
+                )}
                 <button
                   onClick={() => setResolved(null)}
                   className="mt-2 text-[11px] font-medium text-ink-400 underline-offset-2 hover:text-white hover:underline"
@@ -530,13 +574,13 @@ export function VoiceDemo() {
                   className="grid grid-cols-2 gap-2 pt-2"
                 >
                   <button
-                    onClick={() => setResolved('ai')}
+                    onClick={() => resolve('ai')}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-3 py-2.5 text-xs font-bold text-white shadow-glow-sm transition-transform hover:scale-[1.03] active:scale-[0.97]"
                   >
                     <Zap size={14} /> AI 自動處理
                   </button>
                   <button
-                    onClick={() => setResolved('human')}
+                    onClick={() => resolve('human')}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-xs font-bold text-ink-100 transition-colors hover:border-brand-400/40 hover:text-white"
                   >
                     <Headset size={14} /> 轉真人客服
@@ -548,44 +592,6 @@ export function VoiceDemo() {
         </div>
       )}
     </div>
-  )
-}
-
-function TranscriptBubble({
-  side,
-  name,
-  text,
-  typing,
-  ai = false,
-  onDone,
-}: {
-  side: 'left' | 'right'
-  name: string
-  text: string
-  typing: boolean
-  ai?: boolean
-  onDone?: () => void
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className={`flex ${side === 'right' ? 'justify-end' : 'justify-start'}`}
-    >
-      <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-          side === 'right'
-            ? 'rounded-tr-sm border border-white/[0.08] bg-white/[0.06] text-ink-100'
-            : 'rounded-tl-sm border border-brand-400/20 bg-brand-500/[0.08] text-ink-100'
-        }`}
-      >
-        <div className={`mb-1 text-[11px] font-semibold ${ai ? 'text-brand-300' : 'text-ink-300'}`}>
-          {name}
-        </div>
-        {typing ? <Typewriter text={text} speed={45} onDone={onDone} /> : text}
-      </div>
-    </motion.div>
   )
 }
 

@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
-import { Network } from 'lucide-react'
+import { Network, FlaskConical, RotateCcw } from 'lucide-react'
 import { BrandLockup } from './Logo'
 import { StatusDot } from './StatusDot'
+import { AiValueTicker } from './AiValueTicker'
+import { useAppActions, useAppState } from '../state/appStore'
 import type { PageId } from '../App'
 
 export interface NavItem {
@@ -25,6 +27,9 @@ interface TopNavProps {
 }
 
 export function TopNav({ page, onNavigate }: TopNavProps) {
+  const { showReasoning } = useAppState()
+  const actions = useAppActions()
+
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-950/70 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-3">
@@ -56,7 +61,7 @@ export function TopNav({ page, onNavigate }: TopNavProps) {
           })}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="chip border-emerald-400/25 bg-emerald-400/10 text-emerald-300">
             <Network size={13} />
             <span className="hidden sm:inline">TAIPBX</span> Connected
@@ -65,8 +70,30 @@ export function TopNav({ page, onNavigate }: TopNavProps) {
             <StatusDot color="orange" />
             <span className="hidden sm:inline">AI Agents</span> Active
           </div>
+          <button
+            onClick={actions.toggleReasoningMode}
+            className={`chip transition-colors ${
+              showReasoning
+                ? 'border-sky-400/40 bg-sky-400/15 text-sky-300'
+                : 'border-white/10 bg-white/[0.04] text-ink-400 hover:text-white'
+            }`}
+            title="顯示 AI 推理依據（候選分數與命中關鍵字）"
+          >
+            <FlaskConical size={13} />
+            <span className="hidden sm:inline">Dev</span>
+          </button>
+          <button
+            onClick={actions.resetDemo}
+            className="chip border-white/10 bg-white/[0.04] text-ink-400 transition-colors hover:text-white"
+            title="重置 Demo 到乾淨初始狀態"
+          >
+            <RotateCcw size={13} />
+            <span className="hidden sm:inline">重置</span>
+          </button>
         </div>
       </div>
+
+      <AiValueTicker />
 
       {/* Mobile nav */}
       <div className="flex gap-1 overflow-x-auto px-4 pb-2 lg:hidden">

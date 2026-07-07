@@ -11,11 +11,19 @@ import {
   BrainCircuit,
   Waves,
   Users,
+  Clock,
+  TrendingUp,
+  HeartHandshake,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { AnimatedNumber } from '../components/AnimatedNumber'
 import { StatusDot } from '../components/StatusDot'
+import { KnowledgeAssistant } from '../components/KnowledgeAssistant'
+import { industries, type IndustryId } from '../data/industries'
+import { useAppActions, useAppState } from '../state/appStore'
 import type { PageId } from '../App'
+
+const industryOrder: IndustryId[] = ['telecom', 'banking', 'retail']
 
 // Small live-tick so the dashboard reads as a real-time monitor rather than
 // a frozen mockup — nudges the value within +/- range every few seconds.
@@ -76,6 +84,20 @@ const capabilities = [
 ]
 
 export function CommandCenter({ onNavigate }: { onNavigate: (p: PageId) => void }) {
+  const state = useAppState()
+  const actions = useAppActions()
+  const { metrics } = state
+  const activeIndustry = industries[state.industryId]
+  const totalHandled = metrics.aiResolutionCount + metrics.humanTransferCount
+  const aiRate = totalHandled === 0 ? 0 : Math.round((metrics.aiResolutionCount / totalHandled) * 100)
+
+  const valueKpis = [
+    { icon: Bot, label: 'AI 輔助率', value: aiRate, suffix: '%', sub: '本次 demo 累積', color: 'text-brand-400' },
+    { icon: Clock, label: '預估節省時間', value: metrics.minutesSavedEstimate, suffix: ' 分', sub: 'AI 自動處理節省的人工時間', color: 'text-sky-400' },
+    { icon: TrendingUp, label: '今日新增 MRR', value: metrics.dealsMrrTotal, prefix: 'NT$', suffix: '/月', sub: `${metrics.dealsClosedCount} 筆商機`, color: 'text-emerald-400' },
+    { icon: HeartHandshake, label: '挽留客戶數', value: metrics.retentionPlansTriggered, sub: 'AI 主動介入的高風險客戶', color: 'text-rose-300' },
+  ]
+
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-10">
       {/* Hero */}
@@ -118,6 +140,40 @@ export function CommandCenter({ onNavigate }: { onNavigate: (p: PageId) => void 
         >
           「每位客服，都擁有一位 AI 超能力搭檔」
         </motion.p>
+
+        {/* Industry switcher — swaps ONLY the customers/knowledge/service-keywords
+            (see src/data/industries.ts); the engine and every page stay identical,
+            proving "不是每個產業需要不同的 AI，而是同一套企業 AI". */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.24 }}
+          className="mx-auto mt-6 max-w-xl"
+        >
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+            同一套企業 AI · 換上不同產業的知識與客戶
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {industryOrder.map((id) => {
+              const profile = industries[id]
+              const active = id === state.industryId
+              return (
+                <button
+                  key={id}
+                  onClick={() => actions.switchIndustry(id)}
+                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'bg-brand-500 text-white shadow-glow-sm'
+                      : 'border border-white/10 bg-white/[0.04] text-ink-300 hover:text-white'
+                  }`}
+                >
+                  {profile.name}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2 text-xs text-ink-400">{activeIndustry.tagline}</div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -170,6 +226,34 @@ export function CommandCenter({ onNavigate }: { onNavigate: (p: PageId) => void 
           ))}
         </div>
       </GlassCard>
+
+      {/* 今日 AI 效益 — quantifies the demo session's business value as you click through it */}
+      <div className="mt-6">
+        <SectionLabel>今日 AI 效益 · 對公司 / 客戶 / 客服的具體成果</SectionLabel>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {valueKpis.map((kpi, i) => (
+            <GlassCard key={kpi.label} delay={0.05 + i * 0.06} className="p-5">
+              <div className={`inline-flex rounded-lg bg-white/[0.06] p-2 ${kpi.color}`}>
+                <kpi.icon size={17} />
+              </div>
+              <div className="mt-3 text-2xl font-extrabold text-white">
+                <AnimatedNumber
+                  value={kpi.value}
+                  prefix={kpi.prefix ?? ''}
+                  suffix={kpi.suffix ?? ''}
+                  duration={0.8}
+                />
+              </div>
+              <div className="mt-0.5 text-sm text-ink-200">{kpi.label}</div>
+              <div className="mt-0.5 text-xs text-ink-400">{kpi.sub}</div>
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <KnowledgeAssistant />
+      </div>
     </div>
   )
 }

@@ -16,7 +16,11 @@ import {
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { VoiceWave } from '../components/VoiceWave'
 import { StatusDot } from '../components/StatusDot'
+import { ReasoningPanel } from '../components/ReasoningPanel'
 import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
+import type { CustomerId } from '../data/customers'
+import { industries } from '../data/industries'
+import { useAppActions, useAppState } from '../state/appStore'
 
 const tipIcons = { alert: TrendingDown, coach: HeartHandshake }
 const tipStyles = {
@@ -24,10 +28,14 @@ const tipStyles = {
   coach: 'border-sky-400/25 bg-sky-500/[0.08] text-sky-200',
 }
 
-const DEFAULT_LINE = '我昨天就反映過了，為什麼今天還是一直斷線？你們到底有沒有在處理？'
-
 export function WhisperCopilot() {
-  const [customerLine, setCustomerLine] = useState(DEFAULT_LINE)
+  const state = useAppState()
+  const actions = useAppActions()
+  const customerIds = Object.keys(state.customers) as CustomerId[]
+  const serviceOverride = industries[state.industryId].serviceOverride
+
+  const [selectedId, setSelectedId] = useState<CustomerId>('wang')
+  const [customerLine, setCustomerLine] = useState(() => state.customers.wang.customerLine)
   const [inputValue, setInputValue] = useState('')
   const [thinking, setThinking] = useState(true)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
@@ -35,17 +43,19 @@ export function WhisperCopilot() {
   const [showReply, setShowReply] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const runAnalysis = (text: string) => {
+  const runAnalysis = (text: string, customerId: CustomerId) => {
     setCustomerLine(text)
     setThinking(true)
     setAnalysis(null)
     setVisibleTips(0)
     setShowReply(false)
 
-    const result = analyzeUtterance(text, '客戶')
+    const customerName = state.customers[customerId].name
+    const result = analyzeUtterance(text, customerName, serviceOverride)
     const t0 = setTimeout(() => {
       setThinking(false)
       setAnalysis(result)
+      actions.recordUtteranceAnalyzed(customerId, result, 'voice')
     }, 900)
     const t1 = setTimeout(() => setVisibleTips(1), 1500)
     const t2 = setTimeout(() => setVisibleTips(2), 2300)
@@ -54,7 +64,7 @@ export function WhisperCopilot() {
   }
 
   useEffect(() => {
-    const cleanup = runAnalysis(DEFAULT_LINE)
+    const cleanup = runAnalysis(state.customers.wang.customerLine, 'wang')
     return cleanup
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -62,7 +72,7 @@ export function WhisperCopilot() {
   const submit = (text: string) => {
     const clean = text.trim()
     if (!clean || thinking) return
-    runAnalysis(clean)
+    runAnalysis(clean, selectedId)
     setInputValue('')
   }
 
@@ -75,13 +85,30 @@ export function WhisperCopilot() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h2 className="text-2xl font-extrabold text-white md:text-3xl">
-          AI Whisper <span className="text-gradient">Copilot</span>
-        </h2>
-        <p className="mt-1 text-sm text-ink-300">
-          客服的第二大腦 — 通話中即時耳語提示，只有客服看得見。輸入任意客戶說的話，現場測試 AI 反應。
-        </p>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-extrabold text-white md:text-3xl">
+            AI Whisper <span className="text-gradient">Copilot</span>
+          </h2>
+          <p className="mt-1 text-sm text-ink-300">
+            客服的第二大腦 — 通話中即時耳語提示，只有客服看得見。輸入任意客戶說的話，現場測試 AI 反應。
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {customerIds.map((id) => (
+            <button
+              key={id}
+              onClick={() => setSelectedId(id)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                id === selectedId
+                  ? 'bg-brand-500 text-white'
+                  : 'border border-white/10 bg-white/[0.04] text-ink-300 hover:text-white'
+              }`}
+            >
+              {state.customers[id].name}
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_400px]">
@@ -95,7 +122,12 @@ export function WhisperCopilot() {
           </div>
 
           <div className="mt-4 flex flex-col items-center gap-10 py-8 md:flex-row md:justify-around">
-            <CallPartyAvatar name="客戶" role="來電中" icon={<User size={30} />} ringColor="rgba(244,63,94,0.5)" />
+            <CallPartyAvatar
+              name={state.customers[selectedId].name}
+              role="來電中"
+              icon={<User size={30} />}
+              ringColor="rgba(244,63,94,0.5)"
+            />
             <div className="flex flex-col items-center gap-2">
               <VoiceWave bars={28} className="h-10" />
               <span className="text-[11px] uppercase tracking-[0.2em] text-ink-400">TAIPBX Voice Stream</span>
@@ -112,7 +144,7 @@ export function WhisperCopilot() {
           {/* Conversation context strip — now shows whatever line was analyzed */}
           <div className="min-h-[64px] rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm leading-relaxed text-ink-200">
             <span className="mr-2 rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">
-              客戶
+              {state.customers[selectedId].name}
             </span>
             「{customerLine}」
           </div>
@@ -254,6 +286,8 @@ export function WhisperCopilot() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {analysis && showReply && state.showReasoning && <ReasoningPanel analysis={analysis} />}
             </div>
           </motion.div>
         </div>

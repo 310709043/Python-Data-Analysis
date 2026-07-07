@@ -1,6 +1,42 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
+// Semicircular score gauge — single-value quality/compliance score (0-100).
+export function ScoreGauge({ score, label, size = 140 }: { score: number; label?: string; size?: number }) {
+  const clamped = Math.max(0, Math.min(100, score))
+  const radius = size / 2 - 10
+  const circumference = Math.PI * radius
+  const offset = circumference * (1 - clamped / 100)
+  const color = clamped >= 80 ? '#34D399' : clamped >= 60 ? '#FFA76B' : '#FB7185'
+
+  return (
+    <div className="flex flex-col items-center" style={{ width: size }}>
+      <svg width={size} height={size / 2 + 14} viewBox={`0 0 ${size} ${size / 2 + 14}`}>
+        <path
+          d={`M 10 ${size / 2 + 10} A ${radius} ${radius} 0 0 1 ${size - 10} ${size / 2 + 10}`}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
+        <motion.path
+          d={`M 10 ${size / 2 + 10} A ${radius} ${radius} 0 0 1 ${size - 10} ${size / 2 + 10}`}
+          fill="none"
+          stroke={color}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+      <div className="-mt-8 text-2xl font-extrabold text-white">{clamped}</div>
+      {label && <div className="mt-0.5 text-[11px] text-ink-400">{label}</div>}
+    </div>
+  )
+}
+
 // Single-series emotion trend sparkline (SVG, area + line, brand orange on dark surface).
 export function EmotionSparkline({ data, className = '' }: { data: number[]; className?: string }) {
   const [hover, setHover] = useState<number | null>(null)

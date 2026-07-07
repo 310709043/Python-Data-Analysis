@@ -13,6 +13,25 @@ export interface Recommendation {
   icon: 'router' | 'receipt' | 'shield' | 'gift' | 'trending' | 'heart' | 'help'
 }
 
+export interface ScoredCandidate<T extends string> {
+  id: T
+  label: string
+  score: number
+  matchedKeywords: string[]
+}
+
+// The 'network' category is the one intent that's genuinely industry-specific
+// (telecom's "斷線/網路" doesn't generalize to a bank's "轉帳失敗" or a retailer's
+// "缺貨出貨"). Everything else — billing, churn, upsell, compliment, emotion —
+// is a universal business concept and stays identical across industries. An
+// IndustryProfile (src/data/industries.ts) supplies this override; passing
+// none keeps the telecom defaults below.
+export interface ServiceOverride {
+  label: string
+  keywords: string[]
+  recommendations: Recommendation[]
+}
+
 export interface AnalysisResult {
   intentId: IntentId
   intentLabel: string
@@ -25,6 +44,9 @@ export interface AnalysisResult {
   recommendations: Recommendation[]
   whisperTips: { type: 'alert' | 'coach'; text: string }[]
   suggestedReply: string
+  /** Full ranked candidate list (winner first) — powers the optional AI-reasoning panel. */
+  intentCandidates: ScoredCandidate<IntentId>[]
+  emotionCandidates: ScoredCandidate<EmotionId>[]
 }
 
 const INTENT_KEYWORDS: Record<Exclude<IntentId, 'general'>, string[]> = {
@@ -90,22 +112,58 @@ const RECOMMENDATIONS: Record<IntentId, Recommendation[]> = {
   ],
 }
 
-function detectIntent(text: string): { id: IntentId; matches: number } {
-  let best: { id: IntentId; matches: number } = { id: 'general', matches: 0 }
+// Returns every candidate (winner first), each with its matched keywords —
+// the single source of truth for both the final classification and the
+// optional "AI reasoning" transparency panel.
+//
+// Ranking key is raw matchedKeywords.length, NOT the displayed score: the
+// score formula clamps at 97/96, so any sentence hitting 3+ keywords in two
+// different categories would tie on score and (since score-based sorting is
+// stable) silently fall back to declaration order — e.g. a sentence about
+// upgrading that merely mentions "網路" would misclassify as Network Issue
+// just because 'network' is declared before 'upsell'. Sorting by the
+// uncapped match count avoids that. The general/neutral fallback is pushed
+// FIRST so it wins ties (0 matches) against any specific category that also
+// matched nothing, exactly like the pre-refactor detectIntent/detectEmotion.
+function scoreIntentCandidates(text: string, serviceOverride?: ServiceOverride): ScoredCandidate<IntentId>[] {
+  const clean = text.trim()
+  const lenBonus = Math.min(clean.length, 20)
+  const candidates: ScoredCandidate<IntentId>[] = [
+    {
+      id: 'general',
+      label: INTENT_LABELS.general,
+      score: clean.length === 0 ? 0 : Math.min(97, 74 + lenBonus),
+      matchedKeywords: [],
+    },
+  ]
   for (const id of Object.keys(INTENT_KEYWORDS) as Exclude<IntentId, 'general'>[]) {
-    const matches = INTENT_KEYWORDS[id].filter((kw) => text.includes(kw)).length
-    if (matches > best.matches) best = { id, matches }
+    const keywordPool = id === 'network' && serviceOverride ? serviceOverride.keywords : INTENT_KEYWORDS[id]
+    const label = id === 'network' && serviceOverride ? serviceOverride.label : INTENT_LABELS[id]
+    const matchedKeywords = clean.length === 0 ? [] : keywordPool.filter((kw) => clean.includes(kw))
+    const score = clean.length === 0 ? 0 : Math.min(97, 74 + matchedKeywords.length * 7 + lenBonus)
+    candidates.push({ id, label, score, matchedKeywords })
   }
-  return best
+  candidates.sort((a, b) => b.matchedKeywords.length - a.matchedKeywords.length)
+  return candidates
 }
 
-function detectEmotion(text: string): { id: EmotionId; matches: number } {
-  let best: { id: EmotionId; matches: number } = { id: 'neutral', matches: 0 }
+function scoreEmotionCandidates(text: string): ScoredCandidate<EmotionId>[] {
+  const clean = text.trim()
+  const candidates: ScoredCandidate<EmotionId>[] = [
+    {
+      id: 'neutral',
+      label: EMOTION_LABELS.neutral,
+      score: clean.length === 0 ? 0 : 58,
+      matchedKeywords: [],
+    },
+  ]
   for (const id of Object.keys(EMOTION_KEYWORDS) as Exclude<EmotionId, 'neutral'>[]) {
-    const matches = EMOTION_KEYWORDS[id].filter((kw) => text.includes(kw)).length
-    if (matches > best.matches) best = { id, matches }
+    const matchedKeywords = clean.length === 0 ? [] : EMOTION_KEYWORDS[id].filter((kw) => clean.includes(kw))
+    const score = clean.length === 0 ? 0 : Math.min(96, 58 + matchedKeywords.length * 11)
+    candidates.push({ id, label: EMOTION_LABELS[id], score, matchedKeywords })
   }
-  return best
+  candidates.sort((a, b) => b.matchedKeywords.length - a.matchedKeywords.length)
+  return candidates
 }
 
 function buildWhisperTips(intentId: IntentId, emotionId: EmotionId): AnalysisResult['whisperTips'] {
@@ -147,92 +205,39 @@ function buildSuggestedReply(customerName: string, intentId: IntentId, emotionId
   }
 }
 
-export function analyzeUtterance(text: string, customerName = '這位客戶'): AnalysisResult {
-  const clean = text.trim()
-  const intent = detectIntent(clean)
-  const emotion = detectEmotion(clean)
+export function analyzeUtterance(
+  text: string,
+  customerName = '這位客戶',
+  serviceOverride?: ServiceOverride,
+): AnalysisResult {
+  const intentCandidates = scoreIntentCandidates(text, serviceOverride)
+  const emotionCandidates = scoreEmotionCandidates(text)
+  const intent = intentCandidates[0]
+  const emotion = emotionCandidates[0]
 
-  const intentConfidence = clean.length === 0 ? 0 : Math.min(97, 74 + intent.matches * 7 + Math.min(clean.length, 20))
-  const emotionIntensity = clean.length === 0 ? 0 : Math.min(96, 58 + emotion.matches * 11)
-
-  const purchaseSignal = intent.id === 'upsell' && intent.matches > 0
+  const purchaseSignal = intent.id === 'upsell' && intent.matchedKeywords.length > 0
   const purchaseNote = purchaseSignal
     ? '偵測到潛在購買訊號 — 對話中出現升級 / 加購相關語意'
     : null
 
+  const recommendations = intent.id === 'network' && serviceOverride ? serviceOverride.recommendations : RECOMMENDATIONS[intent.id]
+
   return {
     intentId: intent.id,
-    intentLabel: INTENT_LABELS[intent.id],
-    intentConfidence,
+    intentLabel: intent.label,
+    intentConfidence: intent.score,
     emotionId: emotion.id,
-    emotionLabel: EMOTION_LABELS[emotion.id],
-    emotionIntensity,
+    emotionLabel: emotion.label,
+    emotionIntensity: emotion.score,
     purchaseSignal,
     purchaseNote,
-    recommendations: RECOMMENDATIONS[intent.id],
+    recommendations,
     whisperTips: buildWhisperTips(intent.id, emotion.id),
     suggestedReply: buildSuggestedReply(customerName, intent.id, emotion.id),
+    intentCandidates,
+    emotionCandidates,
   }
 }
-
-export interface CallScenario {
-  id: string
-  customerName: string
-  tier: string
-  phone: string
-  tenureYears: number
-  emotion: string
-  history: { date: string; channel: string; summary: string }[]
-  openingLine: string
-  customerLine: string
-}
-
-export const callScenarios: CallScenario[] = [
-  {
-    id: 'network',
-    customerName: '王先生',
-    tier: 'VIP',
-    phone: '0912-***-568',
-    tenureYears: 8,
-    emotion: 'Concerned',
-    history: [
-      { date: '07/06', channel: '電話客服', summary: '反映網路斷線，已建立工單' },
-      { date: '06/28', channel: 'App 客服', summary: '詢問光纖升速方案' },
-      { date: '05/14', channel: '門市', summary: '5G 資費續約諮詢' },
-    ],
-    openingLine: '您好，這裡是台灣大哥大智慧客服中心，我是您的 AI 服務專員。請問有什麼可以協助您？',
-    customerLine: '最近我的網路一直斷線，昨天客服說會處理，但現在還沒有改善。',
-  },
-  {
-    id: 'billing',
-    customerName: '陳小姐',
-    tier: 'VIP',
-    phone: '0987-***-231',
-    tenureYears: 5,
-    emotion: 'Frustrated',
-    history: [
-      { date: '07/05', channel: '電話客服', summary: '詢問月租費異動原因' },
-      { date: '06/10', channel: 'App 客服', summary: '申請電子帳單' },
-      { date: '03/22', channel: '門市', summary: '更換 SIM 卡' },
-    ],
-    openingLine: '您好，這裡是台灣大哥大智慧客服中心，我是您的 AI 服務專員。請問有什麼可以協助您？',
-    customerLine: '我這個月的帳單金額怎麼比平常多了三百塊，到底是為什麼多收費？',
-  },
-  {
-    id: 'churn',
-    customerName: '林先生',
-    tier: '一般會員',
-    phone: '0966-***-704',
-    tenureYears: 2,
-    emotion: 'Frustrated',
-    history: [
-      { date: '07/02', channel: '電話客服', summary: '詢問違約金計算方式' },
-      { date: '06/18', channel: 'App 客服', summary: '比較其他電信資費' },
-    ],
-    openingLine: '您好，這裡是台灣大哥大智慧客服中心，我是您的 AI 服務專員。請問有什麼可以協助您？',
-    customerLine: '我想解約，別家資費比較便宜，你們可以退給我剩下的月費嗎？',
-  },
-]
 
 export const quickReplies: { label: string; text: string }[] = [
   { label: '網路斷線', text: '我的網路又斷線了，這已經是這個月第三次，你們到底有沒有在處理？' },

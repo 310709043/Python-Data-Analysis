@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TopNav } from './components/TopNav'
+import { AiServiceChatWidget } from './components/AiServiceChatWidget'
 import { CommandCenter } from './pages/CommandCenter'
 import { VoiceDemo } from './pages/VoiceDemo'
 import { WhisperCopilot } from './pages/WhisperCopilot'
@@ -40,6 +41,8 @@ export default function App() {
         MyVoca · MyClaw Enterprise AI Agent Platform · Taiwan Mobile — Interactive Prototype (mock
         data for demo purposes)
       </footer>
+
+      <AiServiceChatWidget />
     </div>
   )
 }

@@ -12,12 +12,18 @@ import {
   FileText,
   Copy,
   Check,
+  Receipt,
+  ChevronDown,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { AnimatedNumber } from '../components/AnimatedNumber'
 import { StatusDot } from '../components/StatusDot'
 import { HourlyBars } from '../components/charts'
-import { hourlyCalls, opsInsights, teamAgents } from '../data/mock'
+import { hourlyCalls, teamAgents } from '../data/mock'
+import { MPlusNotification } from '../components/MPlusNotification'
+import { StoreQualityCheck } from '../components/StoreQualityCheck'
+import { useAppState } from '../state/appStore'
+import type { Deal } from '../data/deals'
 
 type ReportState = 'idle' | 'generating' | 'ready'
 
@@ -25,13 +31,6 @@ const reportExtras = [
   '尖峰時段落在 17:00–18:00，建議提前 30 分鐘增派 AI Agent 容量',
   'Eric Chen 的 AI 輔助採用率達 96%，可作為團隊標竿案例分享',
   '本週網路類問題整體較上週上升 12%，建議通知網路工程部門追蹤',
-]
-
-const todayKpis = [
-  { icon: PhoneCall, label: 'Calls Handled', value: 1284, delta: '+8.2%', up: true },
-  { icon: Bot, label: 'AI Resolution Rate', value: 72.4, decimals: 1, suffix: '%', delta: '+4.1%', up: true },
-  { icon: Smile, label: 'Customer Satisfaction', value: 4.8, decimals: 1, suffix: ' / 5', delta: '+0.2', up: true },
-  { icon: AlertTriangle, label: 'Risk Alerts', value: 5, delta: '+2', up: false },
 ]
 
 const hourLabels = ['09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']
@@ -47,9 +46,68 @@ const agentStatusColor: Record<string, string> = {
   away: 'gray',
 }
 
+function formatDealTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+}
+
+function DealRow({ deal, index }: { deal: Deal; index: number }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      className="rounded-xl border border-white/[0.06] bg-white/[0.02]"
+    >
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-400">
+            <Receipt size={15} />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white">
+              {deal.customerName} · {deal.planName}
+            </div>
+            <div className="text-[11px] text-ink-400">
+              {deal.id} · {formatDealTime(deal.createdAt)}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-emerald-300">+NT${deal.mrrDelta}/月</span>
+          <ChevronDown size={14} className={`text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden px-4 pb-4"
+          >
+            <MPlusNotification deal={deal} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 export function OperationDashboard() {
+  const state = useAppState()
   const [reportState, setReportState] = useState<ReportState>('idle')
   const [copied, setCopied] = useState(false)
+
+  const todayKpis = [
+    { icon: PhoneCall, label: 'Calls Handled', value: 1284, delta: '+8.2%', up: true },
+    { icon: Bot, label: 'AI Resolution Rate', value: 72.4, decimals: 1, suffix: '%', delta: '+4.1%', up: true },
+    { icon: Smile, label: 'Customer Satisfaction', value: 4.8, decimals: 1, suffix: ' / 5', delta: '+0.2', up: true },
+    { icon: AlertTriangle, label: 'Risk Alerts', value: state.metrics.vipRiskCount, delta: '即時', up: false },
+  ]
 
   const generateReport = () => {
     if (reportState !== 'idle') return
@@ -60,7 +118,7 @@ export function OperationDashboard() {
   const copyReport = () => {
     const lines = [
       '台灣大哥大 MyVoca — 今日營運報告',
-      ...opsInsights.map((ins) => `${ins.rank}. ${ins.text}：${ins.detail}`),
+      ...state.opsAlerts.map((ins) => `${ins.rank}. ${ins.text}：${ins.detail}`),
       ...reportExtras.map((e) => `· ${e}`),
     ]
     navigator.clipboard?.writeText(lines.join('\n')).catch(() => {})
@@ -104,7 +162,7 @@ export function OperationDashboard() {
               </span>
             </div>
             <div className="mt-3 text-3xl font-extrabold text-white">
-              <AnimatedNumber value={k.value} decimals={k.decimals ?? 0} suffix={k.suffix ?? ''} />
+              <AnimatedNumber value={k.value} decimals={k.decimals ?? 0} suffix={k.suffix ?? ''} duration={0.8} />
             </div>
             <div className="mt-0.5 text-sm text-ink-300">{k.label}</div>
           </GlassCard>
@@ -117,6 +175,29 @@ export function OperationDashboard() {
           <GlassCard delay={0.3} hover={false} className="p-6">
             <SectionLabel>今日每小時來電量</SectionLabel>
             <HourlyBars data={hourlyCalls} labels={hourLabels.map((h) => `${h}:00`)} />
+          </GlassCard>
+
+          {/* 今日商機 — concrete deals created by AI during this demo session */}
+          <GlassCard delay={0.34} hover={false} className="p-6">
+            <div className="flex items-center justify-between">
+              <SectionLabel>今日商機 · AI 自動生成</SectionLabel>
+              {state.deals.length > 0 && (
+                <span className="chip border-emerald-400/25 bg-emerald-400/10 text-emerald-300">
+                  +NT${state.metrics.dealsMrrTotal}/月
+                </span>
+              )}
+            </div>
+            {state.deals.length === 0 ? (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-sm text-ink-400">
+                尚無商機 — 在 AI Voice Demo 完成一次升級成交後會出現在這裡
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {state.deals.map((deal, i) => (
+                  <DealRow key={deal.id} deal={deal} index={i} />
+                ))}
+              </div>
+            )}
           </GlassCard>
 
           {/* Team status */}
@@ -158,6 +239,9 @@ export function OperationDashboard() {
               </table>
             </div>
           </GlassCard>
+
+          {/* 門市語音質檢 — same AI brain, in-store channel */}
+          <StoreQualityCheck />
         </div>
 
         {/* AI Generated Insight */}
@@ -184,9 +268,9 @@ export function OperationDashboard() {
               今日主要問題
             </div>
             <div className="space-y-3">
-              {opsInsights.map((ins, i) => (
+              {state.opsAlerts.map((ins, i) => (
                 <motion.div
-                  key={ins.rank}
+                  key={ins.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 + i * 0.15, duration: 0.5 }}

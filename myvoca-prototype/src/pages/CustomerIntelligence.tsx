@@ -7,6 +7,7 @@ import {
   History,
   Heart,
   TrendingDown,
+  TrendingUp,
   AlertTriangle,
   Lightbulb,
   Repeat,
@@ -19,14 +20,15 @@ import {
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { EmotionSparkline } from '../components/charts'
-import { customer360, customerProfile } from '../data/mock'
+import { churnRiskLabel, type CustomerId } from '../data/customers'
+import { useAppActions, useAppState } from '../state/appStore'
 
 type PlanState = 'idle' | 'generating' | 'ready'
 
 const retentionSteps = [
-  { icon: Phone, title: '24 小時內主動關懷電話', detail: '由客戶關懷專員致電，確認網路問題是否已徹底排除' },
-  { icon: Gift, title: '光纖 1G 升級 + 補償折抵', detail: '本月月租折抵 15%，並附贈首年設備保固升級' },
-  { icon: CalendarClock, title: '排定 30 天後回訪', detail: '追蹤升級後滿意度，避免問題復發造成二次流失' },
+  { icon: Phone, title: '24 小時內主動關懷電話', detail: '由客戶關懷專員致電，確認問題是否已徹底排除' },
+  { icon: Gift, title: '個人化補償 / 升級方案', detail: '依會員等級與歷史貢獻，主動提出對等優惠' },
+  { icon: CalendarClock, title: '排定 30 天後回訪', detail: '追蹤處理後滿意度，避免問題復發造成二次流失' },
 ]
 
 const insightIcons = { history: Repeat, risk: AlertTriangle, strategy: Lightbulb }
@@ -42,24 +44,70 @@ const statusStyle: Record<string, string> = {
   已結案: 'bg-emerald-400/15 text-emerald-300',
 }
 
+function statusColorFor(status: string): string {
+  if (statusStyle[status]) return statusStyle[status]
+  if (status.includes('已結案') || status.includes('已建立')) return statusStyle['已結案']
+  if (status.includes('升級')) return statusStyle['已升級工程']
+  return statusStyle['處理中']
+}
+
 export function CustomerIntelligence() {
+  const state = useAppState()
+  const actions = useAppActions()
+  const customerIds = Object.keys(state.customers) as CustomerId[]
+
+  const [selectedId, setSelectedId] = useState<CustomerId>(state.activeCustomerId)
+  const customer = state.customers[selectedId]
+
   const [planState, setPlanState] = useState<PlanState>('idle')
 
   const startPlan = () => {
     if (planState !== 'idle') return
     setPlanState('generating')
-    setTimeout(() => setPlanState('ready'), 1400)
+    setTimeout(() => {
+      setPlanState('ready')
+      actions.recordRetentionPlanTriggered(selectedId)
+    }, 1400)
   }
+
+  const selectCustomer = (id: CustomerId) => {
+    setSelectedId(id)
+    setPlanState('idle')
+  }
+
+  const churnRisk = churnRiskLabel(customer.churnScore)
+  const churnBadgeColor =
+    churnRisk === 'High' ? 'bg-rose-500/20 text-rose-300' : churnRisk === 'Medium' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
+
+  const trend = customer.emotionTrend
+  const trendImproving = trend.length >= 2 && trend[trend.length - 1] >= trend[trend.length - 2]
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h2 className="text-2xl font-extrabold text-white md:text-3xl">
-          Customer <span className="text-gradient">Intelligence 360</span>
-        </h2>
-        <p className="mt-1 text-sm text-ink-300">
-          Customer Twin — 每位客戶的數位分身：價值、歷史、偏好、情緒與 AI 策略
-        </p>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-extrabold text-white md:text-3xl">
+            Customer <span className="text-gradient">Intelligence 360</span>
+          </h2>
+          <p className="mt-1 text-sm text-ink-300">
+            Customer Twin — 每位客戶的數位分身：價值、歷史、偏好、情緒與 AI 策略
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {customerIds.map((id) => (
+            <button
+              key={id}
+              onClick={() => selectCustomer(id)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                id === selectedId
+                  ? 'bg-brand-500 text-white'
+                  : 'border border-white/10 bg-white/[0.04] text-ink-300 hover:text-white'
+              }`}
+            >
+              {state.customers[id].name}
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_1fr]">
@@ -88,13 +136,13 @@ export function CustomerIntelligence() {
               </div>
             </div>
             <div>
-              <div className="text-xl font-extrabold text-white">{customerProfile.name}</div>
+              <div className="text-xl font-extrabold text-white">{customer.name}</div>
               <div className="mt-1 flex gap-2">
                 <span className="chip border-amber-400/30 bg-amber-400/10 text-amber-300">
-                  <Crown size={12} /> VIP
+                  <Crown size={12} /> {customer.tier}
                 </span>
                 <span className="chip border-white/10 bg-white/[0.05] text-ink-200">
-                  {customerProfile.tenureYears} 年客戶
+                  {customer.tenureYears} 年客戶
                 </span>
               </div>
             </div>
@@ -105,10 +153,8 @@ export function CustomerIntelligence() {
               <div className="flex items-center gap-1.5 text-xs text-ink-300">
                 <Wallet size={13} /> Lifetime Value
               </div>
-              <div className="mt-1 text-2xl font-extrabold text-white">
-                {customer360.lifetimeValue}
-              </div>
-              <div className="text-xs text-ink-300">近 12 個月貢獻 {customer360.clv12m}</div>
+              <div className="mt-1 text-2xl font-extrabold text-white">{customer.lifetimeValue}</div>
+              <div className="text-xs text-ink-300">近 12 個月貢獻 {customer.clv12m}</div>
             </div>
 
             <div className="rounded-xl border border-rose-400/20 bg-rose-500/[0.06] p-4">
@@ -116,20 +162,21 @@ export function CustomerIntelligence() {
                 <div className="flex items-center gap-1.5 text-xs text-rose-200">
                   <TrendingDown size={13} /> 流失風險 Churn Risk
                 </div>
-                <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[11px] font-bold text-rose-300">
-                  {customer360.churnRisk}
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${churnBadgeColor}`}>
+                  {churnRisk}
                 </span>
               </div>
               <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.08]">
                 <motion.div
+                  key={customer.churnScore}
                   className="h-full rounded-full bg-gradient-to-r from-rose-600 to-rose-400"
                   initial={{ width: 0 }}
-                  animate={{ width: `${customer360.churnScore}%` }}
-                  transition={{ duration: 1.2, delay: 0.4 }}
+                  animate={{ width: `${customer.churnScore}%` }}
+                  transition={{ duration: 0.8 }}
                 />
               </div>
               <div className="mt-1 text-right text-[11px] font-semibold text-rose-300">
-                {customer360.churnScore} / 100
+                {customer.churnScore} / 100
               </div>
             </div>
 
@@ -138,7 +185,7 @@ export function CustomerIntelligence() {
                 <Heart size={13} /> Preference 偏好
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {customer360.preferences.map((p) => (
+                {customer.preferences.map((p) => (
                   <span
                     key={p}
                     className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] text-ink-200"
@@ -156,15 +203,20 @@ export function CustomerIntelligence() {
           {/* Emotion trend */}
           <GlassCard delay={0.12} hover={false} className="p-6">
             <div className="flex items-center justify-between">
-              <SectionLabel>Emotion Trend · 近 7 次互動情緒指數</SectionLabel>
-              <span className="chip border-rose-400/25 bg-rose-400/10 text-rose-300">
-                <TrendingDown size={12} /> 持續下降
+              <SectionLabel>Emotion Trend · 近期互動情緒指數</SectionLabel>
+              <span
+                className={`chip ${
+                  trendImproving ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'
+                }`}
+              >
+                {trendImproving ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {trendImproving ? '持續改善' : '持續下降'}
               </span>
             </div>
-            <EmotionSparkline data={customer360.emotionTrend} />
+            <EmotionSparkline data={customer.emotionTrend} />
             <div className="mt-1 flex justify-between text-[11px] text-ink-400">
-              <span>90 天前</span>
-              <span>今日</span>
+              <span>較早互動</span>
+              <span>最新</span>
             </div>
           </GlassCard>
 
@@ -176,9 +228,9 @@ export function CustomerIntelligence() {
                 <SectionLabel>Service History</SectionLabel>
               </div>
               <div className="space-y-2.5">
-                {customer360.serviceHistory.map((s, i) => (
+                {customer.serviceHistory.map((s, i) => (
                   <motion.div
-                    key={s.date + s.type}
+                    key={s.date + s.type + i}
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + i * 0.08 }}
@@ -188,7 +240,7 @@ export function CustomerIntelligence() {
                       <span className="text-xs tabular-nums text-ink-400">{s.date}</span>
                       <span className="font-medium text-ink-100">{s.type}</span>
                     </div>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusStyle[s.status]}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusColorFor(s.status)}`}>
                       {s.status}
                     </span>
                   </motion.div>
@@ -203,23 +255,35 @@ export function CustomerIntelligence() {
                 <SectionLabel>AI Insight</SectionLabel>
               </div>
               <div className="space-y-3">
-                {customer360.insights.map((ins, i) => {
-                  const Icon = insightIcons[ins.icon as keyof typeof insightIcons]
-                  return (
-                    <motion.div
-                      key={ins.text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 + i * 0.15 }}
-                      className={`flex items-start gap-2.5 rounded-xl border p-3.5 text-sm leading-relaxed ${
-                        insightStyles[ins.icon as keyof typeof insightStyles]
-                      }`}
-                    >
-                      <Icon size={16} className="mt-0.5 shrink-0" />
-                      「{ins.text}」
-                    </motion.div>
-                  )
-                })}
+                {/* Risk line is always recomputed live from the current churn score —
+                    never trust a stored "risk" insight, it goes stale the moment
+                    churnScore changes elsewhere (e.g. after a retention plan). */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className={`flex items-start gap-2.5 rounded-xl border p-3.5 text-sm leading-relaxed ${insightStyles.risk}`}
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  「流失風險：{churnRisk}（{customer.churnScore} / 100）」
+                </motion.div>
+                {customer.insights
+                  .filter((ins) => ins.icon !== 'risk')
+                  .map((ins, i) => {
+                    const Icon = insightIcons[ins.icon]
+                    return (
+                      <motion.div
+                        key={ins.text + i}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 + i * 0.15 }}
+                        className={`flex items-start gap-2.5 rounded-xl border p-3.5 text-sm leading-relaxed ${insightStyles[ins.icon]}`}
+                      >
+                        <Icon size={16} className="mt-0.5 shrink-0" />
+                        「{ins.text}」
+                      </motion.div>
+                    )
+                  })}
 
                 {planState === 'idle' && (
                   <motion.button
@@ -247,7 +311,7 @@ export function CustomerIntelligence() {
                       className="space-y-2.5 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] p-4"
                     >
                       <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-emerald-300">
-                        <CheckCircle2 size={14} /> 挽留方案已生成 · 追蹤任務已建立
+                        <CheckCircle2 size={14} /> 挽留方案已生成 · 追蹤任務已建立 · 流失風險已下降
                       </div>
                       {retentionSteps.map((s, i) => (
                         <motion.div
