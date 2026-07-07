@@ -17,6 +17,7 @@ import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { VoiceWave } from '../components/VoiceWave'
 import { StatusDot } from '../components/StatusDot'
 import { ReasoningPanel } from '../components/ReasoningPanel'
+import { MicButton } from '../components/MicButton'
 import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
 import type { CustomerId } from '../data/customers'
 import { industries } from '../data/industries'
@@ -152,7 +153,7 @@ export function WhisperCopilot() {
           {/* Live input */}
           <div className="mt-4 border-t border-white/[0.06] pt-4">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-              現場模擬 · 輸入客戶正在說的話
+              現場模擬 · 輸入或說出客戶正在說的話
             </div>
             <div className="mb-2 flex flex-wrap gap-1.5">
               {quickReplies.map((q) => (
@@ -180,6 +181,7 @@ export function WhisperCopilot() {
                 placeholder={thinking ? 'AI 正在生成耳語提示…' : '輸入客戶說的話，按 Enter 送出…'}
                 className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-ink-100 placeholder:text-ink-400 focus:border-brand-400/50 focus:outline-none disabled:opacity-50"
               />
+              <MicButton onResult={submit} disabled={thinking} />
               <button
                 type="submit"
                 disabled={thinking || !inputValue.trim()}

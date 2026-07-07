@@ -33,6 +33,7 @@ import { StatusDot } from '../components/StatusDot'
 import { ReasoningPanel } from '../components/ReasoningPanel'
 import { MPlusNotification } from '../components/MPlusNotification'
 import { HandoffBriefing } from '../components/HandoffBriefing'
+import { MicButton } from '../components/MicButton'
 import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
 import { createDealFromAnalysis, type Deal } from '../data/deals'
 import type { CustomerId } from '../data/customers'
@@ -88,6 +89,8 @@ export function VoiceDemo() {
   const [resolved, setResolved] = useState<'ai' | 'human' | null>(null)
   const [lastDeal, setLastDeal] = useState<Deal | null>(null)
   const [liveInput, setLiveInput] = useState('')
+  const [autoMode, setAutoMode] = useState(false)
+  const [autoDeciding, setAutoDeciding] = useState(false)
   const turnIdRef = useRef(0)
   const transcriptEndRef = useRef<HTMLDivElement>(null)
 
@@ -162,6 +165,7 @@ export function VoiceDemo() {
 
   const resolve = (resolution: 'ai' | 'human') => {
     setResolved(resolution)
+    setAutoDeciding(false)
     actions.recordCallResolved(selectedId, resolution)
     if (resolution === 'ai' && analysis?.purchaseSignal) {
       const deal = createDealFromAnalysis(selectedId, customer.name, analysis, 'voice')
@@ -169,6 +173,24 @@ export function VoiceDemo() {
       actions.recordDealCreated(deal)
     }
   }
+
+  const suggestHuman = analysis
+    ? analysis.intentId === 'churn' || analysis.emotionId === 'frustrated' || analysis.intentConfidence < 90
+    : false
+
+  // Auto-routing demo mode: when enabled, let the AI actually make the call
+  // (after a short "deciding" beat) instead of waiting for the presenter to
+  // click a button — a manual click at any point still wins the race.
+  useEffect(() => {
+    if (!autoMode || phase !== 'ready' || !analysis || resolved) {
+      setAutoDeciding(false)
+      return
+    }
+    setAutoDeciding(true)
+    const t = setTimeout(() => resolve(suggestHuman ? 'human' : 'ai'), 1600)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMode, phase, analysis, resolved])
 
   const emotionLabel = customer.emotion
   const emo = emotionStyle[emotionLabel] ?? emotionStyle.Neutral
@@ -443,10 +465,10 @@ export function VoiceDemo() {
               <div ref={transcriptEndRef} />
             </div>
 
-            {/* Live input — type any customer line to re-run the AI live */}
+            {/* Live input — type or speak any customer line to re-run the AI live */}
             <div className="mt-4 border-t border-white/[0.06] pt-4">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-                現場模擬 · 輸入任意客戶說的話
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                現場模擬 · 輸入或說出任意客戶的話
               </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {quickReplies.map((q) => (
@@ -474,6 +496,7 @@ export function VoiceDemo() {
                   placeholder={busy ? 'AI 正在處理上一句…' : '輸入客戶說的話，按 Enter 送出…'}
                   className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-ink-100 placeholder:text-ink-400 focus:border-brand-400/50 focus:outline-none disabled:opacity-50"
                 />
+                <MicButton onResult={submitLiveInput} disabled={busy} />
                 <button
                   type="submit"
                   disabled={busy || !liveInput.trim()}
@@ -489,7 +512,17 @@ export function VoiceDemo() {
           <GlassCard delay={0.2} hover={false} className="p-5">
             <div className="flex items-center justify-between">
               <SectionLabel>AI Brain Recommendation</SectionLabel>
-              <StatusDot color="orange" />
+              <button
+                onClick={() => setAutoMode((m) => !m)}
+                title="開啟後，AI 會依信心與情緒自動決定轉真人或自動處理，手動點擊按鈕仍可隨時覆蓋"
+                className={`chip transition-colors ${
+                  autoMode
+                    ? 'border-brand-400/40 bg-brand-400/15 text-brand-300'
+                    : 'border-white/10 bg-white/[0.04] text-ink-400 hover:text-white'
+                }`}
+              >
+                <Zap size={11} /> 自動分流{autoMode ? '：開' : '：關'}
+              </button>
             </div>
 
             {phase !== 'ready' || !analysis ? (
@@ -570,29 +603,32 @@ export function VoiceDemo() {
                   )
                 })}
 
-                {(() => {
-                  const suggestHuman =
-                    analysis.intentId === 'churn' ||
-                    analysis.emotionId === 'frustrated' ||
-                    analysis.intentConfidence < 90
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.65 }}
-                      className={`chip ${
-                        suggestHuman
-                          ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-                          : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-                      }`}
-                    >
-                      <BrainCircuit size={12} />
-                      {suggestHuman
-                        ? `AI 建議：轉真人客服（${analysis.emotionId === 'frustrated' ? '情緒不穩' : analysis.intentId === 'churn' ? '流失風險高' : '信心不足'}）`
-                        : `AI 建議：可自動處理（信心 ${analysis.intentConfidence}%）`}
-                    </motion.div>
-                  )
-                })()}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.65 }}
+                  className={`chip ${
+                    suggestHuman
+                      ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                  }`}
+                >
+                  <BrainCircuit size={12} />
+                  {suggestHuman
+                    ? `AI 建議：轉真人客服（${analysis.emotionId === 'frustrated' ? '情緒不穩' : analysis.intentId === 'churn' ? '流失風險高' : '信心不足'}）`
+                    : `AI 建議：可自動處理（信心 ${analysis.intentConfidence}%）`}
+                </motion.div>
+
+                {autoDeciding && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2 rounded-lg border border-brand-400/25 bg-brand-500/[0.06] px-3 py-2 text-xs font-medium text-brand-300"
+                  >
+                    <Loader2 size={13} className="animate-spin" />
+                    自動分流已啟動，AI 正在決定處理方式…
+                  </motion.div>
+                )}
 
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
