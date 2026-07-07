@@ -30,8 +30,8 @@ export const colors = {
 // Seconds, not frames — every scene component is written against t = frame / fps
 // so the same logic renders identically at 1080p/30 or a future 4K/60 pass.
 export const ACT = {
-  ringtoneLogo: [0, 8] as const,
-  painChaos: [8, 20] as const,
+  ringtoneLogo: [0, 9] as const,
+  painChaos: [9, 20] as const,
   listening: [20, 38] as const,
   purchaseSignal: [38, 50] as const,
   aiCore: [50, 65] as const,

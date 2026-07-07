@@ -64,7 +64,7 @@ const AiCore: React.FC<{ t: number }> = ({ t }) => {
   const growth = envelope(t, 46, 52, 65.5, 69)
   const coreRef = useRef<THREE.Mesh>(null)
   if (coreRef.current) {
-    const s = growth * 1.9
+    const s = growth * 1.5
     coreRef.current.scale.setScalar(Math.max(0.001, s))
     coreRef.current.rotation.y = t * 0.12
     coreRef.current.rotation.x = t * 0.05
@@ -108,8 +108,8 @@ const OrbitNode: React.FC<{ t: number; index: number; growth: number }> = ({ t, 
   const hex = new THREE.Color(rgb[0], rgb[1], rgb[2])
   return (
     <mesh ref={ref}>
-      <sphereGeometry args={[0.16, 16, 16]} />
-      <meshStandardMaterial color={hex} emissive={hex} emissiveIntensity={1.8} transparent opacity={growth} />
+      <sphereGeometry args={[0.27, 16, 16]} />
+      <meshStandardMaterial color={hex} emissive={hex} emissiveIntensity={3} transparent opacity={growth} />
     </mesh>
   )
 }

@@ -35,8 +35,14 @@ function facetPosition(i: number, count: number, radius: number): [number, numbe
   return [Math.cos(theta) * r * radius, y * radius, Math.sin(theta) * r * radius]
 }
 
-function facetColor(i: number): RGB {
-  return brandFacetColors[i % brandFacetColors.length]
+// Contiguous color wedges (like the brand's faceted-sphere logo) rather than
+// per-index noise — color depends on where the point sits, not its index.
+function facetColor(pos: [number, number, number]): RGB {
+  const lon = Math.atan2(pos[2], pos[0]) // -π..π
+  const lonSector = Math.floor(((lon + Math.PI) / (Math.PI * 2)) * 4) % 4
+  const latBand = pos[1] > 0 ? 0 : 1
+  const idx = (lonSector + latBand) % brandFacetColors.length
+  return brandFacetColors[idx]
 }
 
 // ---------- Act 1: ringtone ripples -> logo formation ----------
@@ -54,7 +60,7 @@ function actRingtoneLogo(i: number, N: number, s: Seed, t: number): ParticleStat
   const rippleColor = lerpRgb(white, aiBlue, 0.5 + 0.5 * Math.sin(s.phase + t))
 
   const facet = facetPosition(i, N, 1.6)
-  const fColor = facetColor(i)
+  const fColor = facetColor(facet)
 
   const u = smootherstep(clamp01((t - 1.5) / 4.5))
   const pos: [number, number, number] = [
@@ -203,7 +209,7 @@ function actIndustryTunnel(i: number, N: number, s: Seed, t: number): ParticleSt
 function actConvergence(i: number, N: number, s: Seed, t: number): ParticleState {
   const t7 = t - 78
   const facet = facetPosition(i, N, 1.6)
-  const fColor = facetColor(i)
+  const fColor = facetColor(facet)
   const u = smootherstep(clamp01(t7 / 5))
   const from: [number, number, number] = [Math.cos(s.angle) * 2.4, Math.sin(s.angle) * 2.4, -6 + s.radiusJitter * 4]
   const pos: [number, number, number] = [
@@ -225,8 +231,8 @@ const ACT_FNS = [
   actIndustryTunnel,
   actConvergence,
 ]
-const BOUNDARIES = [0, 8, 20, 38, 50, 65, 78, 90]
-const TRANSITION_SECONDS = 2.2
+const BOUNDARIES = [0, 9, 20, 38, 50, 65, 78, 90]
+const TRANSITION_SECONDS = 1.3
 
 export function getParticleState(i: number, N: number, s: Seed, t: number): ParticleState {
   let k = 0
