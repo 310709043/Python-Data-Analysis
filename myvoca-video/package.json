@@ -8,10 +8,16 @@
     "render": "remotion render MyVocaIntro out/myvoca-intro.mp4"
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@react-three/postprocessing": "^2.19.1",
     "@remotion/cli": "4.0.245",
+    "@remotion/three": "^4.0.245",
+    "@types/three": "^0.185.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "remotion": "4.0.245"
+    "remotion": "4.0.245",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

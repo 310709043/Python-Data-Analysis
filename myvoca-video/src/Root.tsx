@@ -8,6 +8,7 @@ import { SceneCapabilities } from './scenes/SceneCapabilities'
 import { SceneIndustries } from './scenes/SceneIndustries'
 import { SceneClosing } from './scenes/SceneClosing'
 import { FPS } from './theme'
+import { SmokeTest } from './SmokeTest'
 
 // 90 seconds at 30fps — scene lengths must sum to 2700.
 const SCENES = {
@@ -48,12 +49,22 @@ const MyVocaIntro: React.FC = () => (
 )
 
 export const RemotionRoot: React.FC = () => (
-  <Composition
-    id="MyVocaIntro"
-    component={MyVocaIntro}
-    durationInFrames={TOTAL}
-    fps={FPS}
-    width={1920}
-    height={1080}
-  />
+  <>
+    <Composition
+      id="MyVocaIntro"
+      component={MyVocaIntro}
+      durationInFrames={TOTAL}
+      fps={FPS}
+      width={1920}
+      height={1080}
+    />
+    <Composition
+      id="SmokeTest"
+      component={SmokeTest}
+      durationInFrames={30}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+  </>
 )
