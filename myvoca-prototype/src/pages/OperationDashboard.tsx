@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   PhoneCall,
   Bot,
@@ -7,12 +8,24 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
+  Loader2,
+  FileText,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { AnimatedNumber } from '../components/AnimatedNumber'
 import { StatusDot } from '../components/StatusDot'
 import { HourlyBars } from '../components/charts'
 import { hourlyCalls, opsInsights, teamAgents } from '../data/mock'
+
+type ReportState = 'idle' | 'generating' | 'ready'
+
+const reportExtras = [
+  '尖峰時段落在 17:00–18:00，建議提前 30 分鐘增派 AI Agent 容量',
+  'Eric Chen 的 AI 輔助採用率達 96%，可作為團隊標竿案例分享',
+  '本週網路類問題整體較上週上升 12%，建議通知網路工程部門追蹤',
+]
 
 const todayKpis = [
   { icon: PhoneCall, label: 'Calls Handled', value: 1284, delta: '+8.2%', up: true },
@@ -35,6 +48,26 @@ const agentStatusColor: Record<string, string> = {
 }
 
 export function OperationDashboard() {
+  const [reportState, setReportState] = useState<ReportState>('idle')
+  const [copied, setCopied] = useState(false)
+
+  const generateReport = () => {
+    if (reportState !== 'idle') return
+    setReportState('generating')
+    setTimeout(() => setReportState('ready'), 1500)
+  }
+
+  const copyReport = () => {
+    const lines = [
+      '台灣大哥大 MyVoca — 今日營運報告',
+      ...opsInsights.map((ins) => `${ins.rank}. ${ins.text}：${ins.detail}`),
+      ...reportExtras.map((e) => `· ${e}`),
+    ]
+    navigator.clipboard?.writeText(lines.join('\n')).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1600)
+  }
+
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
       <motion.div
@@ -172,14 +205,66 @@ export function OperationDashboard() {
               ))}
             </div>
 
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.1 }}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              生成完整營運報告
-            </motion.button>
+            {reportState === 'idle' && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.1 }}
+                onClick={generateReport}
+                className="mt-4 w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                生成完整營運報告
+              </motion.button>
+            )}
+
+            {reportState === 'generating' && (
+              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-brand-400/20 bg-brand-500/[0.06] px-4 py-3 text-sm font-medium text-brand-300">
+                <Loader2 size={15} className="animate-spin" /> AI 正在彙整今日所有對話與數據…
+              </div>
+            )}
+
+            <AnimatePresence>
+              {reportState === 'ready' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 space-y-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                      <FileText size={13} className="text-brand-400" /> 完整營運報告 · 已生成
+                    </div>
+                    <button
+                      onClick={copyReport}
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-ink-200 transition-colors hover:bg-white/[0.1] hover:text-white"
+                    >
+                      {copied ? <Check size={12} /> : <Copy size={12} />}
+                      {copied ? '已複製' : '複製文字'}
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {reportExtras.map((e, i) => (
+                      <motion.div
+                        key={e}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 + i * 0.12 }}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-ink-200"
+                      >
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-brand-400" />
+                        {e}
+                      </motion.div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setReportState('idle')}
+                    className="text-[11px] font-medium text-ink-400 underline-offset-2 hover:text-white hover:underline"
+                  >
+                    重新生成
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </GlassCard>
       </div>

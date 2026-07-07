@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bot,
@@ -16,13 +17,27 @@ import { AnimatedNumber } from '../components/AnimatedNumber'
 import { StatusDot } from '../components/StatusDot'
 import type { PageId } from '../App'
 
-const kpis = [
+// Small live-tick so the dashboard reads as a real-time monitor rather than
+// a frozen mockup — nudges the value within +/- range every few seconds.
+function useLiveNumber(base: number, range: number, intervalMs = 3800) {
+  const [value, setValue] = useState(base)
+  useEffect(() => {
+    const t = setInterval(() => {
+      setValue(base + Math.round((Math.random() - 0.5) * 2 * range))
+    }, intervalMs)
+    return () => clearInterval(t)
+  }, [base, range, intervalMs])
+  return value
+}
+
+const kpiBase = [
   {
     icon: Bot,
     label: 'AI Agents Online',
     value: 128,
     sub: '+12 vs 昨日',
     color: 'text-brand-400',
+    live: 4,
   },
   {
     icon: PhoneCall,
@@ -30,6 +45,7 @@ const kpis = [
     value: 342,
     sub: 'AI 同步輔助中',
     color: 'text-emerald-400',
+    live: 14,
   },
   {
     icon: HeartPulse,
@@ -38,6 +54,7 @@ const kpis = [
     suffix: '%',
     sub: 'Positive · 即時情緒指數',
     color: 'text-sky-400',
+    live: 0,
   },
   {
     icon: Target,
@@ -47,6 +64,7 @@ const kpis = [
     suffix: '%',
     sub: '首次來電解決率',
     color: 'text-brand-300',
+    live: 0,
   },
 ]
 
@@ -123,26 +141,10 @@ export function CommandCenter({ onNavigate }: { onNavigate: (p: PageId) => void 
         </motion.div>
       </div>
 
-      {/* KPI grid */}
+      {/* KPI grid — Active Calls / AI Agents Online tick live to read as a real-time monitor */}
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((kpi, i) => (
-          <GlassCard key={kpi.label} delay={0.35 + i * 0.08} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className={`rounded-xl bg-white/[0.06] p-2.5 ${kpi.color}`}>
-                <kpi.icon size={20} />
-              </div>
-              <StatusDot color={i === 0 ? 'orange' : 'green'} />
-            </div>
-            <div className="mt-4 text-3xl font-extrabold text-white">
-              <AnimatedNumber
-                value={kpi.value}
-                decimals={kpi.decimals ?? 0}
-                suffix={kpi.suffix ?? ''}
-              />
-            </div>
-            <div className="mt-1 text-sm font-medium text-ink-200">{kpi.label}</div>
-            <div className="mt-0.5 text-xs text-ink-300">{kpi.sub}</div>
-          </GlassCard>
+        {kpiBase.map((kpi, i) => (
+          <KpiTile key={kpi.label} kpi={kpi} index={i} />
         ))}
       </div>
 
@@ -169,5 +171,24 @@ export function CommandCenter({ onNavigate }: { onNavigate: (p: PageId) => void 
         </div>
       </GlassCard>
     </div>
+  )
+}
+
+function KpiTile({ kpi, index }: { kpi: (typeof kpiBase)[number]; index: number }) {
+  const liveValue = useLiveNumber(kpi.value, kpi.live)
+  return (
+    <GlassCard delay={0.35 + index * 0.08} className="p-6">
+      <div className="flex items-start justify-between">
+        <div className={`rounded-xl bg-white/[0.06] p-2.5 ${kpi.color}`}>
+          <kpi.icon size={20} />
+        </div>
+        <StatusDot color={index === 0 ? 'orange' : 'green'} />
+      </div>
+      <div className="mt-4 text-3xl font-extrabold text-white">
+        <AnimatedNumber value={liveValue} decimals={kpi.decimals ?? 0} suffix={kpi.suffix ?? ''} duration={0.9} />
+      </div>
+      <div className="mt-1 text-sm font-medium text-ink-200">{kpi.label}</div>
+      <div className="mt-0.5 text-xs text-ink-300">{kpi.sub}</div>
+    </GlassCard>
   )
 }

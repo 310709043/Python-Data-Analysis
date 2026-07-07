@@ -10,11 +10,13 @@ import {
   Check,
   User,
   Ear,
+  Send,
+  Loader2,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { VoiceWave } from '../components/VoiceWave'
 import { StatusDot } from '../components/StatusDot'
-import { whisperSuggestedReply, whisperTips } from '../data/mock'
+import { analyzeUtterance, quickReplies, type AnalysisResult } from '../data/aiEngine'
 
 const tipIcons = { alert: TrendingDown, coach: HeartHandshake }
 const tipStyles = {
@@ -22,22 +24,51 @@ const tipStyles = {
   coach: 'border-sky-400/25 bg-sky-500/[0.08] text-sky-200',
 }
 
+const DEFAULT_LINE = '我昨天就反映過了，為什麼今天還是一直斷線？你們到底有沒有在處理？'
+
 export function WhisperCopilot() {
+  const [customerLine, setCustomerLine] = useState(DEFAULT_LINE)
+  const [inputValue, setInputValue] = useState('')
+  const [thinking, setThinking] = useState(true)
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const [visibleTips, setVisibleTips] = useState(0)
   const [showReply, setShowReply] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  const runAnalysis = (text: string) => {
+    setCustomerLine(text)
+    setThinking(true)
+    setAnalysis(null)
+    setVisibleTips(0)
+    setShowReply(false)
+
+    const result = analyzeUtterance(text, '客戶')
+    const t0 = setTimeout(() => {
+      setThinking(false)
+      setAnalysis(result)
+    }, 900)
+    const t1 = setTimeout(() => setVisibleTips(1), 1500)
+    const t2 = setTimeout(() => setVisibleTips(2), 2300)
+    const t3 = setTimeout(() => setShowReply(true), 3100)
+    return () => [t0, t1, t2, t3].forEach(clearTimeout)
+  }
+
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setVisibleTips(1), 1200),
-      setTimeout(() => setVisibleTips(2), 2400),
-      setTimeout(() => setShowReply(true), 3600),
-    ]
-    return () => timers.forEach(clearTimeout)
+    const cleanup = runAnalysis(DEFAULT_LINE)
+    return cleanup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const submit = (text: string) => {
+    const clean = text.trim()
+    if (!clean || thinking) return
+    runAnalysis(clean)
+    setInputValue('')
+  }
+
   const copyReply = () => {
-    navigator.clipboard?.writeText(whisperSuggestedReply).catch(() => {})
+    if (!analysis) return
+    navigator.clipboard?.writeText(analysis.suggestedReply).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
   }
@@ -49,7 +80,7 @@ export function WhisperCopilot() {
           AI Whisper <span className="text-gradient">Copilot</span>
         </h2>
         <p className="mt-1 text-sm text-ink-300">
-          客服的第二大腦 — 通話中即時耳語提示，只有客服看得見
+          客服的第二大腦 — 通話中即時耳語提示，只有客服看得見。輸入任意客戶說的話，現場測試 AI 反應。
         </p>
       </motion.div>
 
@@ -64,23 +95,11 @@ export function WhisperCopilot() {
           </div>
 
           <div className="mt-4 flex flex-col items-center gap-10 py-8 md:flex-row md:justify-around">
-            {/* Customer */}
-            <CallPartyAvatar
-              name="王先生"
-              role="VIP 客戶"
-              icon={<User size={30} />}
-              ringColor="rgba(244,63,94,0.5)"
-            />
-
-            {/* Waveform between */}
+            <CallPartyAvatar name="客戶" role="來電中" icon={<User size={30} />} ringColor="rgba(244,63,94,0.5)" />
             <div className="flex flex-col items-center gap-2">
               <VoiceWave bars={28} className="h-10" />
-              <span className="text-[11px] uppercase tracking-[0.2em] text-ink-400">
-                TAIPBX Voice Stream
-              </span>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-ink-400">TAIPBX Voice Stream</span>
             </div>
-
-            {/* Agent */}
             <CallPartyAvatar
               name="客服 Eric"
               role="真人客服 · AI 輔助中"
@@ -90,12 +109,53 @@ export function WhisperCopilot() {
             />
           </div>
 
-          {/* Conversation context strip */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm leading-relaxed text-ink-200">
+          {/* Conversation context strip — now shows whatever line was analyzed */}
+          <div className="min-h-[64px] rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm leading-relaxed text-ink-200">
             <span className="mr-2 rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">
               客戶
             </span>
-            「我昨天就反映過了，為什麼今天還是一直斷線？你們到底有沒有在處理？」
+            「{customerLine}」
+          </div>
+
+          {/* Live input */}
+          <div className="mt-4 border-t border-white/[0.06] pt-4">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+              現場模擬 · 輸入客戶正在說的話
+            </div>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {quickReplies.map((q) => (
+                <button
+                  key={q.label}
+                  disabled={thinking}
+                  onClick={() => submit(q.text)}
+                  className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-ink-300 transition-colors hover:border-brand-400/40 hover:text-white disabled:opacity-40"
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                submit(inputValue)
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={thinking}
+                placeholder={thinking ? 'AI 正在生成耳語提示…' : '輸入客戶說的話，按 Enter 送出…'}
+                className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-ink-100 placeholder:text-ink-400 focus:border-brand-400/50 focus:outline-none disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={thinking || !inputValue.trim()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white transition-transform hover:scale-105 disabled:opacity-30 disabled:hover:scale-100"
+              >
+                <Send size={15} />
+              </button>
+            </form>
           </div>
         </GlassCard>
 
@@ -126,24 +186,29 @@ export function WhisperCopilot() {
                 </div>
               </div>
               <div className="chip border-brand-400/25 bg-brand-400/10 text-brand-300">
-                <Sparkles size={12} /> Listening
+                {thinking ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                {thinking ? 'Analyzing' : 'Listening'}
               </div>
             </div>
 
-            {/* Tips appear sequentially */}
-            <div className="relative mt-5 space-y-3">
+            <div className="relative mt-5 min-h-[220px] space-y-3">
+              {thinking && (
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-ink-300">
+                  <Loader2 size={14} className="animate-spin text-brand-400" />
+                  AI 正在解析語意與情緒…
+                </div>
+              )}
+
               <AnimatePresence>
-                {whisperTips.slice(0, visibleTips).map((tip) => {
-                  const Icon = tipIcons[tip.type as keyof typeof tipIcons]
+                {analysis && analysis.whisperTips.slice(0, visibleTips).map((tip) => {
+                  const Icon = tipIcons[tip.type]
                   return (
                     <motion.div
                       key={tip.text}
                       initial={{ opacity: 0, y: 14, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                      className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium ${
-                        tipStyles[tip.type as keyof typeof tipStyles]
-                      }`}
+                      className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium ${tipStyles[tip.type]}`}
                     >
                       <Icon size={16} className="shrink-0" />
                       {tip.text}
@@ -152,9 +217,8 @@ export function WhisperCopilot() {
                 })}
               </AnimatePresence>
 
-              {/* Suggested reply */}
               <AnimatePresence>
-                {showReply && (
+                {analysis && showReply && (
                   <motion.div
                     initial={{ opacity: 0, y: 18, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -164,21 +228,19 @@ export function WhisperCopilot() {
                     <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-brand-300">
                       <MessageSquareQuote size={14} /> 推薦回答
                     </div>
-                    <p className="text-sm leading-relaxed text-white">
-                      「{whisperSuggestedReply}」
-                    </p>
+                    <p className="text-sm leading-relaxed text-white">「{analysis.suggestedReply}」</p>
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.1]">
                           <motion.div
                             className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-300"
                             initial={{ width: 0 }}
-                            animate={{ width: '96%' }}
+                            animate={{ width: `${analysis.intentConfidence}%` }}
                             transition={{ duration: 1.1, delay: 0.3 }}
                           />
                         </div>
                         <span className="text-[11px] font-semibold text-brand-300">
-                          AI Confidence 96%
+                          AI Confidence {analysis.intentConfidence}%
                         </span>
                       </div>
                       <button

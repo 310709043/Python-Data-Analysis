@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   User,
   Crown,
@@ -10,10 +11,23 @@ import {
   Lightbulb,
   Repeat,
   Sparkles,
+  Loader2,
+  CheckCircle2,
+  Phone,
+  Gift,
+  CalendarClock,
 } from 'lucide-react'
 import { GlassCard, SectionLabel } from '../components/GlassCard'
 import { EmotionSparkline } from '../components/charts'
 import { customer360, customerProfile } from '../data/mock'
+
+type PlanState = 'idle' | 'generating' | 'ready'
+
+const retentionSteps = [
+  { icon: Phone, title: '24 小時內主動關懷電話', detail: '由客戶關懷專員致電，確認網路問題是否已徹底排除' },
+  { icon: Gift, title: '光纖 1G 升級 + 補償折抵', detail: '本月月租折抵 15%，並附贈首年設備保固升級' },
+  { icon: CalendarClock, title: '排定 30 天後回訪', detail: '追蹤升級後滿意度，避免問題復發造成二次流失' },
+]
 
 const insightIcons = { history: Repeat, risk: AlertTriangle, strategy: Lightbulb }
 const insightStyles = {
@@ -29,6 +43,14 @@ const statusStyle: Record<string, string> = {
 }
 
 export function CustomerIntelligence() {
+  const [planState, setPlanState] = useState<PlanState>('idle')
+
+  const startPlan = () => {
+    if (planState !== 'idle') return
+    setPlanState('generating')
+    setTimeout(() => setPlanState('ready'), 1400)
+  }
+
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
@@ -198,14 +220,59 @@ export function CustomerIntelligence() {
                     </motion.div>
                   )
                 })}
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.9 }}
-                  className="w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  一鍵啟動 AI 挽留方案
-                </motion.button>
+
+                {planState === 'idle' && (
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.9 }}
+                    onClick={startPlan}
+                    className="w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    一鍵啟動 AI 挽留方案
+                  </motion.button>
+                )}
+
+                {planState === 'generating' && (
+                  <div className="flex items-center justify-center gap-2 rounded-xl border border-brand-400/20 bg-brand-500/[0.06] px-4 py-3 text-sm font-medium text-brand-300">
+                    <Loader2 size={15} className="animate-spin" /> AI 正在生成個人化挽留方案…
+                  </div>
+                )}
+
+                <AnimatePresence>
+                  {planState === 'ready' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-2.5 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] p-4"
+                    >
+                      <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-emerald-300">
+                        <CheckCircle2 size={14} /> 挽留方案已生成 · 追蹤任務已建立
+                      </div>
+                      {retentionSteps.map((s, i) => (
+                        <motion.div
+                          key={s.title}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 + i * 0.12 }}
+                          className="flex items-start gap-2.5 text-xs text-ink-200"
+                        >
+                          <s.icon size={14} className="mt-0.5 shrink-0 text-emerald-300" />
+                          <div>
+                            <div className="font-semibold text-white">{s.title}</div>
+                            <div className="mt-0.5 text-ink-300">{s.detail}</div>
+                          </div>
+                        </motion.div>
+                      ))}
+                      <button
+                        onClick={() => setPlanState('idle')}
+                        className="mt-1 text-[11px] font-medium text-ink-400 underline-offset-2 hover:text-white hover:underline"
+                      >
+                        重新生成
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </GlassCard>
           </div>
