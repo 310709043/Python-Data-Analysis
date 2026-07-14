@@ -73,65 +73,9 @@ function actRingtoneLogo(i: number, N: number, s: Seed, t: number): ParticleStat
   return { pos, color, opacity }
 }
 
-// ---------- Act 2: chaos — four living pain points ----------
-const clusterCenters: [number, number, number][] = [
-  [-2.4, 0.6, -3.2],
-  [2.6, -0.4, -6.5],
-  [-1.6, 0.9, -9.5],
-  [-3.2, -0.8, -11.5],
-]
-const clusterColors: RGB[] = [ink, red, inkDim, gold]
-
-function actPainChaos(i: number, N: number, s: Seed, t: number): ParticleState {
-  const t2 = t - 8
-  const c = s.cluster
-  const center = clusterCenters[c]
-  let pos: [number, number, number]
-  let color = clusterColors[c]
-  let opacity = 0.85
-
-  if (c === 0) {
-    // repeated complaints — small orbiting loop, going in circles
-    const r = 0.9 + s.radiusJitter * 0.3
-    const a = s.angle + t2 * 1.4 * s.speed
-    pos = [center[0] + Math.cos(a) * r, center[1] + Math.sin(a) * r * 0.7, center[2] + Math.sin(a * 0.5) * 0.5]
-  } else if (c === 1) {
-    // frustration — jagged red bursts
-    const jag = Math.sin(t2 * 6 + s.phase) * Math.sign(Math.sin(t2 * 2.3 + s.phase))
-    const r = 0.6 + Math.abs(jag) * 0.9 + s.radiusJitter * 0.3
-    pos = [
-      center[0] + Math.cos(s.angle) * r,
-      center[1] + Math.sin(s.angle) * r + jag * 0.3,
-      center[2] + Math.sin(s.angle2) * r * 0.6,
-    ]
-    opacity = 0.65 + Math.abs(jag) * 0.3
-  } else if (c === 2) {
-    // scattered, disconnected information — loosely drifting fragments
-    const drift = Math.sin(t2 * 0.6 + s.phase) * 0.4
-    const r = 1.1 + s.radiusJitter * 0.6
-    pos = [
-      center[0] + Math.cos(s.angle) * r + drift,
-      center[1] + Math.sin(s.angle2) * r * 0.8,
-      center[2] + Math.sin(s.angle) * r * 0.5,
-    ]
-    opacity = 0.5
-  } else {
-    // opportunity, slowly drifting away and fading
-    const drift = Math.min(t2, 10) * 0.5
-    const r = 0.8 + s.radiusJitter * 0.4
-    pos = [
-      center[0] + Math.cos(s.angle) * r - drift * 0.6,
-      center[1] + Math.sin(s.angle) * r - drift * 0.15,
-      center[2] + Math.sin(s.angle2) * r * 0.5 - drift,
-    ]
-    opacity = Math.max(0.08, 0.75 - t2 / 16)
-  }
-  return { pos, color, opacity }
-}
-
-// ---------- Act 3: AI listening — a living waveform ----------
+// ---------- Act 2: AI listening — a living waveform ----------
 function actListening(i: number, N: number, s: Seed, t: number): ParticleState {
-  const t3 = t - 20
+  const t3 = t - 9
   const envelope = clamp01(t3 / 2)
   const lane = Math.floor(s.lane * 5) - 2
   const x = (((i % 520) / 520) - 0.5) * 11
@@ -146,9 +90,9 @@ function actListening(i: number, N: number, s: Seed, t: number): ParticleState {
   return { pos, color, opacity }
 }
 
-// ---------- Act 4: purchase signal + order + network ----------
+// ---------- Act 3: sales highlight — signal converges while the real UI floats above ----------
 function actPurchaseSignal(i: number, N: number, s: Seed, t: number): ParticleState {
-  const t4 = t - 38
+  const t4 = t - 20
   const toward = clamp01(t4 / 6)
   // Field gently converges from the listening ribbon toward the signal point,
   // then streams outward again as the network notification.
@@ -168,9 +112,9 @@ function actPurchaseSignal(i: number, N: number, s: Seed, t: number): ParticleSt
   return { pos, color, opacity }
 }
 
-// ---------- Act 5: the AI core, a nebula of five living capabilities ----------
+// ---------- Act 5: benefits — the AI core, a nebula of five living capabilities ----------
 function actAiCore(i: number, N: number, s: Seed, t: number): ParticleState {
-  const t5 = t - 50
+  const t5 = t - 46
   const radius = 2.3 + s.radiusJitter * 1.1
   const a = s.angle + t5 * 0.16 * s.speed
   const tilt = s.angle2
@@ -205,9 +149,9 @@ function actIndustryTunnel(i: number, N: number, s: Seed, t: number): ParticleSt
   return { pos, color, opacity }
 }
 
-// ---------- Act 7: convergence — everything becomes light, becomes the logo ----------
+// ---------- Act 6: convergence — everything becomes light, becomes the logo ----------
 function actConvergence(i: number, N: number, s: Seed, t: number): ParticleState {
-  const t7 = t - 78
+  const t7 = t - 60
   const facet = facetPosition(i, N, 1.6)
   const fColor = facetColor(facet)
   const u = smootherstep(clamp01(t7 / 5))
@@ -224,14 +168,13 @@ function actConvergence(i: number, N: number, s: Seed, t: number): ParticleState
 
 const ACT_FNS = [
   actRingtoneLogo,
-  actPainChaos,
   actListening,
   actPurchaseSignal,
-  actAiCore,
   actIndustryTunnel,
+  actAiCore,
   actConvergence,
 ]
-const BOUNDARIES = [0, 9, 20, 38, 50, 65, 78, 90]
+const BOUNDARIES = [0, 9, 20, 34, 46, 60, 72]
 const TRANSITION_SECONDS = 1.3
 
 export function getParticleState(i: number, N: number, s: Seed, t: number): ParticleState {

@@ -1,5 +1,5 @@
 export const FPS = 30
-export const DURATION_SECONDS = 90
+export const DURATION_SECONDS = 72
 export const DURATION_FRAMES = DURATION_SECONDS * FPS
 
 export const fontFamily =
@@ -29,14 +29,15 @@ export const colors = {
 
 // Seconds, not frames — every scene component is written against t = frame / fps
 // so the same logic renders identically at 1080p/30 or a future 4K/60 pass.
+// Pain points moved out of the film into the stage deck; the film now opens
+// directly on MyClaw and spends its middle on the grounded product moment.
 export const ACT = {
   ringtoneLogo: [0, 9] as const,
-  painChaos: [9, 20] as const,
-  listening: [20, 38] as const,
-  purchaseSignal: [38, 50] as const,
-  aiCore: [50, 65] as const,
-  industryTunnel: [65, 78] as const,
-  convergence: [78, 90] as const,
+  listening: [9, 20] as const,
+  salesHighlight: [20, 34] as const,
+  industryTunnel: [34, 46] as const,
+  benefits: [46, 60] as const,
+  convergence: [60, 72] as const,
 }
 
 export const industries = [

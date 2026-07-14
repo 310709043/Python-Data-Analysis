@@ -9,34 +9,30 @@ interface CamKey {
   fov: number
 }
 
-// One continuous path for the whole 90s film. Every "cut" in the brief is
+// One continuous path for the whole 72s film. Every "cut" in the brief is
 // actually just the camera moving on to the next keyframe — nothing ever
 // mounts/unmounts, the world just keeps existing and the lens keeps moving.
+// 0-9 logo forms · 9-20 listening ribbon · 20-34 sales highlight (camera calm,
+// the real UI floats in the overlay) · 34-46 industry tunnel · 46-60 AI core
+// orbit (benefits) · 60-72 convergence and pull-away.
 const KEYS: CamKey[] = [
   { t: 0, pos: [0, 0, 9], look: [0, 0, 0], fov: 34 },
   { t: 4, pos: [0, 0.1, 6.4], look: [0, 0, 0], fov: 32 },
-  { t: 6.5, pos: [0, 0.25, 4.6], look: [0, 0, 0], fov: 30 },
-  { t: 8.8, pos: [0, 0.3, 4.3], look: [0, 0, 0], fov: 29 },
-  { t: 10.2, pos: [1.1, 0.4, 1.9], look: [0, 0, 0], fov: 46 },
-  { t: 12.5, pos: [-2.4, 0.6, -3.2], look: [-1.2, 0.1, -6], fov: 54 },
-  { t: 15.5, pos: [2.6, -0.4, -6.5], look: [1.8, 0, -9.5], fov: 50 },
-  { t: 18.5, pos: [-1.6, 0.9, -9.5], look: [-2.2, 0.4, -12.5], fov: 42 },
-  { t: 20, pos: [0, 0.3, 0.6], look: [0, 0.1, -4.2], fov: 34 },
-  { t: 27, pos: [0.3, 0.7, -0.4], look: [0, 0.2, -4.6], fov: 30 },
-  { t: 34, pos: [0.8, 0.4, -1.5], look: [0.3, 0.1, -4.5], fov: 28 },
-  { t: 38, pos: [0, 0.3, 5.5], look: [0, 0.1, 1.2], fov: 34 },
-  { t: 42, pos: [1.2, 0.5, 4.2], look: [0.4, 0.2, 1.5], fov: 32 },
-  { t: 47, pos: [-1.0, 0.7, 3.0], look: [0, 0.3, 1.8], fov: 36 },
-  { t: 50, pos: [0, 1.2, 10.5], look: [0, 0, 0], fov: 45 },
-  { t: 57, pos: [4.2, 1.5, 8], look: [0, 0, 0], fov: 40 },
-  { t: 65, pos: [-3.2, 0.5, 5], look: [0, 0, 0], fov: 38 },
-  { t: 68, pos: [0, 0, 3], look: [0, 0, -1], fov: 50 },
-  { t: 71, pos: [0, 0.3, -6], look: [0, 0, -14], fov: 60 },
-  { t: 74.5, pos: [0, -0.2, -14], look: [0, 0, -22], fov: 62 },
-  { t: 78, pos: [0, 0.2, -22], look: [0, 0, -30], fov: 58 },
-  { t: 81, pos: [0, 0.4, -14], look: [0, 0, -6], fov: 45 },
-  { t: 85, pos: [0, 0.2, 3.6], look: [0, 0, 0], fov: 32 },
-  { t: 90, pos: [0, 0, 7.6], look: [0, 0, 0], fov: 34 },
+  { t: 7, pos: [0, 0.25, 4.6], look: [0, 0, 0], fov: 30 },
+  { t: 9, pos: [0, 0.3, 0.9], look: [0, 0.1, -4.2], fov: 34 },
+  { t: 15, pos: [0.5, 0.6, -0.6], look: [0.1, 0.15, -4.5], fov: 30 },
+  { t: 20, pos: [0, 0.3, 5.5], look: [0, 0.1, 1.2], fov: 34 },
+  { t: 27, pos: [0.9, 0.5, 4.4], look: [0.3, 0.2, 1.5], fov: 33 },
+  { t: 33, pos: [-0.7, 0.6, 3.4], look: [0, 0.25, 1.6], fov: 35 },
+  { t: 35, pos: [0, 0, 3], look: [0, 0, -1], fov: 50 },
+  { t: 38, pos: [0, 0.3, -6], look: [0, 0, -14], fov: 60 },
+  { t: 42, pos: [0, -0.2, -14], look: [0, 0, -22], fov: 62 },
+  { t: 45.5, pos: [0, 0.2, -22], look: [0, 0, -30], fov: 58 },
+  { t: 48.5, pos: [0, 1.2, 10.5], look: [0, 0, 0], fov: 45 },
+  { t: 55, pos: [4.2, 1.5, 8], look: [0, 0, 0], fov: 40 },
+  { t: 60, pos: [-3.2, 0.6, 5.4], look: [0, 0, 0], fov: 38 },
+  { t: 65, pos: [0, 0.3, 4.4], look: [0, 0, 0], fov: 32 },
+  { t: 72, pos: [0, 0, 7.6], look: [0, 0, 0], fov: 34 },
 ]
 
 const smootherstep = (x: number) => x * x * x * (x * (x * 6 - 15) + 10)
