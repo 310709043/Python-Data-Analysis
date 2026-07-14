@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MyVoca — 3 分鐘講稿提詞</title>
+<style>
+  :root {
+    --white: #ffffff;
+    --warm: #FFDFCC;
+    --orange: #FF6100;
+    --orange-dark: #d94f00;
+    --ink: #171717;
+    --muted: #6f6f73;
+    --line: rgba(255, 97, 0, 0.18);
+    --glass: rgba(255, 255, 255, 0.72);
+    --glass-strong: rgba(255, 255, 255, 0.9);
+    --shadow: 0 24px 80px rgba(255, 97, 0, 0.12), 0 12px 42px rgba(0, 0, 0, 0.08);
+    --sky: #2f8fd6;
+    --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: var(--font-ui);
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 10% 6%, rgba(255, 223, 204, 0.85), transparent 28%),
+      radial-gradient(circle at 90% 15%, rgba(255, 97, 0, 0.13), transparent 26%),
+      linear-gradient(135deg, #ffffff 0%, #fff8f4 42%, #f8f8f8 100%);
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 97, 0, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 97, 0, 0.05) 1px, transparent 1px);
+    background-size: 52px 52px;
+    mask-image: radial-gradient(circle at center, black, transparent 74%);
+    opacity: 0.7; z-index: 0;
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
+
+  /* top chrome */
+  .chrome-top { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,97,0,0.1); z-index: 40; }
+  .chrome-top .bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--orange), #ff965f); transition: width .4s cubic-bezier(.22,1,.36,1); }
+
+  .hud {
+    position: fixed; top: 16px; left: 0; right: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px; pointer-events: none;
+  }
+  .hud .left, .hud .right { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+  .plan-toggle {
+    display: flex; gap: 4px; background: var(--glass); border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.06); backdrop-filter: blur(20px);
+    border-radius: 999px; padding: 4px;
+  }
+  .plan-toggle button {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em;
+    color: var(--muted); background: transparent; border: 0; cursor: pointer;
+    padding: 6px 14px; border-radius: 999px; transition: .2s;
+  }
+  .plan-toggle button.on { background: var(--orange); color: #fff; font-weight: 700; box-shadow: 0 8px 18px rgba(255,97,0,0.32); }
+  .counter {
+    font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); letter-spacing: .06em;
+    background: var(--glass); border: 1px solid rgba(255,255,255,0.7); border-radius: 999px; padding: 7px 14px;
+    backdrop-filter: blur(20px); box-shadow: 0 8px 22px rgba(0,0,0,0.06);
+  }
+  .counter b { color: var(--ink); }
+
+  /* deck */
+  .deck { position: relative; height: 100vh; width: 100vw; z-index: 1; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 76px 8vw 74px;
+    opacity: 0; transform: translateY(20px); pointer-events: none;
+    transition: opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1);
+    max-width: 1220px; margin: 0 auto; left: 0; right: 0;
+    overflow-y: auto;
+  }
+  .slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  .slide.leaving { transform: translateY(-14px); }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 9px; align-self: flex-start; flex: none;
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; letter-spacing: .08em;
+    color: var(--orange-dark);
+    border: 1px solid rgba(255, 97, 0, 0.2); background: rgba(255, 223, 204, 0.5);
+    border-radius: 999px; padding: 6px 14px; margin-bottom: 16px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px rgba(255,97,0,0.22); }
+  .eyebrow .seg { color: var(--muted); font-weight: 500; }
+  .eyebrow.film { color: var(--sky); border-color: rgba(47,143,214,0.25); background: rgba(47,143,214,0.08); }
+  .eyebrow.film .filmt { color: var(--muted); font-weight: 500; }
+
+  .cue {
+    font-size: 13.5px; color: var(--muted); line-height: 1.5;
+    margin: 0 0 16px; max-width: 62ch; flex: none;
+    padding-left: 13px; border-left: 2.5px solid rgba(255,97,0,0.28);
+  }
+  .cue b { color: #3f3f43; font-weight: 700; }
+
+  .lines { font-size: clamp(19px, 2.35vw, 31px); font-weight: 700; line-height: 1.42; letter-spacing: -0.01em; max-width: 27ch; color: #232324; }
+  .lines p { margin: 0 0 .32em; text-wrap: pretty; }
+  .lines b { color: var(--orange); font-weight: 900; }
+  .lines.big { font-size: clamp(23px, 3vw, 40px); }
+
+  /* two-column layout for media beats */
+  .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 4vw; align-items: center; width: 100%; }
+  .split .lines { max-width: none; }
+  .shot-wrap {
+    position: relative; border-radius: 24px; padding: 3px; overflow: hidden;
+    background: linear-gradient(155deg, rgba(255,138,56,0.55), rgba(255,255,255,0.1) 40%, rgba(255,97,0,0.28));
+    box-shadow: var(--shadow);
+  }
+  .shot-frame { border-radius: 21px; overflow: hidden; height: 340px; background: #0c0c12; }
+  .shot-frame img { display: block; width: 100%; height: 480px; object-fit: cover; object-position: top; }
+  .shot-chrome { position: absolute; top: 14px; left: 20px; display: flex; gap: 6px; z-index: 2; }
+  .shot-chrome span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.15); }
+
+  /* cover */
+  .slide.cover { align-items: center; text-align: center; }
+  .cover .mark { width: 78px; height: 78px; margin-bottom: 22px; }
+  .cover h1 { font-size: clamp(32px, 5vw, 58px); font-weight: 900; letter-spacing: -0.03em; margin: 0 0 14px; }
+  .cover h1 .accent { color: var(--orange); }
+  .cover .sub { font-size: clamp(14.5px,1.5vw,18px); color: var(--muted); max-width: 40ch; line-height: 1.6; margin: 0 auto 28px; }
+  .cover .keys { display: flex; flex-wrap: wrap; gap: 10px 18px; justify-content: center; font-size: 13px; color: var(--muted); }
+  .cover .keys span { display: inline-flex; align-items: center; gap: 7px; }
+  kbd {
+    font-family: var(--font-mono); font-size: 11.5px; color: #333;
+    background: #fff; border: 1px solid rgba(255,97,0,0.28);
+    border-bottom-width: 2px; border-radius: 6px; padding: 2px 7px; min-width: 22px; text-align: center;
+    box-shadow: 0 2px 0 rgba(255,97,0,0.1);
+  }
+
+  /* film slide */
+  .slide.filmslide { align-items: center; text-align: center; }
+  .filmslide .videowrap {
+    width: min(70vw, 900px); border-radius: 20px; overflow: hidden;
+    border: 3px solid #fff;
+    box-shadow: 0 40px 100px rgba(255,97,0,0.18), 0 12px 42px rgba(0,0,0,0.1);
+    background: #000; margin-bottom: 20px;
+  }
+  .filmslide video { display: block; width: 100%; height: auto; }
+  .filmslide .note { font-size: clamp(16px,1.8vw,21px); font-weight: 700; color: var(--ink); max-width: 32ch; line-height: 1.5; }
+  .filmslide .note b { color: var(--sky); }
+  .filmslide .subnote { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+  /* nav zones */
+  .zone { position: fixed; top: 0; bottom: 0; width: 22vw; z-index: 20; cursor: pointer; }
+  .zone.prev { left: 0; } .zone.next { right: 0; }
+
+  .foot {
+    position: fixed; bottom: 14px; left: 0; right: 0; z-index: 30;
+    text-align: center; font-size: 11.5px; color: var(--muted); pointer-events: none;
+    font-family: var(--font-mono); letter-spacing: .04em;
+  }
+</style>
+</head>
+<body>
+  <div class="chrome-top"><div class="bar" id="progressBar"></div></div>
+  <div class="hud">
+    <div class="left">
+      <div class="plan-toggle">
+        <button id="btnA" class="on">PLAN A · 全簡報</button>
+        <button id="btnB">PLAN B · 影片旁白</button>
+      </div>
+    </div>
+    <div class="right"><span class="counter" id="counter"></span></div>
+  </div>
+
+  <div class="zone prev" id="prevZone"></div>
+  <div class="zone next" id="nextZone"></div>
+
+  <div class="deck" id="deck"></div>
+
+  <div class="foot" id="foot">← → 翻頁 · A / B 切換版本 · F 影片全螢幕</div>
+
+<script>
+  const MARK = `<svg class="mark" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+    <path d="M50 30 L69.02 43.82 L61.76 66.18 L38.24 66.18 L30.98 43.82 Z" fill="#FF7300"/>
+    <path d="M50 30 L77.64 11.98 L69.02 43.82 Z" fill="#FFB600"/>
+    <path d="M69.02 43.82 L94.7 64.52 L61.76 66.18 Z" fill="#FF7300"/>
+    <path d="M61.76 66.18 L50 97 L38.24 66.18 Z" fill="#E4007F"/>
+    <path d="M38.24 66.18 L5.3 64.52 L30.98 43.82 Z" fill="#8DC63F"/>
+    <path d="M30.98 43.82 L22.36 11.98 L50 30 Z" fill="#5C4E9E"/>
+    <path d="M22.36 11.98 A47 47 0 0 1 77.64 11.98 L50 30 Z" fill="#FF9E1B"/>
+    <path d="M77.64 11.98 A47 47 0 0 1 94.7 64.52 L69.02 43.82 Z" fill="#FF6B00"/>
+    <path d="M94.7 64.52 A47 47 0 0 1 50 97 L61.76 66.18 Z" fill="#F0417F"/>
+    <path d="M50 97 A47 47 0 0 1 5.3 64.52 L38.24 66.18 Z" fill="#A6CE39"/>
+    <path d="M5.3 64.52 A47 47 0 0 1 22.36 11.98 L30.98 43.82 Z" fill="#7C6BB5"/>
+  </svg>`;
+
+  const b = s => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const lines = arr => `<div class="lines">${arr.map(l => '<p>'+b(l)+'</p>').join('')}</div>`;
+  const linesBig = arr => `<div class="lines big">${arr.map(l => '<p>'+b(l)+'</p>').join('')}</div>`;
+
+  const beat = ({seg, time, cue, ls, big}) => `
+    <div class="eyebrow"><span class="dot"></span><span>${time}</span><span class="seg">· ${seg}</span></div>
+    ${cue ? `<p class="cue">${b(cue)}</p>` : ''}
+    ${(big?linesBig:lines)(ls)}`;
+
+  // beat variant with a real product screenshot alongside the cue
+  const beatShot = ({seg, time, cue, ls, img, alt}) => `
+    <div class="split">
+      <div>
+        <div class="eyebrow"><span class="dot"></span><span>${time}</span><span class="seg">· ${seg}</span></div>
+        ${cue ? `<p class="cue">${b(cue)}</p>` : ''}
+        ${lines(ls)}
+      </div>
+      <div class="shot-wrap">
+        <div class="shot-chrome"><span></span><span></span><span></span></div>
+        <div class="shot-frame"><img src="${img}" alt="${alt || ''}" /></div>
+      </div>
+    </div>`;
+
+  const filmBeat = ({time, filmt, cue, ls}) => `
+    <div class="eyebrow film"><span>${time}</span><span class="filmt">· 影片 ${filmt}</span></div>
+    ${cue ? `<p class="cue">${b(cue)}</p>` : ''}
+    ${lines(ls)}`;
+
+  const S = 'teleprompter-screens/'; // real prototype screenshots (not mockups)
+
+  const PLAN_A = [
+    { html: `${MARK}<h1>MyVoca <span class="accent">3 分鐘講稿</span></h1>
+      <p class="sub">Plan A · 全程簡報版（不播影片）<br>照著頁面唸，粗體字放慢加重。</p>
+      <div class="keys">
+        <span><kbd>→</kbd> 下一頁</span><span><kbd>←</kbd> 上一頁</span>
+        <span><kbd>A</kbd>/<kbd>B</kbd> 切換版本</span><span><kbd>F</kbd> 影片全螢幕</span>
+      </div>`, cover: true },
+    { html: beat({ time:'0:00–0:20', seg:'開場鉤子', cue:'【畫面】黑場 → 彩球 logo 浮現，標題「MyVoca — 讓每一通電話成為下一筆訂單」',
+      ls:['各位長官午安。','我先問一個問題——','你們公司每天接進來的客服電話，有多少，其實是一次成交的機會，','卻在一句「我幫您記錄一下」之後，**悄悄溜走了？**','今天客服中心最大的成本，不是人力——','是每一通**被接起、卻沒有被聽懂**的電話。'] }) },
+    { html: beat({ time:'0:20–0:48', seg:'痛點深化', cue:'【畫面】四個痛點關鍵詞依序浮現：重複陳述／情緒升溫／資訊散落／商機流失',
+      ls:['客戶要重複講三次自己是誰、','情緒在等待裡一分一秒升高、','資料散在五個系統之間、','而真正的購買訊號，就藏在那句抱怨裡——**沒有人接得住。**','這不是客服不夠努力，','是他們手上，少了一雙能即時聽懂客戶的耳朵。'] }) },
+    { html: beat({ time:'0:48–1:02', seg:'轉折 · 帶出平台', cue:'【畫面】五大能力節點環繞一顆發光的 AI 核心',
+      ls:['這就是我們做 MyVoca 的原因。','它不是又一個新的客服系統——','它是一顆，放進你現有流程裡的，**企業 AI 大腦。**'] }) },
+    { html: beatShot({ time:'1:02–1:18', seg:'運作 · AI 同步開始', img: S+'voice-listen.png', alt:'MyVoca AI Voice Demo 即時分析畫面',
+      cue:'【畫面】右側為 prototype 實際畫面：通話 → 即時逐字稿 → 意圖／情緒分析',
+      ls:['電話一接起，AI 就同步開始工作：','他是誰、發生過什麼、','現在什麼情緒、下一步該怎麼做。'] }) },
+    { html: beatShot({ time:'1:18–1:42', seg:'案例 · 客訴變訂單', img: S+'voice-deal.png', alt:'MyVoca AI 自動生成訂單與 M+ 通知畫面',
+      cue:'【畫面】右側為 prototype 實際畫面：訂單卡 +NT$300／月 → M+ 通知',
+      ls:['舉一個真實的例子——','客戶打來抱怨：「小孩在家上課，網路一直卡。」','一般系統聽到的，是一則客訴；','**MyVoca 聽到的，是一個需求。**','十分鐘，一通客訴，變成一筆每月多 300 元的訂單，','M+ 通知，同步送到客戶手機。'] }) },
+    { html: beatShot({ time:'1:42–2:20', seg:'五大能力 = 一顆大腦', img: S+'ops-dashboard.png', alt:'MyVoca 營運洞察儀表板實際畫面',
+      cue:'【畫面】右側為 prototype 實際畫面：營運洞察儀表板，今日商機與 AI 生成洞察',
+      ls:['這顆大腦，串起了台灣大哥大既有的五種能力：','MyVoca、AI 智能客服、門市語音質檢、GenAIus、M+。','這不是五個各自為政的產品，是**同一套 AI。**','更高的解決率、更短的處理時間、對話中就長出來的營收。'] }) },
+    { html: beat({ time:'2:20–2:45', seg:'跨產業', cue:'【畫面】同一顆核心，背景從電信 → 金融 → 零售無縫變換',
+      ls:['而最關鍵的一點是：這顆大腦，**不綁產業。**','電信的斷線、銀行的轉帳爭議、電商的出貨查詢——','場景不同，底層的大腦，是同一顆。','換一個產業，你不用換一套 AI——','只要換上它本來就懂的知識。'] }) },
+    { html: beat({ time:'2:45–3:00', seg:'收尾 · 三句話（每句停一拍）',
+      ls:['請各位帶走三句話：','一、**不是每個產業需要不同的 AI，而是同一套企業 AI**——懂你的知識、流程、更懂你的客戶。','二、我們**不只接住客戶，而是聽出購買意願。**','三、我們**不只回答問題，而是推薦下一個最適合的方案。**','MyVoca——**讓你的每一通電話，都成為下一筆訂單。** 謝謝各位。'] }) },
+  ];
+
+  const PLAN_B = [
+    { html: `${MARK}<h1>MyVoca <span class="accent">3 分鐘講稿</span></h1>
+      <p class="sub">Plan B · 影片 + 講者同步旁白<br>開場 45 秒 → 影片 90 秒（旁白疊上去）→ 收尾 45 秒。</p>
+      <div class="keys">
+        <span><kbd>→</kbd> 下一頁</span><span><kbd>←</kbd> 上一頁</span>
+        <span><kbd>A</kbd>/<kbd>B</kbd> 切換版本</span><span><kbd>F</kbd> 影片全螢幕</span>
+      </div>`, cover: true },
+    { html: beat({ time:'0:00–0:22', seg:'開場鉤子 · 簡報', cue:'【畫面】講者上台，簡報停在標題頁',
+      ls:['各位長官午安。','你們公司每天接進來的每一通客服電話，','其實都是一次信任的考驗——**也可能，是一筆生意的開始。**','但今天，太多這樣的機會，','在一句「我幫您記錄一下」之後，就溜走了。'] }) },
+    { html: beat({ time:'0:22–0:45', seg:'痛點 · 引入影片', cue:'【畫面】四個痛點關鍵詞 → 準備切影片',
+      ls:['客戶重複陳述、情緒升溫、資訊散落、商機流失——','這是每一個客服中心，每天都在發生的事。','接下來 90 秒，我帶各位看：','**當 AI 在電話接起的第一秒就聽懂客戶，會發生什麼。**','（切影片，全螢幕）'] }) },
+    { film: true, html: `
+      <div class="eyebrow film"><span>0:45–2:15</span><span class="filmt">· ▶ 播放影片（90 秒）</span></div>
+      <div class="videowrap"><video id="film" src="../video/myvoca-intro.mp4" controls playsinline preload="metadata"></video></div>
+      <div class="note">按 <b>播放</b>，影片上投影幕。接著<b>往下翻頁</b>，照每一幕的旁白唸。</div>
+      <div class="subnote">按 F 讓影片全螢幕 · 影片沒有人聲，你的旁白不會被蓋掉</div>` },
+    { html: filmBeat({ time:'0:45–0:54', filmt:'Act 1 · 鈴聲成形', cue:'【螢幕】鈴響 → 漣漪 → 粒子匯聚成彩球 logo',
+      ls:['（鈴響，停一拍）','每一通進線電話，','都是一次信任的考驗——**也可能，是一筆生意的開始。**'] }) },
+    { html: filmBeat({ time:'0:54–1:05', filmt:'Act 2 · 混沌痛點', cue:'【螢幕】鏡頭穿過 logo 飛入客服現場的混沌，四大痛點化為活的現象',
+      ls:['但電話接起的那一刻——','客戶在重複、情緒在升溫、資訊在散落、商機正在溜走。','客服的痛，就是企業的成本。'] }) },
+    { html: beatShot({ time:'1:05–1:23', seg:'Act 3 · AI 聆聽', img: S+'voice-listen.png', alt:'MyVoca AI Voice Demo 即時分析畫面',
+      cue:'【螢幕】影片播放到這一幕；右側為對應的 prototype 實際畫面，供你確認台詞',
+      ls:['現在，看 AI 做了什麼——','電話一接起，它就同步聽出：','他是誰、發生過什麼、現在什麼情緒。','**答案，已經放在專員眼前。**'] }) },
+    { html: beatShot({ time:'1:23–1:35', seg:'Act 4 · 購買訊號', img: S+'voice-deal.png', alt:'MyVoca AI 自動生成訂單與 M+ 通知畫面',
+      cue:'【螢幕】影片播放到這一幕；右側為對應的 prototype 實際畫面',
+      ls:['客戶隨口一句「小孩在家上課，網路不夠快」——','一般系統聽到抱怨，**MyVoca 聽出需求。**','十分鐘，一通客訴，變成一筆訂單。'] }) },
+    { html: filmBeat({ time:'1:35–1:50', filmt:'Act 5 · 企業 AI 大腦', cue:'【螢幕】五大能力如衛星環繞發光的 AI 核心，KPI 數字上升',
+      ls:['MyVoca、AI 智能客服、門市語音質檢、GenAIus、M+——','這不是五個產品，是**一顆企業 AI 大腦。**','更高的解決率、更短的處理時間、對話中生成的營收。'] }) },
+    { html: filmBeat({ time:'1:50–2:03', filmt:'Act 6 · 光的隧道', cue:'【螢幕】環境從電信 → 金融 → 零售無縫變換，同一顆核心',
+      ls:['電信的斷線、銀行的轉帳、電商的出貨——','場景不同，**大腦相同。**','換一個產業，不用換一套 AI。'] }) },
+    { html: filmBeat({ time:'2:03–2:15', filmt:'Act 7 · 匯聚成光', cue:'【螢幕】宇宙收束成一道光流，重新形成 logo，標語浮現',
+      ls:['同一套企業 AI——','懂你的知識、你的流程、更懂你的客戶。','（標語浮現時停，讓影片收尾）'] }) },
+    { html: beat({ time:'2:15–2:35', seg:'收束 · 簡報', cue:'【畫面】影片淡出 → 簡報回到五大能力頁',
+      ls:['各位剛剛看到的，不是一個科幻概念——','是台灣大哥大**已經有**的能力。','從一通客訴，到聽出購買意願、生成訂單，','再到跨越電信、金融、零售，它從頭到尾，是同一套 AI。'] }) },
+    { html: beat({ time:'2:35–3:00', seg:'收尾 · 三句話（每句停一拍）',
+      ls:['請各位帶走三句話：','一、**不是每個產業需要不同的 AI，而是同一套企業 AI**——懂你的知識、流程、更懂你的客戶。','二、我們**不只接住客戶，而是聽出購買意願。**','三、我們**不只回答問題，而是推薦下一個最適合的方案。**','MyVoca——**讓你的每一通電話，都成為下一筆訂單。** 謝謝各位。'] }) },
+  ];
+
+  const PLANS = { A: PLAN_A, B: PLAN_B };
+  const deck = document.getElementById('deck');
+  const progressBar = document.getElementById('progressBar');
+  const counter = document.getElementById('counter');
+  const btnA = document.getElementById('btnA'), btnB = document.getElementById('btnB');
+  let plan = 'A', current = 0, slides = [];
+
+  function build() {
+    deck.innerHTML = '';
+    const data = PLANS[plan];
+    slides = data.map((s) => {
+      const el = document.createElement('section');
+      el.className = 'slide' + (s.cover ? ' cover' : '') + (s.film ? ' filmslide' : '');
+      el.innerHTML = s.html;
+      deck.appendChild(el);
+      return el;
+    });
+    btnA.classList.toggle('on', plan === 'A');
+    btnB.classList.toggle('on', plan === 'B');
+  }
+  function render() {
+    slides.forEach((el, i) => {
+      el.classList.toggle('active', i === current);
+      el.classList.toggle('leaving', i < current);
+    });
+    progressBar.style.width = ((current + 1) / slides.length) * 100 + '%';
+    counter.innerHTML = `PLAN ${plan} &nbsp; <b>${current + 1}</b> / ${slides.length}`;
+  }
+  function go(i) {
+    if (i < 0 || i >= slides.length) return;
+    current = i; render();
+  }
+  function setPlan(p, keepIndex) {
+    if (plan === p) return;
+    const f = document.getElementById('film'); if (f) f.pause();
+    plan = p; current = keepIndex ? Math.min(current, PLANS[p].length - 1) : 0;
+    build(); render();
+  }
+
+  btnA.addEventListener('click', () => setPlan('A'));
+  btnB.addEventListener('click', () => setPlan('B'));
+  document.getElementById('prevZone').addEventListener('click', () => go(current - 1));
+  document.getElementById('nextZone').addEventListener('click', () => go(current + 1));
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(current + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(current - 1); e.preventDefault(); }
+    else if (k === 'a') { setPlan('A'); }
+    else if (k === 'b') { setPlan('B'); }
+    else if (k === 'f') {
+      const f = document.getElementById('film');
+      if (f && f.requestFullscreen) { f.requestFullscreen(); }
+    }
+    else if (k === 'home') { go(0); }
+    else if (k === 'end') { go(slides.length - 1); }
+  });
+
+  build(); render();
+</script>
+</body>
+</html>

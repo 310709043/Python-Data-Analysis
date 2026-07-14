@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>每一通電話，都值得被完整接住 — myClaw 主題簡報</title>
+<style>
+  :root{
+    --bg:#07070b; --bg2:#0c0c12; --surface:#111119; --surface2:#16161f;
+    --border:rgba(255,255,255,.09); --border-strong:rgba(255,255,255,.16);
+    --ink100:#eeeef3; --ink300:#9c9cb2; --ink400:#6f6f86;
+    --brand:#ff6b00; --brand-light:#ffa76b;
+    --good:#34d399; --risk:#fb7185; --sky:#38bdf8; --gold:#f0b94d; --purple:#a78bfa;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;overflow:hidden;height:100vh;width:100vw}
+  body{background:var(--bg);color:var(--ink100);font-family:var(--font)}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+  .deck{position:relative;height:100vh;width:100vw;
+    background:
+      radial-gradient(ellipse 60% 45% at 15% -8%,rgba(255,107,0,.13),transparent 60%),
+      radial-gradient(ellipse 50% 40% at 100% 100%,rgba(56,189,248,.07),transparent 55%),
+      var(--bg)}
+  .slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    padding:0 7vw;opacity:0;transform:translateY(24px);pointer-events:none;
+    transition:opacity .55s cubic-bezier(.22,1,.36,1),transform .55s cubic-bezier(.22,1,.36,1)}
+  .slide.active{opacity:1;transform:none;pointer-events:auto}
+  .slide.leaving{transform:translateY(-18px)}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--brand-light);
+    border:1px solid rgba(255,107,0,.28);background:rgba(255,107,0,.08);border-radius:999px;
+    padding:5px 14px;margin-bottom:26px}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 3px rgba(255,107,0,.25)}
+
+  h1.head{font-size:clamp(32px,4.4vw,60px);font-weight:800;line-height:1.12;letter-spacing:-.02em;margin:0 0 16px;text-align:center;text-wrap:balance}
+  .head .accent{color:var(--brand)}
+  .lede{font-size:clamp(15px,1.4vw,19px);line-height:1.65;color:var(--ink300);max-width:52ch;text-align:center;margin:0}
+
+  /* S1 incoming call */
+  .callwrap{display:flex;flex-direction:column;align-items:center;gap:26px}
+  .ring{position:relative;width:130px;height:130px;display:grid;place-items:center}
+  .ring::before,.ring::after{content:"";position:absolute;inset:0;border-radius:50%;
+    border:1.5px solid rgba(255,107,0,.5);animation:pulse 2.2s ease-out infinite}
+  .ring::after{animation-delay:1.1s}
+  @keyframes pulse{0%{transform:scale(.8);opacity:.9}100%{transform:scale(2.1);opacity:0}}
+  .ring .core{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--brand),#ff965f);box-shadow:0 18px 50px rgba(255,107,0,.4);font-size:38px}
+  .callnum{font-family:var(--mono);font-size:clamp(48px,7vw,88px);font-weight:800;letter-spacing:.04em;color:var(--ink100)}
+  .callsub{font-family:var(--mono);font-size:15px;letter-spacing:.28em;color:var(--ink400);text-transform:uppercase}
+  .stagenote{margin-top:34px;font-size:13.5px;color:var(--ink400);border-left:3px solid rgba(255,107,0,.4);padding-left:14px;text-align:left;line-height:1.7;max-width:52ch}
+  .stagenote b{color:var(--ink300)}
+
+  /* S2 role */
+  .roles{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:14px;max-width:980px;width:100%}
+  .rolecard{background:var(--surface);border:1.5px solid var(--border);border-radius:22px;padding:30px 32px;text-align:left}
+  .rolecard .tag{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.1em;
+    color:var(--brand-light);border:1px solid rgba(255,107,0,.3);background:rgba(255,107,0,.08);border-radius:999px;padding:4px 12px;margin-bottom:14px}
+  .rolecard h3{margin:0 0 10px;font-size:22px;letter-spacing:-.02em}
+  .rolecard p{margin:0;font-size:15px;line-height:1.7;color:var(--ink300)}
+  .rolecard.emph{border-color:rgba(255,107,0,.35);background:linear-gradient(135deg,rgba(255,107,0,.07),var(--surface))}
+
+  /* S3 pains — sequential reveal */
+  .pains{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;max-width:1120px;width:100%}
+  .pain{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:24px 26px;text-align:left;
+    opacity:.13;transform:translateY(10px);transition:opacity .5s,transform .5s,border-color .5s}
+  .pain.on{opacity:1;transform:none;border-color:rgba(255,107,0,.3)}
+  .pain .num{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:50%;
+    background:rgba(255,107,0,.12);border:1.5px solid rgba(255,107,0,.4);color:var(--brand-light);
+    font-family:var(--mono);font-weight:800;font-size:15px;margin-bottom:12px}
+  .pain h3{margin:0 0 8px;font-size:20px;letter-spacing:-.02em;line-height:1.3}
+  .pain .desc{margin:0 0 12px;font-size:14px;line-height:1.65;color:var(--ink300)}
+  .pain .vis{font-size:12.5px;line-height:1.6;color:var(--ink400);border-top:1px dashed var(--border-strong);padding-top:10px}
+  .pain .vis b{color:var(--sky);font-weight:600}
+  .stephint{margin-top:20px;font-family:var(--mono);font-size:12px;color:var(--ink400);letter-spacing:.08em}
+
+  /* S4 myclaw bridge */
+  .orb{position:relative;width:190px;height:190px;margin-bottom:8px}
+  .orb .p{position:absolute;border-radius:50%;animation:float 3.4s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .brandline{display:flex;align-items:center;gap:18px;margin-top:6px}
+  .brandline .name{font-size:clamp(40px,5.5vw,72px);font-weight:900;letter-spacing:-.02em}
+  .brandline .name .hl{background:linear-gradient(90deg,var(--brand-light),var(--brand));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* S5 video */
+  .videowrap{width:min(74vw,1150px);border-radius:18px;overflow:hidden;border:1px solid var(--border-strong);
+    box-shadow:0 40px 120px rgba(0,0,0,.65),0 0 80px -24px rgba(255,107,0,.4);background:#000}
+  .videowrap video{display:block;width:100%;height:auto}
+  .vidcap{margin-top:18px;font-size:14px;color:var(--ink400)}
+
+  /* S6 recap */
+  .recap{display:grid;grid-template-columns:1.15fr 1fr;gap:34px;align-items:center;max-width:1240px;width:100%;margin-top:6px}
+  .recap .shot{border-radius:16px;overflow:hidden;border:1px solid var(--border-strong);
+    box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 60px -20px rgba(255,107,0,.35);line-height:0}
+  .recap .shot img{width:100%;display:block}
+  .recap .copy{text-align:left}
+  .recap .copy h2{margin:0 0 14px;font-size:clamp(24px,2.6vw,36px);letter-spacing:-.02em;line-height:1.25}
+  .recap .copy h2 .accent{color:var(--brand)}
+  .chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0}
+  .chain .c{font-size:13px;font-weight:700;color:var(--ink100);background:var(--surface2);
+    border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px}
+  .chain .arrow{color:var(--brand);font-weight:800}
+  .caps{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .caps span{font-size:12.5px;font-weight:600;color:var(--brand-light);
+    background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.25);border-radius:999px;padding:6px 12px}
+  .recap .copy p.small{font-size:14px;color:var(--ink300);line-height:1.7;margin:12px 0 0}
+
+  /* S7 closing */
+  .takes{display:flex;flex-direction:column;gap:18px;margin:26px 0 34px;max-width:960px;width:100%}
+  .take{display:flex;align-items:center;gap:22px;background:var(--surface);border:1.5px solid var(--border);
+    border-radius:18px;padding:20px 28px;text-align:left}
+  .take .n{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:14px;
+    background:rgba(255,107,0,.1);border:2px solid rgba(255,107,0,.4);color:var(--brand-light);
+    font-family:var(--mono);font-weight:900;font-size:20px}
+  .take p{margin:0;font-size:clamp(16px,1.7vw,21px);font-weight:700;line-height:1.5}
+  .take p b{color:var(--brand-light)}
+  .final{display:flex;align-items:center;gap:20px}
+  .final .mark{width:74px;height:74px}
+  .final .fname{font-size:clamp(30px,3.6vw,48px);font-weight:900}
+  .final .fname .hl{background:linear-gradient(90deg,var(--brand-light),var(--brand));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .final .ftag{font-size:clamp(15px,1.6vw,20px);font-weight:600;color:var(--ink100);margin-top:6px}
+
+  /* chrome */
+  .chrome-top{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);z-index:40}
+  .chrome-top .bar{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-light));transition:width .4s cubic-bezier(.22,1,.36,1)}
+  .counter{position:fixed;top:18px;right:22px;z-index:40;font-family:var(--mono);font-size:12px;color:var(--ink400);letter-spacing:.08em}
+  .counter b{color:var(--ink300)}
+  .zone{position:fixed;top:0;bottom:0;width:20vw;z-index:20;cursor:pointer}
+  .zone.prev{left:0}.zone.next{right:0}
+  .foot{position:fixed;bottom:14px;left:0;right:0;z-index:30;text-align:center;
+    font-family:var(--mono);font-size:11.5px;color:var(--ink400);letter-spacing:.05em;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="chrome-top"><div class="bar" id="bar"></div></div>
+<div class="counter" id="counter"></div>
+<div class="zone prev" id="prevZone"></div>
+<div class="zone next" id="nextZone"></div>
+<div class="deck" id="deck"></div>
+<div class="foot">← → 翻頁（痛點頁會先逐一亮起） · F 影片全螢幕</div>
+
+<script>
+const MARK=`<svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+  <path d="M50 30 L69.02 43.82 L61.76 66.18 L38.24 66.18 L30.98 43.82 Z" fill="#FF7300"/>
+  <path d="M50 30 L77.64 11.98 L69.02 43.82 Z" fill="#FFB600"/>
+  <path d="M69.02 43.82 L94.7 64.52 L61.76 66.18 Z" fill="#FF7300"/>
+  <path d="M61.76 66.18 L50 97 L38.24 66.18 Z" fill="#E4007F"/>
+  <path d="M38.24 66.18 L5.3 64.52 L30.98 43.82 Z" fill="#8DC63F"/>
+  <path d="M30.98 43.82 L22.36 11.98 L50 30 Z" fill="#5C4E9E"/>
+  <path d="M22.36 11.98 A47 47 0 0 1 77.64 11.98 L50 30 Z" fill="#FF9E1B"/>
+  <path d="M77.64 11.98 A47 47 0 0 1 94.7 64.52 L69.02 43.82 Z" fill="#FF6B00"/>
+  <path d="M94.7 64.52 A47 47 0 0 1 50 97 L61.76 66.18 Z" fill="#F0417F"/>
+  <path d="M50 97 A47 47 0 0 1 5.3 64.52 L38.24 66.18 Z" fill="#A6CE39"/>
+  <path d="M5.3 64.52 A47 47 0 0 1 22.36 11.98 L30.98 43.82 Z" fill="#7C6BB5"/>
+</svg>`;
+// particle orb for the MyClaw bridge slide
+function orbHTML(){
+  const cs=['#FF7300','#FFB600','#E4007F','#8DC63F','#5C4E9E','#FF6B00','#F0417F','#A6CE39','#7C6BB5'];
+  let d='';for(let i=0;i<64;i++){const a=Math.random()*6.283,r=30+Math.random()*62,s=3+Math.random()*7;
+    d+=`<span class="p" style="left:${95+Math.cos(a)*r-s/2}px;top:${95+Math.sin(a)*r*.9-s/2}px;width:${s}px;height:${s}px;background:${cs[i%cs.length]};opacity:${.45+Math.random()*.55};animation-delay:${-Math.random()*3.4}s"></span>`;}
+  return `<div class="orb">${d}</div>`;
+}
+
+const SLIDES=[
+ // S1 — black + incoming call
+ {html:`<div class="callwrap">
+    <div class="ring"><div class="core">📞</div></div>
+    <div class="callnum">188</div>
+    <div class="callsub">Incoming Call ・ 響三聲</div>
+    <div class="stagenote"><b>舞台指示：</b>黑幕，只有電話鈴聲。188 Incoming 響三聲的同時，講者（女性客服，25–35）從舞台側慢慢走出。</div>
+  </div>`},
+ // S2 — role intro / resonance
+ {html:`<div class="eyebrow"><span class="dot"></span>開場 ・ 角色與共鳴</div>
+  <h1 class="head">大家好，我是台灣大哥大的<span class="accent">客服團隊</span></h1>
+  <p class="lede">當客服，不只需要好聽的聲音，更需要解決各種客戶的需求。</p>
+  <div class="roles">
+    <div class="rolecard emph"><span class="tag">我的角色 ・ 第一線客服</span>
+      <h3>每天接起數十通電話</h3>
+      <p>每一通進線電話，其實都是一次信任的考驗——也可能，是一筆生意的開始。客戶要的不只是答案，而是有人真正理解他的需求。</p></div>
+    <div class="rolecard"><span class="tag">另一個視角 ・ 客服主管</span>
+      <h3>看的是整個團隊與商機</h3>
+      <p>主管在意的是：解決率、處理時間、以及——藏在對話裡、沒被接住的每一筆訂單。企業的角度，是把握每一筆商機。</p></div>
+  </div>`},
+ // S3 — four concrete pains, sequential reveal
+ {steps:4,html:`<div class="eyebrow"><span class="dot"></span>現實 ・ 四大痛點（逐一接續出現）</div>
+  <h1 class="head" style="font-size:clamp(26px,3.2vw,44px)">客戶剛剛說的那句話，<span class="accent">很容易被遺漏</span></h1>
+  <div class="pains">
+    <div class="pain" data-step="1"><span class="num">1</span>
+      <h3>不知道客戶身分</h3>
+      <p class="desc">客戶得重複自報姓名、門號三次；上一通的紀錄，這一通看不到。</p>
+      <div class="vis"><b>畫面：</b>來電畫面只有一串陌生號碼，旁邊三個對話框重複著「請問您的大名／門號是？」——第一個亮起。</div></div>
+    <div class="pain" data-step="2"><span class="num">2</span>
+      <h3>知識不足、無法立即回答</h3>
+      <p class="desc">產品方案太多、更新太快；答案散落在五個系統與文件之間。</p>
+      <div class="vis"><b>畫面：</b>客服桌面同時開著 5 個系統視窗來回切換，游標不停跳動——接續第二個亮起。</div></div>
+    <div class="pain" data-step="3"><span class="num">3</span>
+      <h3>新人不敢直接處理</h3>
+      <p class="desc">怕答錯、怕客訴，只能轉接資深同事；客戶在線上等，處理時間拉長。</p>
+      <div class="vis"><b>畫面：</b>新人舉手求助、通話進入「保留中」，等待秒數持續往上跳——接續第三個亮起。</div></div>
+    <div class="pain" data-step="4"><span class="num">4</span>
+      <h3>商機，就這樣溜走</h3>
+      <p class="desc">「網路不夠快」其實是升級訊號；但客服忙著查資料、建工單，沒人接住。</p>
+      <div class="vis"><b>畫面：</b>對話氣泡裡「不夠快」三個字亮起金光，隨即黯淡飄走——最後一個亮起，全場停一拍。</div></div>
+  </div>
+  <div class="stephint">→ 按右鍵逐一亮起（1→2→3→4 接續出現，不同時出現）</div>`},
+ // S4 — MyClaw bridge
+ {html:`<div class="eyebrow"><span class="dot"></span>轉折 ・ 所以，它出現了</div>
+  ${orbHTML()}
+  <div class="brandline"><div class="name">my<span class="hl">Claw</span></div></div>
+  <p class="lede" style="margin-top:14px">我們想做的，不是讓 AI 取代客服。<br>而是讓 AI <b style="color:var(--brand-light)">先理解需求</b>，再把最重要的資訊，交給真正需要的人。</p>
+  <div class="stagenote" style="margin-top:26px"><b>舞台指示：</b>說完「把握公司的每一筆商機」立刻切入影片；講者緩慢走到舞台側前緣。</div>`},
+ // S5 — video
+ {video:true,html:`<div class="eyebrow"><span class="dot"></span>▶ 影片 ・ 一通電話如何被完整接住（72 秒）</div>
+  <div class="videowrap"><video id="film" src="../video/myclaw-intro-v2.mp4" controls playsinline preload="metadata"></video></div>
+  <div class="vidcap">影片播放時講者同步旁白；按 F 全螢幕。影片內含實際平台畫面（AI 客服助手・商機成立）。</div>`},
+ // S6 — recap with real UI
+ {html:`<div class="eyebrow"><span class="dot"></span>回顧 ・ 這不是概念，是已經在運作的平台</div>
+  <div class="recap">
+    <div class="shot"><img src="./screens/ops-dashboard.png" alt="myClaw 營運洞察儀表板實際畫面"/></div>
+    <div class="copy">
+      <h2>把 AI、客服、產品、CRM、業務<span class="accent">全部串起來</span></h2>
+      <div class="chain">
+        <span class="c">AI 理解</span><span class="arrow">→</span>
+        <span class="c">真人接手</span><span class="arrow">→</span>
+        <span class="c">產品推薦</span><span class="arrow">→</span>
+        <span class="c">工單 / CRM</span><span class="arrow">→</span>
+        <span class="c">業務追蹤</span>
+      </div>
+      <div class="caps"><span>MyVoca</span><span>AI 智能客服</span><span>門市語音質檢</span><span>GenAIus</span><span>M+</span></div>
+      <p class="small">左圖為實際營運後台：今日商機由 AI 在對話中自動生成（+NT$300/月），主管即時看到解決率、處理時間與團隊協作狀態。從電信到金融、零售——同一套 AI。</p>
+    </div>
+  </div>`},
+ // S7 — closing
+ {html:`<div class="eyebrow"><span class="dot"></span>結語 ・ 帶走三句話</div>
+  <div class="takes">
+    <div class="take"><span class="n">01</span><p>不是每個產業需要不同的 AI，而是<b>同一套企業 AI</b>——懂你的知識、你的流程、更懂你的客戶</p></div>
+    <div class="take"><span class="n">02</span><p>不只接住客戶，而是<b>聽出購買意願</b></p></div>
+    <div class="take"><span class="n">03</span><p>不只回答問題，而是<b>推薦下一個最適合的方案</b></p></div>
+  </div>
+  <div class="final">
+    <div class="mark">${MARK}</div>
+    <div>
+      <div class="fname">my<span class="hl">Claw</span> AI Service Platform</div>
+      <div class="ftag">讓 AI 先理解需求 ・ 讓人專注服務 ・ 讓企業不錯過每一次商機</div>
+    </div>
+  </div>`},
+];
+
+const deck=document.getElementById('deck');
+const bar=document.getElementById('bar');
+const counter=document.getElementById('counter');
+let current=0,step=0;
+const els=SLIDES.map((s,i)=>{
+  const el=document.createElement('section');
+  el.className='slide';el.innerHTML=s.html;
+  deck.appendChild(el);return el;
+});
+function render(){
+  els.forEach((el,i)=>{el.classList.toggle('active',i===current);el.classList.toggle('leaving',i<current)});
+  const s=SLIDES[current];
+  if(s.steps){els[current].querySelectorAll('.pain').forEach(p=>{
+    p.classList.toggle('on',Number(p.dataset.step)<=step)});}
+  bar.style.width=((current+1)/SLIDES.length)*100+'%';
+  counter.innerHTML=`<b>${current+1}</b> / ${SLIDES.length}`;
+}
+function next(){
+  const s=SLIDES[current];
+  if(s.steps && step<s.steps){step++;render();return}
+  if(current<SLIDES.length-1){current++;step=0;render()}
+}
+function prev(){
+  const s=SLIDES[current];
+  if(s.steps && step>0){step--;render();return}
+  if(current>0){current--;const p=SLIDES[current];step=p.steps||0;render()}
+}
+document.getElementById('nextZone').addEventListener('click',next);
+document.getElementById('prevZone').addEventListener('click',prev);
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){next();e.preventDefault()}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){prev();e.preventDefault()}
+  else if(k==='f'){const f=document.getElementById('film');if(f&&f.requestFullscreen)f.requestFullscreen()}
+  else if(k==='home'){current=0;step=0;render()}
+  else if(k==='end'){current=SLIDES.length-1;step=0;render()}
+});
+render();
+</script>
+</body>
+</html>
