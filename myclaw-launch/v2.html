@@ -86,30 +86,6 @@ button{font-family:inherit;cursor:pointer}
 #f3 .vig{background:radial-gradient(85% 70% at 50% 44%,rgba(228,0,127,.3),transparent 70%);animation:heat 1.5s ease-in-out infinite alternate}
 .caret{display:inline-block;width:2px;height:1.05em;background:var(--cy);vertical-align:-.15em;animation:blink .8s steps(2) infinite}
 
-/* ============ 氛圍層:極光色帶/網格地平線/旋轉光束 ============ */
-#aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-#aurora i{position:absolute;left:0;top:0;width:920px;height:920px;opacity:0;will-change:transform,opacity}
-#aurora b{display:block;width:100%;height:100%;border-radius:50%}
-#au1 b{background:radial-gradient(circle,rgba(245,84,30,.34),rgba(245,84,30,.10) 45%,transparent 68%);animation:drifta 24s ease-in-out infinite alternate}
-#au2 b{background:radial-gradient(circle,rgba(228,0,127,.30),rgba(228,0,127,.08) 45%,transparent 68%);animation:driftb 30s ease-in-out infinite alternate}
-#au3 b{background:radial-gradient(circle,rgba(124,58,237,.28),rgba(124,58,237,.08) 45%,transparent 68%);animation:driftc 27s ease-in-out infinite alternate}
-@keyframes drifta{from{transform:translate(-40px,-25px) scale(1)}to{transform:translate(45px,30px) scale(1.12)}}
-@keyframes driftb{from{transform:translate(35px,-30px) scale(1.08)}to{transform:translate(-40px,25px) scale(.96)}}
-@keyframes driftc{from{transform:translate(-30px,35px) scale(.95)}to{transform:translate(30px,-30px) scale(1.1)}}
-#floor{position:absolute;left:-15%;right:-15%;bottom:-46px;height:300px;pointer-events:none;opacity:0;transform:perspective(640px) rotateX(63deg);transform-origin:50% 100%}
-#floor b{display:block;width:100%;height:100%;
-  background:repeating-linear-gradient(90deg,rgba(255,138,0,.14) 0 1px,transparent 1px 84px),repeating-linear-gradient(0deg,rgba(255,138,0,.12) 0 1px,transparent 1px 46px);
-  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 55%);mask-image:linear-gradient(180deg,transparent 0%,#000 55%);
-  animation:floorscroll 1.8s linear infinite}
-@keyframes floorscroll{to{background-position:0 0,0 46px}}
-.rays{position:absolute;left:50%;top:44%;width:1500px;height:1500px;margin:-750px 0 0 -750px;pointer-events:none;opacity:.85}
-.rays b{display:block;width:100%;height:100%;border-radius:50%;
-  background:repeating-conic-gradient(from 0deg,rgba(255,183,27,.055) 0deg 5deg,transparent 5deg 26deg);
-  -webkit-mask-image:radial-gradient(circle,#000 0%,rgba(0,0,0,.4) 35%,transparent 62%);mask-image:radial-gradient(circle,#000 0%,rgba(0,0,0,.4) 35%,transparent 62%);
-  animation:rayspin 80s linear infinite}
-.rays.magenta b{background:repeating-conic-gradient(from 0deg,rgba(228,0,127,.06) 0deg 5deg,transparent 5deg 26deg)}
-@keyframes rayspin{to{transform:rotate(360deg)}}
-
 /* ============ 高級展示層:聚光/展示台/環繞粒子/反光/景深 ============ */
 .spot{
   position:absolute;left:50%;top:0;transform:translateX(-50%);width:940px;height:440px;pointer-events:none;
@@ -141,7 +117,7 @@ body.nosub #sub{display:none}
 #railwrap:hover #railfill{filter:brightness(1.3)}
 
 @media (prefers-reduced-motion:reduce){
-  .floaty,.buzz,.blink,#s1 .rings i,#f2 .wave i,.scanline,.flowlink,#f3 .vig,.caret,.showfloat,.orb,#aurora b,#floor b,.rays b{animation:none!important}
+  .floaty,.buzz,.blink,#s1 .rings i,#f2 .wave i,.scanline,.flowlink,#f3 .vig,.caret,.showfloat,.orb{animation:none!important}
 }
 </style>
 
@@ -213,8 +189,6 @@ body.nosub #sub{display:none}
 <!-- ====== 舞台 ====== -->
 <div id="stagewrap" class="fixed inset-0 flex items-center justify-center bg-[#01040C]">
   <div id="stage" class="relative flex-none overflow-hidden grain">
-    <div id="aurora" aria-hidden="true"><i id="au1"><b></b></i><i id="au2"><b></b></i><i id="au3"><b></b></i></div>
-    <div id="floor" aria-hidden="true"><b></b></div>
     <canvas id="pf" class="absolute inset-0" width="2560" height="1440" style="width:1280px;height:720px" aria-hidden="true"></canvas>
     <div id="shake" class="absolute inset-0">
 
@@ -256,7 +230,6 @@ body.nosub #sub{display:none}
 
       <!-- F1 · Logo + 來電 -->
       <section class="scene flex flex-col items-center justify-center gap-9" id="f1">
-        <div class="rays" aria-hidden="true"><b></b></div>
         <div class="spot" aria-hidden="true"></div>
         <div class="pedestal w-[560px] h-[110px]" style="bottom:52px" aria-hidden="true"></div>
         <div class="absolute top-8 left-11 flex items-center gap-2.5 font-mono text-[11px] tracking-[.28em] text-slate-500"><span class="w-2 h-2 rounded-full bg-[#F5541E] blink"></span>FILM · 90 SEC</div>
@@ -312,7 +285,6 @@ body.nosub #sub{display:none}
       <!-- F3 · High Opportunity(紅色高潮) -->
       <section class="scene flex flex-col items-center justify-center text-center" id="f3">
         <div class="vig absolute inset-0" aria-hidden="true"></div>
-        <div class="rays magenta" aria-hidden="true"><b></b></div>
         <div id="f3flag" class="relative text-[22px] tracking-[.4em] uppercase font-extrabold text-[#FF4D9E] pl-[.4em] glow-red">🔥 High Opportunity</div>
         <div id="f3pct" class="relative mt-2 text-[196px] leading-none font-bold tabular-nums tracking-[-.03em] grad-red glow-red"><span id="oppPct">0</span><span class="text-[84px] font-bold">%</span></div>
         <div id="f3sigs" class="relative flex gap-3.5 mt-7">
@@ -427,7 +399,6 @@ body.nosub #sub{display:none}
 
       <!-- FEnd -->
       <section class="scene flex flex-col items-center justify-center gap-8 text-center" id="fend">
-        <div class="rays" style="opacity:.55" aria-hidden="true"><b></b></div>
         <div class="relative">
           <span class="orb" style="animation-duration:10s;color:#FFB71B" aria-hidden="true"><i style="transform:translate(80px,0)"></i></span>
           <span class="orb" style="animation-duration:16s;animation-direction:reverse;color:#E4007F" aria-hidden="true"><i style="transform:translate(94px,0)"></i></span>
@@ -693,15 +664,6 @@ function renderField(t,now){
       var s=p.sz*8;
       ctx2.globalAlpha=Math.min(c[2],.85)*.4;
       ctx2.drawImage(sprite(col),c[0]-s/2,c[1]-s/2,s,s);
-    }else if(i%17===3){ /* 十字星芒閃爍 */
-      var tw=.35+.65*Math.abs(Math.sin(t*1.7+p.r4*23));
-      ctx2.globalAlpha=Math.min(c[2],.85)*tw;
-      ctx2.strokeStyle=col;ctx2.lineWidth=1;
-      var L=p.sz*3.2*tw+1;
-      ctx2.beginPath();
-      ctx2.moveTo(c[0]-L,c[1]);ctx2.lineTo(c[0]+L,c[1]);
-      ctx2.moveTo(c[0],c[1]-L);ctx2.lineTo(c[0],c[1]+L);
-      ctx2.stroke();
     }else{
       ctx2.globalAlpha=Math.min(c[2],.85);
       ctx2.fillStyle=col;
@@ -741,34 +703,6 @@ gsap.set(".scene",{autoAlpha:0});
 gsap.set("[data-split] .ch",{yPercent:118});
 gsap.set(["#s1glyph","#s1eyebrow","#s1zh","#s1line1","#s1line2","#s2head","#s2punch",".s2card","#tglow","#f1brand svg","#f1tag","#f1card","#f2left","#f2right","#f2 .chip",".undli","#f3flag","#f3pct","#f3sigs .sig","#f3note","#f4h","#f4phone","#f4sync","#f4web",".f4row","#f4cap","#f5h",".f5node","#f5opp","#f5stamp","#f6head",".tile",".tile2","#fendbadge","#s3head",".s3val","#s3impact",".s3row","#s4mark"],{autoAlpha:0});
 gsap.set(".f5link",{scaleX:0,transformOrigin:"0 50%"});
-
-/* ============ 氛圍層:初始 + 隨劇情換色(絕對時間) ============ */
-gsap.set("#au1",{x:-220,y:260,opacity:.5});
-gsap.set("#au2",{x:820,y:420,opacity:0});
-gsap.set("#au3",{x:760,y:-320,opacity:.3});
-function mood(t,d,a1,a2,a3){
-  if(a1)tl.to("#au1",Object.assign({duration:d,ease:"sine.inOut",immediateRender:false},a1),t);
-  if(a2)tl.to("#au2",Object.assign({duration:d,ease:"sine.inOut",immediateRender:false},a2),t);
-  if(a3)tl.to("#au3",Object.assign({duration:d,ease:"sine.inOut",immediateRender:false},a3),t);
-}
-mood(0,8,{x:-160,y:200,opacity:.55},null,{x:700,y:-280,opacity:.35});      /* S1 暖橘開場 */
-mood(24,4,{opacity:.35},{x:640,y:300,opacity:.22},null);                    /* S1 轉折微暗 */
-mood(35,4,{x:-320,y:-260,opacity:.42},{opacity:0},{x:840,y:340,opacity:.42});/* S2 橘紫對角 */
-mood(55,2.5,{x:190,y:-90,opacity:.5},{x:190,y:-90,opacity:.3},{x:190,y:-90,opacity:.35});/* T 聚球 */
-mood(58,3,{x:190,y:-220,opacity:.45},{opacity:.12},{opacity:.15});          /* F1 頂光 */
-mood(65,3,{x:-420,y:60,opacity:.42},{opacity:0},{x:700,y:-60,opacity:.5});  /* F2 左橘右紫 */
-mood(85,1.2,{opacity:.1},{x:190,y:-60,opacity:.7},{opacity:.15});           /* F3 桃紅滿場 */
-mood(97,3,{x:-260,y:-160,opacity:.42},{opacity:.14},{x:760,y:280,opacity:.3});/* F4 */
-mood(112,3,{x:190,y:320,opacity:.42},{opacity:0},{x:190,y:-320,opacity:.3}); /* F5 */
-mood(125,3,{x:-320,y:-300,opacity:.36},{x:820,y:380,opacity:.16},{opacity:.2});/* F6 */
-mood(141,2,{x:190,y:-90,opacity:.5},{opacity:.2},{opacity:.2});             /* FEnd */
-mood(145,3,{x:-360,y:-240,opacity:.4},{opacity:.1},{x:800,y:320,opacity:.3});/* S3 */
-mood(170,4,{x:190,y:420,opacity:.3},{x:190,y:480,opacity:.22},{opacity:.08});/* S4 餘燼 */
-/* 網格地平線:影片段落開啟 */
-tl.to("#floor",{opacity:.5,duration:1.6,ease:"sine.inOut",immediateRender:false},58);
-tl.to("#floor",{opacity:0,duration:1,ease:"sine.inOut"},84);
-tl.to("#floor",{opacity:.5,duration:1.4,ease:"sine.inOut",immediateRender:false},97);
-tl.to("#floor",{opacity:0,duration:1.2,ease:"sine.inOut"},139.8);
 
 /* --- S1 (0–35) --- */
 sIn("#s1",0,{d:1.4});
