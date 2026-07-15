@@ -881,7 +881,7 @@ function start(auto){
 /* ============ Ticker:進度 / 字幕 / 粒子 / 音效 ============ */
 var subEl=q("#sub"),tcEl=q("#tc"),fillEl=q("#railfill"),curSub="";
 gsap.ticker.add(function(){
-  var t=tl.time(),now=performance.now();
+  var t=tl.time(),now=window.__mcVirtual?t*1000:performance.now();
   renderField(t,now);
   fillEl.style.width=(t/TOTAL*100)+"%";
   var s=Math.floor(t);
@@ -921,6 +921,18 @@ q("#railwrap").addEventListener("click",function(e){
   tl.seek(Math.max(0,Math.min(f*TOTAL,TOTAL-.05)),false);
   driveTo(TOTAL);
 });
+/* 逐幀渲染 API(離線輸出 MP4 用):seek 母時間軸並把所有 CSS 動畫同步到同一時間點 */
+window.__mcFrame=function(t){
+  if(!window.__mcInit){
+    window.__mcInit=1;window.__mcVirtual=1;started=true;soundOn=false;
+    q("#cover").style.display="none";
+    ["ctl","tc","railwrap"].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display="none"});
+  }
+  if(mw){mw.kill();mw=null}
+  tl.seek(t,false);
+  try{document.getAnimations().forEach(function(a){a.pause();a.currentTime=t*1000})}catch(e){}
+  return new Promise(function(res){requestAnimationFrame(function(){requestAnimationFrame(res)})});
+};
 addEventListener("keydown",function(e){
   var cover=q("#cover").style.display!=="none";
   if(cover){
