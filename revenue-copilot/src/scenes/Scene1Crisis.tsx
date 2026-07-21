@@ -1,209 +1,146 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AlertTriangle, PhoneOff, TrendingDown } from "lucide-react";
 import { T } from "../theme";
-import { Backdrop, CountUp, Particles, Rise, SplitTitle } from "../components/ui";
+import { CountUp, Rise } from "../components/ui";
+import { AppShell, Cursor, Panel, Waypoint } from "../components/AppChrome";
 
 /**
- * 第一幕:危機感(900f / 30s)亮色版
- *  0–300   開場金句(逐字彈入)
- *  300–620 89% 紅色巨字 pulse vs 11%
- *  620–900 結語:對的時間/對的人/對的話(橘色逐一點亮)
+ * 第一幕:儀表板現況(900f / 30s)— 真實產品畫面
+ * 打開 MyAgent 儀表板,呈現「89% 來電流失」的危機數據。
  */
+const CURSOR: Waypoint[] = [
+  { t: 0, x: 1500, y: 620 },
+  { t: 90, x: 900, y: 300, click: true },
+  { t: 200, x: 900, y: 300 },
+  { t: 320, x: 620, y: 470 },
+  { t: 900, x: 620, y: 470 },
+];
+
 export const Scene1Crisis: React.FC = () => {
   const frame = useCurrentFrame();
-
-  const beat1 = interpolate(frame, [286, 306], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const beat2 = interpolate(frame, [302, 322, 598, 620], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const beat3 = interpolate(frame, [616, 640], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // 89% 呼吸式 pulse
-  const pulse = 1 + 0.035 * Math.sin(frame / 9);
+  const pulse = 1 + 0.02 * Math.sin(frame / 10);
 
   return (
-    <AbsoluteFill style={{ fontFamily: T.font, color: T.ink }}>
-      <Backdrop energy={0.8} />
-      <Particles n={36} opacity={0.8} />
-
-      {/* Beat 1:開場金句 */}
-      <AbsoluteFill
-        style={{
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: beat1,
-          padding: "0 160px",
-        }}
-      >
-        <div style={{ textAlign: "center", lineHeight: 1.5 }}>
-          <SplitTitle
-            text="每一天,"
-            delay={20}
-            per={3}
-            style={{ fontSize: 76, fontWeight: 800, color: T.ink2 }}
-          />
-          <br />
-          <SplitTitle
-            text="你的保代與電銷團隊,"
-            delay={70}
-            per={3}
-            style={{ fontSize: 88, fontWeight: 800 }}
-          />
-          <br />
-          <span style={{ display: "inline-block", marginTop: 10 }}>
-            <SplitTitle
-              text="正在流失數百位"
-              delay={140}
-              per={3}
-              style={{ fontSize: 88, fontWeight: 800 }}
-            />
-            <SplitTitle
-              text="高價值客戶。"
-              delay={175}
-              per={3.4}
-              style={{
-                fontSize: 88,
-                fontWeight: 800,
-                color: T.red,
-              }}
-            />
-          </span>
-        </div>
-      </AbsoluteFill>
-
-      {/* Beat 2:89% / 11% */}
-      <AbsoluteFill
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 120,
-          opacity: beat2,
-        }}
-      >
-        <Rise delay={314}>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 260,
-                fontWeight: 800,
-                lineHeight: 1,
-                color: T.red,
-                letterSpacing: "-0.03em",
-                textShadow: "0 6px 60px rgba(224,45,60,0.4)",
-                transform: `scale(${pulse})`,
-              }}
-            >
-              <CountUp to={89} delay={322} dur={55} />
-              <span style={{ fontSize: 120 }}>%</span>
-            </div>
-            <div
-              style={{
-                marginTop: 26,
-                fontSize: 40,
-                fontWeight: 800,
-                letterSpacing: "0.1em",
-              }}
-            >
-              掛斷/拒絕
-            </div>
-          </div>
-        </Rise>
-
-        <div
-          style={{
-            width: 2,
-            height: 320,
-            background:
-              "linear-gradient(180deg, transparent, rgba(95,70,48,0.4), transparent)",
-          }}
-        />
-
-        <Rise delay={352}>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 170,
-                fontWeight: 800,
-                lineHeight: 1,
-                color: T.ink3,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              <CountUp to={11} delay={360} dur={45} />
-              <span style={{ fontSize: 84 }}>%</span>
-            </div>
-            <div
-              style={{
-                marginTop: 26,
-                fontSize: 34,
-                fontWeight: 700,
-                color: T.ink3,
-                letterSpacing: "0.1em",
-              }}
-            >
-              成交率
-            </div>
-          </div>
-        </Rise>
-      </AbsoluteFill>
-
-      {/* Beat 3:結語 */}
-      <AbsoluteFill
-        style={{
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: beat3,
-          padding: "0 150px",
-        }}
-      >
-        <div style={{ textAlign: "center", lineHeight: 1.7 }}>
-          <Rise delay={636}>
-            <div style={{ fontSize: 56, fontWeight: 700, color: T.ink2 }}>
-              原因不是產品不好,
+    <AbsoluteFill>
+      <AppShell active="dashboard" clock="09:12">
+        <div style={{ padding: "34px 40px", height: "100%", display: "flex", flexDirection: "column" }}>
+          <Rise delay={6}>
+            <div style={{ fontSize: 32, fontWeight: 800 }}>營運儀表板</div>
+            <div style={{ fontSize: 17, color: T.ink3, marginTop: 4 }}>
+              今日電銷概況 · 2026/02/18
             </div>
           </Rise>
-          <Rise delay={676}>
-            <div style={{ fontSize: 62, fontWeight: 800, marginTop: 18 }}>
-              而是業務沒有在
-              <Hi t="『對的時間』" d={720} />
-              ,對
-              <Hi t="『對的人』" d={762} />
-              ,
-              <br />
-              說
-              <Hi t="『對的話』" d={804} />
-              。
-            </div>
-          </Rise>
+
+          {/* KPI 卡列 */}
+          <div style={{ display: "flex", gap: 22, marginTop: 28 }}>
+            <Kpi delay={20} label="今日來電" value={<><CountUp to={1286} delay={26} dur={40} /></>} sub="全量自動接聽" tone="ink" />
+            <Kpi delay={34} label="接通率" value={<><CountUp to={100} delay={40} dur={36} />%</>} sub="AI 24H 不漏接" tone="green" />
+            <Kpi
+              delay={48}
+              label="拒絕 / 掛斷"
+              value={<span style={{ transform: `scale(${pulse})`, display: "inline-block" }}><CountUp to={89} delay={54} dur={48} />%</span>}
+              sub="⚠ 高價值客戶正在流失"
+              tone="red"
+              big
+            />
+            <Kpi delay={62} label="成交率" value={<><CountUp to={11} delay={68} dur={40} />%</>} sub="遠低於團隊目標" tone="muted" />
+          </div>
+
+          {/* 下方:趨勢圖 + 洞察 */}
+          <div style={{ display: "flex", gap: 22, marginTop: 24, flex: 1 }}>
+            <Panel title="近 14 日 來電結果趨勢" style={{ flex: 1.5, display: "flex", flexDirection: "column" }}>
+              <FallChart />
+            </Panel>
+            <Panel style={{ flex: 1, background: "linear-gradient(160deg,#FFF6EC,#FFECD8)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <Rise delay={120}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, color: T.red, fontWeight: 800, fontSize: 20 }}>
+                  <AlertTriangle size={26} /> AI 洞察
+                </div>
+                <div style={{ fontSize: 27, fontWeight: 800, lineHeight: 1.55, marginTop: 18 }}>
+                  每天有近 <span style={{ color: T.red }}>9 成</span> 來電,
+                  <br />
+                  沒能在<span style={{ color: T.orange }}>對的時間</span>、對
+                  <span style={{ color: T.orange }}>對的人</span>、
+                  <br />
+                  說<span style={{ color: T.orange }}>對的話</span>。
+                </div>
+                <div style={{ fontSize: 18, color: T.ink2, marginTop: 18, lineHeight: 1.6 }}>
+                  商機在掛斷的那一刻,一起消失了。
+                </div>
+              </Rise>
+            </Panel>
+          </div>
         </div>
-      </AbsoluteFill>
+      </AppShell>
+      <Cursor path={CURSOR} />
     </AbsoluteFill>
   );
 };
 
-/* 橘色關鍵詞:延遲點亮 + glow */
-const Hi: React.FC<{ t: string; d: number }> = ({ t, d }) => {
-  const frame = useCurrentFrame();
-  const on = interpolate(frame, [d, d + 12], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+const Kpi: React.FC<{
+  delay: number;
+  label: string;
+  value: React.ReactNode;
+  sub: string;
+  tone: "ink" | "green" | "red" | "muted";
+  big?: boolean;
+}> = ({ delay, label, value, sub, tone, big }) => {
+  const col =
+    tone === "red" ? T.red : tone === "green" ? T.green : tone === "muted" ? T.ink3 : T.ink;
   return (
-    <span
-      style={{
-        color: on > 0.5 ? T.orange : T.ink,
-        textShadow: `0 2px ${30 * on}px rgba(245,91,0,0.5)`,
-      }}
-    >
-      {t}
-    </span>
+    <Rise delay={delay} style={{ flex: big ? 1.25 : 1 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${tone === "red" ? "rgba(224,45,60,0.4)" : "rgba(214,110,30,0.16)"}`,
+          borderRadius: 18,
+          padding: "22px 24px",
+          boxShadow: tone === "red" ? "0 12px 34px rgba(224,45,60,0.14)" : "0 10px 30px rgba(214,110,30,0.06)",
+        }}
+      >
+        <div style={{ fontSize: 15, color: T.ink3, fontWeight: 700, letterSpacing: "0.06em" }}>{label}</div>
+        <div style={{ fontSize: big ? 76 : 52, fontWeight: 800, color: col, lineHeight: 1.1, marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+          {value}
+        </div>
+        <div style={{ fontSize: 14, color: tone === "red" ? T.red : T.ink3, marginTop: 6, fontWeight: tone === "red" ? 700 : 500 }}>
+          {sub}
+        </div>
+      </div>
+    </Rise>
+  );
+};
+
+/* 下降趨勢長條圖(拒絕比例居高) */
+const FallChart: React.FC = () => {
+  const frame = useCurrentFrame();
+  const data = [72, 78, 75, 81, 84, 80, 86, 83, 88, 85, 90, 87, 91, 89];
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 10, marginTop: 10, paddingBottom: 8 }}>
+      {data.map((v, i) => {
+        const grow = interpolate(frame, [30 + i * 5, 70 + i * 5], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        });
+        return (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div
+              style={{
+                width: "100%",
+                height: v * 2.4 * grow,
+                borderRadius: "6px 6px 0 0",
+                background:
+                  i === data.length - 1
+                    ? `linear-gradient(180deg, ${T.red}, rgba(224,45,60,0.5))`
+                    : "linear-gradient(180deg, rgba(255,138,0,0.55), rgba(255,183,0,0.25))",
+              }}
+            />
+          </div>
+        );
+      })}
+      <div style={{ position: "absolute", right: 30, top: 60, display: "flex", alignItems: "center", gap: 8, color: T.red, fontWeight: 800, fontSize: 17 }}>
+        <TrendingDown size={20} /> 拒絕率持續攀升
+      </div>
+    </div>
   );
 };

@@ -1,401 +1,174 @@
 import React from "react";
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig, spring } from "remotion";
-import {
-  Bot,
-  CalendarCheck,
-  Database,
-  FileText,
-  PhoneOff,
-  Send,
-  TrendingUp,
-} from "lucide-react";
-import { T, frost, frostHot, eyebrow } from "../theme";
-import {
-  AIBadge,
-  Backdrop,
-  Burst,
-  CountUp,
-  FrostIn,
-  Particles,
-  Pop,
-  Rise,
-} from "../components/ui";
-import { Lobster } from "../components/Lobster";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { Bot, Calendar, Check, Database, FileText, Loader, PhoneOff, Send, Target, TrendingUp } from "lucide-react";
+import { T } from "../theme";
+import { CountUp, Pop, Rise } from "../components/ui";
+import { AppShell, Cursor, Panel, Waypoint } from "../components/AppChrome";
 
 /**
- * 第三幕:0 秒自動化與 Pipeline(1800f / 60s)MyAgent 亮色版
- *  0–240    掛斷 + 0.0s 強彈跳(無人值守)
- *  240–820  四段流水線橘色光束依序點亮 + 完成粒子(🦞 歡呼 #3)
- *  850–1800 Dashboard:+1 高意向脈動、20 vs 20,000 計數 + 柱狀圖增長
+ * 第三幕:掛斷後 0 秒自動化 + 商機(1800f / 60s)— 真實工作流
+ *  0–820    通話結束 → 自動化工作流逐項執行打勾(帶時間戳)
+ *  850–1800 切換到「商機」→ 新增高意向案件 + 全量覆蓋對比
  */
+const CURSOR: Waypoint[] = [
+  { t: 0, x: 1000, y: 500 },
+  { t: 40, x: 1700, y: 250, click: true }, // 掛斷
+  { t: 120, x: 900, y: 500 },
+  { t: 800, x: 120, y: 250, click: true }, // 側欄:商機
+  { t: 900, x: 700, y: 450 },
+  { t: 1800, x: 700, y: 450 },
+];
+
+const STEPS = [
+  { icon: FileText, label: "產生 AI 逐字稿與通話摘要", t: "14:07:02", d: 150 },
+  { icon: Database, label: "自動寫回 CRM 客戶紀錄", t: "14:07:02", d: 300 },
+  { icon: Send, label: "寄送商品試算表至客戶 LINE / Email", t: "14:07:03", d: 450 },
+  { icon: Calendar, label: "建立專員跟進 Task(3 日後)", t: "14:07:03", d: 600 },
+];
+
 export const Scene3Pipeline: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  const beatA = interpolate(frame, [820, 856], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const beatB = interpolate(frame, [850, 884], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const steps = [
-    { icon: FileText, label: "AI 逐字稿與摘要", d: 250 },
-    { icon: Database, label: "自動寫回 CRM", d: 390 },
-    { icon: Send, label: "LINE/Email 寄送試算表", d: 530 },
-    { icon: CalendarCheck, label: "設定跟進 Task", d: 670 },
-  ];
-
-  // 0.0s 超強彈跳
-  const stopwatch = spring({
-    frame: frame - 110,
-    fps,
-    config: { damping: 8, stiffness: 210, mass: 0.8 },
-  });
-
-  // +1 徽章脈動
-  const plusPulse = 1 + 0.06 * Math.sin(frame / 10);
+  const showB = frame >= 840;
 
   return (
-    <AbsoluteFill style={{ fontFamily: T.font, color: T.ink }}>
-      <Backdrop />
-      <Particles n={30} opacity={0.7} />
-
-      {/* Beat A:掛斷 → 自動化流水線 */}
-      <AbsoluteFill style={{ opacity: beatA, padding: 90 }}>
-        <Rise delay={12}>
-          <div style={{ ...eyebrow, color: T.orange }}>
-            STEP 02 · ZERO-SECOND AUTOMATION
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 26, marginTop: 14 }}>
-            <div style={{ fontSize: 54, fontWeight: 800 }}>
-              電話掛斷的那一刻,AI 的工作才剛開始
-            </div>
-            <AIBadge delay={60} label="無人值守 · AI 全自動接續" />
-          </div>
-        </Rise>
-
-        {/* 掛斷 + 0.0s 碼表 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 34, marginTop: 60 }}>
-          <Pop delay={70} from={0.3} bouncy>
-            <div
-              style={{
-                width: 110,
-                height: 110,
-                borderRadius: "50%",
-                background: "rgba(224,45,60,0.12)",
-                border: "1.5px solid rgba(224,45,60,0.55)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 12px 40px rgba(224,45,60,0.25)",
-              }}
-            >
-              <PhoneOff size={48} color={T.red} />
-            </div>
-          </Pop>
-          <div
-            style={{
-              opacity: frame >= 110 ? 1 : 0,
-              transform: `scale(${0.2 + 0.8 * stopwatch})`,
-              transformOrigin: "left center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 84,
-                fontWeight: 800,
-                fontFamily: T.mono,
-                color: T.orange,
-                lineHeight: 1,
-                textShadow: "0 4px 40px rgba(245,91,0,0.45)",
-              }}
-            >
-              0.0s
-            </div>
-            <div style={{ fontSize: 24, color: T.ink2, marginTop: 8, fontWeight: 700 }}>
-              掛斷即觸發 · 0 人工介入
-            </div>
-          </div>
-          <Burst at={112} x={340} y={60} n={20} spread={220} />
-        </div>
-
-        {/* 流水線 */}
-        <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 80 }}>
-          {steps.map((s, i) => {
-            const lit = frame >= s.d;
-            const beamP = interpolate(frame, [s.d + 30, s.d + 90], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            });
-            const fillP = interpolate(frame, [s.d, s.d + 50], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            });
-            const Icon = s.icon;
-            return (
-              <React.Fragment key={i}>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <FrostIn delay={s.d} rot={i % 2 ? 3 : -3} style={{ height: "100%" }}>
-                    <div
-                      style={{
-                        ...(lit ? frostHot : frost),
-                        height: "100%",
-                        padding: "34px 28px",
-                        textAlign: "center",
-                        position: "relative",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {/* 頂部進度條填充 */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          height: 6,
-                          width: `${fillP * 100}%`,
-                          background: `linear-gradient(90deg, ${T.orange}, ${T.amber})`,
-                          boxShadow: `0 0 14px ${T.orange2}`,
-                        }}
-                      />
-                      <Icon size={52} color={lit ? T.orange : T.ink3} />
-                      <div style={{ marginTop: 18, fontSize: 27, fontWeight: 800, lineHeight: 1.4 }}>
-                        {s.label}
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 12,
-                          fontSize: 17,
-                          fontFamily: T.mono,
-                          letterSpacing: "0.18em",
-                          fontWeight: 800,
-                          color: lit ? T.green : T.ink3,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                        }}
-                      >
-                        {lit ? (
-                          <>
-                            <Bot size={18} /> DONE by AI ✓
-                          </>
-                        ) : (
-                          "WAITING"
-                        )}
-                      </div>
-                    </div>
-                  </FrostIn>
-                  {/* 點亮瞬間粒子完成特效 */}
-                  <Burst at={s.d + 6} x="50%" y="40%" n={16} spread={170} size={0.8} />
+    <AbsoluteFill>
+      {!showB ? (
+        <AppShell active="calls" clock="14:07">
+          <div style={{ padding: "30px 40px", height: "100%", display: "flex", flexDirection: "column" }}>
+            <Rise delay={6}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 54, height: 54, borderRadius: "50%", background: "rgba(224,45,60,0.1)", border: "1.5px solid rgba(224,45,60,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <PhoneOff size={26} color={T.red} />
                 </div>
-                {i < steps.length - 1 && (
-                  <div
-                    style={{
-                      width: 74,
-                      alignSelf: "center",
-                      position: "relative",
-                      height: 5,
-                      flex: "none",
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "rgba(214,110,30,0.2)",
-                        borderRadius: 3,
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: `${beamP * 100}%`,
-                        background: `linear-gradient(90deg, ${T.orange}, ${T.amber})`,
-                        boxShadow: `0 0 16px ${T.orange2}`,
-                        borderRadius: 3,
-                      }}
-                    />
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-
-        {/* 🦞 #3:流水線全部完成,龍蝦歡呼 */}
-        <div style={{ position: "absolute", right: 100, bottom: 40 }}>
-          <Lobster size={185} delay={740} mode="cheer" bubble="全部搞定!" />
-        </div>
-      </AbsoluteFill>
-
-      {/* Beat B:Dashboard */}
-      <AbsoluteFill style={{ opacity: beatB, padding: 90 }}>
-        <Rise delay={880}>
-          <div style={{ ...eyebrow, color: T.blue }}>STEP 03 · REVENUE DASHBOARD</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 26, marginTop: 14 }}>
-            <div style={{ fontSize: 54, fontWeight: 800 }}>
-              每一通電話,都變成看得見的 Pipeline
-            </div>
-            <AIBadge delay={930} label="AI 全自動整理" />
-          </div>
-        </Rise>
-
-        <div style={{ display: "flex", gap: 40, marginTop: 70 }}>
-          {/* Pipeline 卡 */}
-          <FrostIn delay={940} rot={-3} style={{ flex: 1 }}>
-            <div style={{ ...frost, padding: "38px 44px", height: "100%" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  fontSize: 22,
-                  letterSpacing: "0.2em",
-                  color: T.ink2,
-                  fontWeight: 800,
-                }}
-              >
-                <TrendingUp size={26} color={T.blue} /> SALES PIPELINE
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 30 }}>
-                <div
-                  style={{
-                    fontSize: 120,
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    color: T.green,
-                    textShadow: "0 4px 40px rgba(0,158,108,0.35)",
-                    transform: `scale(${plusPulse})`,
-                    transformOrigin: "center",
-                  }}
-                >
-                  +1
+                <div>
+                  <div style={{ fontSize: 30, fontWeight: 800 }}>通話結束 · 自動化接續啟動</div>
+                  <div style={{ fontSize: 16, color: T.ink3, marginTop: 3 }}>張先生 · 通話 01:12 · 掛斷即觸發,全程 0 人工</div>
                 </div>
-                <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.4 }}>
-                  高意向案件
-                  <div style={{ fontSize: 20, color: T.ink2, fontWeight: 600, marginTop: 6 }}>
-                    張先生 · 雙寶安心加額防護專案
-                  </div>
+                <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                  <div style={{ fontSize: 15, color: T.ink3, fontWeight: 700 }}>觸發延遲</div>
+                  <div style={{ fontSize: 40, fontWeight: 800, color: T.orange, fontFamily: T.mono, lineHeight: 1 }}>0.0s</div>
                 </div>
               </div>
-              {/* 柱狀圖逐根增長 */}
-              <div style={{ display: "flex", gap: 12, marginTop: 36, alignItems: "flex-end", height: 150 }}>
-                {[86, 64, 42, 26].map((h, i) => {
-                  const grow = spring({
-                    frame: frame - (1000 + i * 14),
-                    fps,
-                    config: { damping: 13, stiffness: 110, mass: 0.8 },
-                  });
+            </Rise>
+
+            <Panel title="自動化工作流 · Workflow Run #4821" style={{ marginTop: 26, flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {STEPS.map((s, i) => {
+                  const running = frame >= s.d - 30 && frame < s.d;
+                  const done = frame >= s.d;
+                  const Icon = s.icon;
                   return (
-                    <div
-                      key={i}
-                      style={{
-                        flex: 1,
-                        height: h * 1.7 * grow,
-                        borderRadius: 10,
-                        background:
-                          i === 3
-                            ? `linear-gradient(180deg, ${T.green}, rgba(0,158,108,0.5))`
-                            : `linear-gradient(180deg, ${T.orange2}, rgba(255,138,0,0.35))`,
-                        boxShadow:
-                          i === 3
-                            ? "0 8px 24px rgba(0,158,108,0.3)"
-                            : "0 8px 24px rgba(255,138,0,0.25)",
-                      }}
-                    />
+                    <Rise key={i} delay={s.d - 40} y={20}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 18, padding: "18px 22px", borderRadius: 14, background: done ? "rgba(0,158,108,0.07)" : "#FFF9F3", border: `1px solid ${done ? "rgba(0,158,108,0.3)" : "rgba(214,110,30,0.14)"}` }}>
+                        <Icon size={26} color={done ? T.green : T.ink3} style={{ flex: "none" }} />
+                        <div style={{ fontSize: 21, fontWeight: 700, flex: 1 }}>{s.label}</div>
+                        <div style={{ fontSize: 15, color: T.ink3, fontFamily: T.mono }}>{done ? s.t : ""}</div>
+                        <div style={{ width: 130, textAlign: "right" }}>
+                          {done ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: T.green, fontWeight: 800, fontSize: 16 }}>
+                              <span style={{ width: 24, height: 24, borderRadius: "50%", background: T.green, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Check size={16} color="#fff" /></span>
+                              完成
+                            </span>
+                          ) : running ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: T.orange, fontWeight: 800, fontSize: 16 }}>
+                              <Loader size={18} /> 執行中
+                            </span>
+                          ) : (
+                            <span style={{ color: T.ink3, fontSize: 15 }}>等待中</span>
+                          )}
+                        </div>
+                      </div>
+                    </Rise>
                   );
                 })}
               </div>
-            </div>
-          </FrostIn>
+              <Rise delay={640}>
+                <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10, color: T.green, fontWeight: 800, fontSize: 19 }}>
+                  <Bot size={22} /> 全部由 AI 自動完成 · 專員無需任何手動輸入
+                </div>
+              </Rise>
+            </Panel>
+          </div>
+        </AppShell>
+      ) : (
+        <AppShell active="pipeline" clock="14:07">
+          <div style={{ padding: "30px 40px", height: "100%", display: "flex", flexDirection: "column" }}>
+            <Rise delay={846}>
+              <div style={{ fontSize: 30, fontWeight: 800 }}>銷售商機 Pipeline</div>
+              <div style={{ fontSize: 16, color: T.ink3, marginTop: 3 }}>AI 自動建立與分級</div>
+            </Rise>
 
-          {/* 對比卡 */}
-          <FrostIn delay={1010} rot={3} style={{ flex: 1.15 }}>
-            <div style={{ ...frost, padding: "38px 44px", height: "100%" }}>
-              <div
-                style={{
-                  fontSize: 22,
-                  letterSpacing: "0.2em",
-                  color: T.ink2,
-                  fontWeight: 800,
-                }}
-              >
-                COVERAGE · 質檢與洞察覆蓋率
-              </div>
-              <div style={{ display: "flex", gap: 36, marginTop: 36 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 24, color: T.ink3, fontWeight: 700 }}>
-                    以前:每日抽聽
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 96,
-                      fontWeight: 800,
-                      color: T.ink3,
-                      lineHeight: 1.1,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    <CountUp to={20} delay={1050} dur={40} />
-                    <span style={{ fontSize: 40 }}> 通</span>
-                  </div>
-                  <div
-                    style={{
-                      height: 14,
-                      width: "8%",
-                      minWidth: 26,
-                      borderRadius: 8,
-                      background: "rgba(95,70,48,0.3)",
-                      marginTop: 20,
-                    }}
-                  />
+            {/* Kanban 三欄 */}
+            <div style={{ display: "flex", gap: 20, marginTop: 24, flex: 1 }}>
+              <Column title="待聯繫" count={38} tone="muted" />
+              <Column title="跟進中" count={54} tone="muted" />
+              <Column title="高意向" count={215} tone="hot" highlightNew />
+            </div>
+
+            {/* 底部覆蓋率對比 */}
+            <Panel style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 50 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: T.ink2, letterSpacing: "0.06em" }}>質檢與洞察覆蓋率</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+                  <span style={{ fontSize: 18, color: T.ink3 }}>以前 每日抽聽</span>
+                  <span style={{ fontSize: 44, fontWeight: 800, color: T.ink3, fontVariantNumeric: "tabular-nums" }}>20</span>
+                  <span style={{ fontSize: 18, color: T.ink3 }}>通</span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 24, color: T.orange, fontWeight: 800 }}>
-                    現在:AI 全量分析
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 96,
-                      fontWeight: 800,
-                      color: T.orange,
-                      lineHeight: 1.1,
-                      textShadow: "0 4px 40px rgba(245,91,0,0.35)",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    <CountUp to={20000} delay={1080} dur={80} />
-                    <span style={{ fontSize: 40 }}> 通</span>
-                  </div>
-                  <div
-                    style={{
-                      height: 14,
-                      width: `${interpolate(frame, [1090, 1240], [8, 100], {
-                        extrapolateLeft: "clamp",
-                        extrapolateRight: "clamp",
-                      })}%`,
-                      borderRadius: 8,
-                      background: `linear-gradient(90deg, ${T.orange}, ${T.amber})`,
-                      boxShadow: "0 0 24px rgba(255,138,0,0.45)",
-                      marginTop: 20,
-                    }}
-                  />
+                <div style={{ fontSize: 26, color: T.orange, fontWeight: 800 }}>→</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+                  <span style={{ fontSize: 18, color: T.orange, fontWeight: 700 }}>現在 AI 全量分析</span>
+                  <span style={{ fontSize: 56, fontWeight: 800, color: T.orange, fontVariantNumeric: "tabular-nums", textShadow: "0 2px 20px rgba(245,91,0,0.3)" }}>
+                    <CountUp to={20000} delay={1050} dur={70} />
+                  </span>
+                  <span style={{ fontSize: 18, color: T.orange, fontWeight: 700 }}>通</span>
+                </div>
+                <div style={{ marginLeft: "auto", fontSize: 18, fontWeight: 800, color: T.green }}>100% 通話覆蓋</div>
+              </div>
+            </Panel>
+          </div>
+        </AppShell>
+      )}
+      <Cursor path={CURSOR} />
+    </AbsoluteFill>
+  );
+};
+
+const Column: React.FC<{ title: string; count: number; tone: "muted" | "hot"; highlightNew?: boolean }> = ({ title, count, tone, highlightNew }) => {
+  const frame = useCurrentFrame();
+  const hot = tone === "hot";
+  return (
+    <div style={{ flex: 1, background: hot ? "linear-gradient(180deg,#FFF6EC,#FFECD8)" : "#FBF6F0", borderRadius: 16, border: `1px solid ${hot ? "rgba(245,91,0,0.3)" : "rgba(214,110,30,0.12)"}`, padding: 18, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 19, fontWeight: 800, color: hot ? T.orange : T.ink2 }}>{title}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: hot ? T.orange : T.ink3, background: hot ? "rgba(245,91,0,0.14)" : "#F0E6DA", borderRadius: 999, padding: "3px 12px" }}>{count}</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+        {highlightNew && (
+          <Pop delay={920} from={0.6}>
+            <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid rgba(245,91,0,0.5)", boxShadow: "0 12px 30px rgba(245,91,0,0.16)", padding: "16px 18px", position: "relative" }}>
+              <div style={{ position: "absolute", top: -12, right: 14, background: T.green, color: "#fff", fontSize: 13, fontWeight: 800, borderRadius: 999, padding: "3px 12px" }}>AI 新增 +1</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(14,125,194,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: T.blue }}>張</div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800 }}>張先生</div>
+                  <div style={{ fontSize: 13, color: T.ink3 }}>雙寶安心加額防護專案</div>
                 </div>
               </div>
-              <div style={{ marginTop: 32, fontSize: 24, color: T.ink2, lineHeight: 1.6, fontWeight: 600 }}>
-                100% 通話覆蓋——每一位客戶的訊號,都不再被漏掉。
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 14 }}>
+                <Target size={15} color={T.orange} />
+                <span style={{ fontWeight: 700, color: T.orange }}>成交機率 92%</span>
+                <span style={{ marginLeft: "auto", color: T.ink3 }}>已指派專員</span>
               </div>
             </div>
-          </FrostIn>
-        </div>
-      </AbsoluteFill>
-    </AbsoluteFill>
+          </Pop>
+        )}
+        {[0, 1].map((i) => (
+          <div key={i} style={{ background: hot ? "rgba(255,255,255,0.6)" : "#fff", borderRadius: 12, border: "1px solid rgba(214,110,30,0.1)", padding: "14px 16px", opacity: 0.7 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.ink2 }}>客戶 #{hot ? 200 + i : 40 + i}</div>
+            <div style={{ height: 8, borderRadius: 4, background: "#EFE3D6", marginTop: 10, width: `${60 - i * 15}%` }} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
