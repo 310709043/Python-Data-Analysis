@@ -1,13 +1,13 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { T } from "../theme";
-import { Backdrop, CountUp, Rise, SplitTitle } from "../components/ui";
+import { Backdrop, CountUp, Particles, Rise, SplitTitle } from "../components/ui";
 
 /**
- * 第一幕:危機感(900f / 30s)
- *  0–300   開場金句
- *  300–620 89% vs 11% 對比
- *  620–900 結語:對的時間/對的人/對的話
+ * 第一幕:危機感(900f / 30s)亮色版
+ *  0–300   開場金句(逐字彈入)
+ *  300–620 89% 紅色巨字 pulse vs 11%
+ *  620–900 結語:對的時間/對的人/對的話(橘色逐一點亮)
  */
 export const Scene1Crisis: React.FC = () => {
   const frame = useCurrentFrame();
@@ -25,9 +25,13 @@ export const Scene1Crisis: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
+  // 89% 呼吸式 pulse
+  const pulse = 1 + 0.035 * Math.sin(frame / 9);
+
   return (
     <AbsoluteFill style={{ fontFamily: T.font, color: T.ink }}>
-      <Backdrop tint="red" />
+      <Backdrop energy={0.8} />
+      <Particles n={36} opacity={0.8} />
 
       {/* Beat 1:開場金句 */}
       <AbsoluteFill
@@ -64,7 +68,11 @@ export const Scene1Crisis: React.FC = () => {
               text="高價值客戶。"
               delay={175}
               per={3.4}
-              style={{ fontSize: 88, fontWeight: 800, color: T.red }}
+              style={{
+                fontSize: 88,
+                fontWeight: 800,
+                color: T.red,
+              }}
             />
           </span>
         </div>
@@ -89,7 +97,8 @@ export const Scene1Crisis: React.FC = () => {
                 lineHeight: 1,
                 color: T.red,
                 letterSpacing: "-0.03em",
-                textShadow: "0 0 90px rgba(255,59,78,0.45)",
+                textShadow: "0 6px 60px rgba(224,45,60,0.4)",
+                transform: `scale(${pulse})`,
               }}
             >
               <CountUp to={89} delay={322} dur={55} />
@@ -97,10 +106,9 @@ export const Scene1Crisis: React.FC = () => {
             </div>
             <div
               style={{
-                marginTop: 22,
+                marginTop: 26,
                 fontSize: 40,
-                fontWeight: 700,
-                color: T.ink,
+                fontWeight: 800,
                 letterSpacing: "0.1em",
               }}
             >
@@ -114,7 +122,7 @@ export const Scene1Crisis: React.FC = () => {
             width: 2,
             height: 320,
             background:
-              "linear-gradient(180deg, transparent, rgba(255,255,255,0.25), transparent)",
+              "linear-gradient(180deg, transparent, rgba(95,70,48,0.4), transparent)",
           }}
         />
 
@@ -134,7 +142,7 @@ export const Scene1Crisis: React.FC = () => {
             </div>
             <div
               style={{
-                marginTop: 22,
+                marginTop: 26,
                 fontSize: 34,
                 fontWeight: 700,
                 color: T.ink3,
@@ -181,7 +189,7 @@ export const Scene1Crisis: React.FC = () => {
   );
 };
 
-/* 螢光綠關鍵詞:延遲點亮 */
+/* 橘色關鍵詞:延遲點亮 + glow */
 const Hi: React.FC<{ t: string; d: number }> = ({ t, d }) => {
   const frame = useCurrentFrame();
   const on = interpolate(frame, [d, d + 12], [0, 1], {
@@ -191,8 +199,8 @@ const Hi: React.FC<{ t: string; d: number }> = ({ t, d }) => {
   return (
     <span
       style={{
-        color: on > 0.5 ? T.neon : T.ink,
-        textShadow: `0 0 ${34 * on}px rgba(0,255,157,0.55)`,
+        color: on > 0.5 ? T.orange : T.ink,
+        textShadow: `0 2px ${30 * on}px rgba(245,91,0,0.5)`,
       }}
     >
       {t}

@@ -8,25 +8,33 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { T, glass, eyebrow } from "../theme";
-import { Backdrop, Pop, Rise, Waveform } from "../components/ui";
+import { T, frost, frostHot, eyebrow } from "../theme";
+import {
+  AIBadge,
+  Backdrop,
+  Burst,
+  FrostIn,
+  Particles,
+  Pop,
+  RingProgress,
+  Rise,
+  Waveform,
+} from "../components/ui";
+import { Lobster } from "../components/Lobster";
 
 /**
- * 第二幕:CRM 串接與客戶輪廓(1350f / 45s)
- *  0–240   CRM 連線 + API Connected
- *  240–..  客戶 Profile 卡
- *  560–..  通話音波 + 關鍵字
- *  950–..  AI 推薦方案卡(0.8s 徽章)
+ * 第二幕:CRM 串接與客戶輪廓(1350f / 45s)MyAgent 亮色版
+ *  0–240   CRM 多光束連線 + API Connected(🦞 揮手 #1)
+ *  240–..  客戶 Profile 毛玻璃卡
+ *  560–..  通話音波 + AI 逐字稿 + 關鍵字 chip
+ *  950–..  AI 推薦卡 + 92% 圓環(🦞 指引 #2)
  */
 export const Scene2CRM: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // API 連線虛線 → 完成
-  const linkP = interpolate(frame, [70, 160], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const beams = [0, 1, 2]; // 三條錯落光束
   const connected = frame >= 165;
+  const nodePulse = 0.6 + 0.4 * Math.abs(Math.sin(frame / 14));
 
   const transcript = "客戶:「最近家裡剛添了第二個寶寶……不過預算上有點吃緊……」";
   const typedN = Math.floor(
@@ -39,38 +47,33 @@ export const Scene2CRM: React.FC = () => {
   return (
     <AbsoluteFill style={{ fontFamily: T.font, color: T.ink, padding: 90 }}>
       <Backdrop />
+      <Particles n={30} opacity={0.7} />
 
-      {/* 頂部標題 */}
+      {/* 頂部標題 + AI 自動徽章 */}
       <Rise delay={12}>
-        <div style={{ ...eyebrow, color: T.aurora }}>
-          STEP 01 · CRM CONNECTED
-        </div>
-        <div style={{ fontSize: 54, fontWeight: 800, marginTop: 14 }}>
-          接上你現有的 CRM,AI 開始認識每一位客戶
+        <div style={{ ...eyebrow, color: T.orange }}>STEP 01 · CRM CONNECTED</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 26, marginTop: 14 }}>
+          <div style={{ fontSize: 54, fontWeight: 800 }}>
+            接上你現有的 CRM,AI 開始認識每一位客戶
+          </div>
+          <AIBadge delay={210} />
         </div>
       </Rise>
 
-      {/* 左:CRM 連線圖 */}
-      <div
-        style={{
-          position: "absolute",
-          left: 90,
-          top: 300,
-          width: 640,
-        }}
-      >
-        <Rise delay={45}>
+      {/* 左:CRM 多光束連線圖 */}
+      <div style={{ position: "absolute", left: 90, top: 300, width: 640 }}>
+        <FrostIn delay={40} rot={-3}>
           <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
             <div
               style={{
-                ...glass,
+                ...frost,
                 padding: "30px 38px",
                 display: "flex",
                 alignItems: "center",
                 gap: 16,
               }}
             >
-              <Database size={40} color={T.aurora} />
+              <Database size={40} color={T.blue} />
               <div>
                 <div style={{ fontSize: 26, fontWeight: 800 }}>企業 CRM</div>
                 <div style={{ fontSize: 16, color: T.ink3, fontFamily: T.mono }}>
@@ -79,51 +82,79 @@ export const Scene2CRM: React.FC = () => {
               </div>
             </div>
 
-            {/* 連線 */}
-            <div style={{ position: "relative", width: 150, height: 4 }}>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderTop: "3px dashed rgba(255,255,255,0.18)",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: `${linkP * 100}%`,
-                  borderTop: `3px solid ${T.neon}`,
-                  boxShadow: `0 0 14px ${T.neon}`,
-                }}
-              />
+            {/* 三條錯落光束 */}
+            <div style={{ position: "relative", width: 150, height: 60 }}>
+              {beams.map((b) => {
+                const p = interpolate(frame, [60 + b * 18, 150 + b * 18], [0, 1], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                });
+                const flow = ((frame * 3 + b * 40) % 60) / 60;
+                return (
+                  <div key={b} style={{ position: "absolute", top: 12 + b * 16, left: 0, right: 0, height: 4 }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        borderTop: "2.5px dashed rgba(214,110,30,0.3)",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        width: `${p * 100}%`,
+                        borderTop: `3px solid ${T.orange}`,
+                        boxShadow: `0 0 12px ${T.orange2}`,
+                      }}
+                    />
+                    {p >= 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: `${flow * 100}%`,
+                          top: -3,
+                          width: 9,
+                          height: 9,
+                          borderRadius: "50%",
+                          background: T.amber,
+                          boxShadow: `0 0 12px ${T.amber}`,
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div
               style={{
-                ...glass,
+                ...frostHot,
                 padding: "30px 38px",
                 display: "flex",
                 alignItems: "center",
                 gap: 16,
-                border: connected
-                  ? `1px solid rgba(0,255,157,0.45)`
-                  : (glass.border as string),
+                boxShadow: connected
+                  ? `0 30px 70px rgba(214,110,30,0.22), 0 0 ${40 * nodePulse}px rgba(255,138,0,0.4), inset 0 1px 0 rgba(255,255,255,0.95)`
+                  : (frostHot.boxShadow as string),
               }}
             >
-              <Sparkles size={40} color={T.neon} />
+              <Sparkles size={40} color={T.orange} />
               <div>
-                <div style={{ fontSize: 26, fontWeight: 800, whiteSpace: "nowrap" }}>myClaw AI</div>
+                <div style={{ fontSize: 26, fontWeight: 800, whiteSpace: "nowrap" }}>
+                  MyAgent AI
+                </div>
                 <div style={{ fontSize: 16, color: T.ink3, fontFamily: T.mono }}>
                   revenue copilot
                 </div>
               </div>
             </div>
           </div>
-        </Rise>
+        </FrostIn>
 
-        <Pop delay={170}>
+        <Burst at={168} x={520} y={40} n={20} spread={190} />
+        <Pop delay={170} bouncy>
           <div
             style={{
               marginTop: 26,
@@ -132,9 +163,9 @@ export const Scene2CRM: React.FC = () => {
               gap: 12,
               borderRadius: 999,
               padding: "12px 26px",
-              background: "rgba(0,255,157,0.10)",
-              border: "1px solid rgba(0,255,157,0.45)",
-              color: T.neon,
+              background: "rgba(0,158,108,0.12)",
+              border: "1.5px solid rgba(0,158,108,0.6)",
+              color: T.green,
               fontWeight: 800,
               fontSize: 22,
               fontFamily: T.mono,
@@ -144,9 +175,14 @@ export const Scene2CRM: React.FC = () => {
           </div>
         </Pop>
 
-        {/* 通話分析 */}
-        <Rise delay={560} y={40}>
-          <div style={{ ...glass, marginTop: 40, padding: "30px 34px" }}>
+        {/* 🦞 #1:連線成功,龍蝦揮手登場 */}
+        <div style={{ position: "absolute", right: -64, top: 116 }}>
+          <Lobster size={168} delay={190} mode="wave" bubble="交給我!" />
+        </div>
+
+        {/* 通話分析卡 */}
+        <FrostIn delay={560} rot={3}>
+          <div style={{ ...frost, marginTop: 46, padding: "30px 34px" }}>
             <div
               style={{
                 display: "flex",
@@ -154,7 +190,15 @@ export const Scene2CRM: React.FC = () => {
                 justifyContent: "space-between",
               }}
             >
-              <div style={{ fontSize: 19, letterSpacing: "0.18em", color: T.aurora, fontWeight: 800, whiteSpace: "nowrap" }}>
+              <div
+                style={{
+                  fontSize: 19,
+                  letterSpacing: "0.16em",
+                  color: T.orange,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                }}
+              >
                 LIVE CALL · AI 語音串流分析
               </div>
               <Waveform width={200} height={40} bars={18} />
@@ -164,7 +208,6 @@ export const Scene2CRM: React.FC = () => {
                 marginTop: 22,
                 fontSize: 26,
                 lineHeight: 1.7,
-                color: T.ink,
                 minHeight: 90,
               }}
             >
@@ -174,42 +217,42 @@ export const Scene2CRM: React.FC = () => {
                   display: "inline-block",
                   width: 3,
                   height: 26,
-                  background: T.aurora,
+                  background: T.orange,
                   verticalAlign: -3,
                   opacity: Math.floor(frame / 12) % 2 === 0 ? 1 : 0,
                 }}
               />
             </div>
             <div style={{ display: "flex", gap: 14, marginTop: 16 }}>
-              <Pop delay={715}>
+              <Pop delay={715} bouncy>
                 <Chip>二寶</Chip>
               </Pop>
-              <Pop delay={835}>
+              <Pop delay={835} bouncy>
                 <Chip>預算疑慮</Chip>
               </Pop>
             </div>
           </div>
-        </Rise>
+        </FrostIn>
       </div>
 
-      {/* 右:Profile 卡 */}
+      {/* 右:Profile 卡 + AI 推薦 */}
       <div style={{ position: "absolute", right: 90, top: 300, width: 560 }}>
-        <Rise delay={250} y={54}>
-          <div style={{ ...glass, padding: "38px 42px" }}>
+        <FrostIn delay={250} rot={4}>
+          <div style={{ ...frost, padding: "36px 42px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
               <div
                 style={{
                   width: 92,
                   height: 92,
                   borderRadius: "50%",
-                  background: "rgba(56,189,248,0.12)",
-                  border: "1px solid rgba(56,189,248,0.4)",
+                  background: "rgba(14,125,194,0.12)",
+                  border: "1.5px solid rgba(14,125,194,0.45)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 40,
                   fontWeight: 800,
-                  color: T.aurora,
+                  color: T.blue,
                 }}
               >
                 張
@@ -234,11 +277,11 @@ export const Scene2CRM: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 14, marginTop: 30, flexWrap: "wrap" }}>
-              <Pop delay={320}>
+            <div style={{ display: "flex", gap: 14, marginTop: 28, flexWrap: "wrap" }}>
+              <Pop delay={320} bouncy>
                 <Tag icon={<Baby size={20} />}>剛升格二寶爸</Tag>
               </Pop>
-              <Pop delay={360}>
+              <Pop delay={360} bouncy>
                 <Tag icon={<PiggyBank size={20} />}>偏好儲蓄與保障</Tag>
               </Pop>
             </div>
@@ -246,41 +289,49 @@ export const Scene2CRM: React.FC = () => {
             <Rise delay={420}>
               <div
                 style={{
-                  marginTop: 28,
+                  marginTop: 26,
                   borderRadius: 18,
-                  padding: "22px 26px",
-                  background: "rgba(0,255,157,0.07)",
-                  border: "1px solid rgba(0,255,157,0.30)",
+                  padding: "20px 26px",
+                  background: "rgba(255,183,0,0.14)",
+                  border: "1.5px solid rgba(245,91,0,0.4)",
                   display: "flex",
                   gap: 16,
                   alignItems: "flex-start",
                 }}
               >
-                <Lightbulb size={30} color={T.neon} style={{ flex: "none", marginTop: 4 }} />
+                <Lightbulb size={30} color={T.orange} style={{ flex: "none", marginTop: 4 }} />
                 <div>
-                  <div style={{ fontSize: 18, letterSpacing: "0.2em", color: T.neon, fontWeight: 800 }}>
-                    建議切入點
+                  <div
+                    style={{
+                      fontSize: 18,
+                      letterSpacing: "0.2em",
+                      color: T.orange,
+                      fontWeight: 800,
+                    }}
+                  >
+                    建議切入點(AI 自動判讀)
                   </div>
-                  <div style={{ fontSize: 27, fontWeight: 700, marginTop: 8, lineHeight: 1.55 }}>
+                  <div style={{ fontSize: 27, fontWeight: 800, marginTop: 8, lineHeight: 1.55 }}>
                     家庭責任期加款 / 兒童保障
                   </div>
                 </div>
               </div>
             </Rise>
           </div>
-        </Rise>
+        </FrostIn>
 
-        {/* AI 推薦方案卡 */}
-        <Pop delay={950} from={0.55}>
+        {/* AI 推薦卡 + 92% 圓環 */}
+        <Burst at={952} x={280} y={520} n={22} spread={280} />
+        <FrostIn delay={950} rot={-4}>
           <div
             style={{
-              ...glass,
+              ...frostHot,
               marginTop: 34,
-              padding: "34px 40px",
-              border: "1px solid rgba(0,255,157,0.5)",
-              boxShadow:
-                "0 40px 90px rgba(0,0,0,0.55), 0 0 70px rgba(0,255,157,0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
+              padding: "32px 38px",
               position: "relative",
+              display: "flex",
+              alignItems: "center",
+              gap: 30,
             }}
           >
             <div
@@ -290,45 +341,61 @@ export const Scene2CRM: React.FC = () => {
                 left: 34,
                 borderRadius: 999,
                 padding: "8px 20px",
-                background: T.neon,
-                color: "#05230F",
+                background: `linear-gradient(90deg, ${T.orange}, ${T.orange2})`,
+                color: "#fff",
                 fontWeight: 800,
                 fontSize: 19,
                 fontFamily: T.mono,
+                boxShadow: "0 10px 26px rgba(245,91,0,0.4)",
               }}
             >
-              ⚡ 0.8s AI RECOMMENDATION
+              ⚡ 0.8s AI 自動推薦
             </div>
-            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>
-              雙寶安心加額防護專案
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, marginTop: 6, lineHeight: 1.35 }}>
+                雙寶安心加額
+                <br />
+                防護專案
+              </div>
+              <div style={{ fontSize: 20, color: T.ink2, marginTop: 10 }}>
+                歷史成交率
+              </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 14,
-                marginTop: 14,
-              }}
-            >
-              <span style={{ fontSize: 22, color: T.ink2 }}>歷史成交率</span>
-              <span
-                style={{
-                  fontSize: 64,
-                  fontWeight: 800,
-                  color: T.neon,
-                  lineHeight: 1,
-                  textShadow: "0 0 40px rgba(0,255,157,0.4)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                92%
-              </span>
-            </div>
+            <RingProgress pct={92} delay={975} size={168} stroke={15}>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontSize: 52,
+                    fontWeight: 800,
+                    color: T.orange,
+                    lineHeight: 1,
+                  }}
+                >
+                  <CountUpPct delay={975} />
+                </div>
+              </div>
+            </RingProgress>
           </div>
-        </Pop>
+        </FrostIn>
+
+      </div>
+
+      {/* 🦞 #2:AI 推薦出爐,龍蝦在中下空白區指向卡片 */}
+      <div style={{ position: "absolute", left: 850, top: 800 }}>
+        <Lobster size={158} delay={1010} mode="point" bubble="0.8 秒就找到了!" />
       </div>
     </AbsoluteFill>
   );
+};
+
+const CountUpPct: React.FC<{ delay: number }> = ({ delay }) => {
+  const frame = useCurrentFrame();
+  const p = interpolate(frame - delay, [0, 55], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const eased = 1 - Math.pow(1 - p, 3);
+  return <>{Math.round(92 * eased)}%</>;
 };
 
 const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -337,11 +404,12 @@ const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
       display: "inline-block",
       borderRadius: 999,
       padding: "10px 22px",
-      background: "rgba(56,189,248,0.12)",
-      border: "1px solid rgba(56,189,248,0.5)",
-      color: "#BAE6FD",
+      background: "rgba(245,91,0,0.10)",
+      border: "1.5px solid rgba(245,91,0,0.55)",
+      color: T.orange,
       fontWeight: 800,
       fontSize: 24,
+      boxShadow: "0 0 20px rgba(255,138,0,0.25)",
     }}
   >
     [{children}]
@@ -359,8 +427,8 @@ const Tag: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
       gap: 10,
       borderRadius: 999,
       padding: "10px 20px",
-      background: "rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.16)",
+      background: "rgba(255,255,255,0.65)",
+      border: "1.5px solid rgba(214,110,30,0.35)",
       fontSize: 22,
       fontWeight: 700,
       color: T.ink,
