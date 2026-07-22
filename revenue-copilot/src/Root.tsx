@@ -9,6 +9,8 @@ import {
   Fx5Pipeline,
   Fx6Impact,
   Fx7AlertStorm,
+  Fx8Reasoning,
+  Fx9ParticleSphere,
 } from "./fx";
 
 const W = 1920;
@@ -27,6 +29,8 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="Fx5Pipeline" component={Fx5Pipeline} durationInFrames={165} fps={FPS} width={W} height={H} />
       <Composition id="Fx6Impact" component={Fx6Impact} durationInFrames={150} fps={FPS} width={W} height={H} />
       <Composition id="Fx7AlertStorm" component={Fx7AlertStorm} durationInFrames={150} fps={FPS} width={W} height={H} />
+      <Composition id="Fx8Reasoning" component={Fx8Reasoning} durationInFrames={175} fps={FPS} width={W} height={H} />
+      <Composition id="Fx9ParticleSphere" component={Fx9ParticleSphere} durationInFrames={150} fps={FPS} width={W} height={H} />
     </>
   );
 };

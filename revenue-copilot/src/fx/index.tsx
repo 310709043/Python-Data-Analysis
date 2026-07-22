@@ -340,3 +340,116 @@ export const Fx7AlertStorm: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+/* ============ FX8 · Reasoning AI 推理過程 ============ */
+export const Fx8Reasoning: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const steps = [
+    { txt: "解析語音語意與情緒訊號", note: "偵測到：家庭責任、預算敏感", d: 14 },
+    { txt: "比對 CRM 歷史與相似客群", note: "相似 1,204 位客戶成交路徑", d: 40 },
+    { txt: "評估 12 項方案適配度", note: "逐一計算保障缺口與負擔比", d: 66 },
+    { txt: "排除預算不符方案", note: "保留 3 項高適配方案", d: 92 },
+  ];
+  const concludeAt = 120;
+  return (
+    <AbsoluteFill style={{ fontFamily: F }}>
+      <Bg e={1.05} />
+      {/* 標題 + 思考中指示 */}
+      <div style={{ position: "absolute", top: 90, left: 0, right: 0, textAlign: "center" }}>
+        <div style={{ fontSize: 20, letterSpacing: "0.4em", color: T.ink3, fontWeight: 800 }}>MYAGENT · REASONING</div>
+        <div style={{ fontSize: 40, fontWeight: 800, color: T.ink, marginTop: 8, display: "inline-flex", alignItems: "center", gap: 14 }}>
+          <Bot size={38} color={T.orange} /> AI 正在推理最適方案
+          <span style={{ display: "inline-flex", gap: 6, marginLeft: 4 }}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: T.orange, opacity: 0.3 + 0.7 * Math.abs(Math.sin(frame / 6 - i * 0.7)) }} />
+            ))}
+          </span>
+        </div>
+      </div>
+
+      {/* 推理鏈 */}
+      <div style={{ position: "absolute", left: 520, top: 240, width: 880 }}>
+        {steps.map((s, i) => {
+          const app = spring({ frame: frame - s.d, fps, config: { damping: 16, stiffness: 110 } });
+          const done = frame >= s.d + 22;
+          const thinking = frame >= s.d && frame < s.d + 22;
+          return (
+            <div key={i} style={{ display: "flex", gap: 22, opacity: app, transform: `translateX(${(1 - app) * -40}px)`, marginBottom: 22 }}>
+              {/* 節點 + 連線 */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", flex: "none", background: done ? T.green : "#fff", border: `2px solid ${done ? T.green : "rgba(245,91,0,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center", color: done ? "#fff" : T.orange, fontWeight: 800, fontSize: 18, boxShadow: thinking ? `0 0 ${16 + 8 * Math.sin(frame / 4)}px rgba(245,91,0,0.5)` : "none" }}>
+                  {done ? "✓" : i + 1}
+                </div>
+                {i < steps.length && <div style={{ width: 2, flex: 1, minHeight: 40, background: "rgba(214,110,30,0.25)" }} />}
+              </div>
+              {/* 內容 */}
+              <div style={{ flex: 1, background: "#fff", border: `1px solid ${done ? "rgba(0,158,108,0.3)" : "rgba(214,110,30,0.18)"}`, borderRadius: 14, padding: "16px 22px", boxShadow: "0 10px 26px rgba(214,110,30,0.08)" }}>
+                <div style={{ fontSize: 23, fontWeight: 800, color: T.ink }}>{s.txt}</div>
+                <div style={{ fontSize: 17, color: thinking ? T.orange : T.ink3, marginTop: 6, fontWeight: thinking ? 700 : 500 }}>
+                  {thinking ? "思考中…" : s.note}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 結論 */}
+        <div style={{ opacity: interpolate(frame, [concludeAt, concludeAt + 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }), transform: `scale(${interpolate(frame, [concludeAt, concludeAt + 18], [0.8, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })})`, marginLeft: 66, marginTop: 6 }}>
+          <div style={{ background: `linear-gradient(135deg,#fff,#FFF3E6)`, border: `2px solid rgba(245,91,0,0.5)`, borderRadius: 18, padding: "22px 28px", boxShadow: "0 20px 50px rgba(245,91,0,0.2)", display: "flex", alignItems: "center", gap: 20 }}>
+            <Sparkles size={34} color={T.orange} style={{ flex: "none" }} />
+            <div>
+              <div style={{ fontSize: 16, color: T.orange, fontWeight: 800, letterSpacing: "0.1em" }}>結論 · 推薦方案</div>
+              <div style={{ fontSize: 30, fontWeight: 800, color: T.ink, marginTop: 2 }}>雙寶安心加額防護專案 <span style={{ color: T.orange }}>92%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Burst at={concludeAt + 4} n={22} spread={360} x="52%" y="80%" />
+    </AbsoluteFill>
+  );
+};
+
+/* ============ FX9 · 顆粒球聚合轉場 ============ */
+export const Fx9ParticleSphere: React.FC = () => {
+  const frame = useCurrentFrame();
+  const N = 420;
+  const cols = ["#F5541E", "#FF8A00", "#FFB700", "#E4007F", "#009E6C", "#7C3AED", "#0E7DC2"];
+  // 相位:0-30 飛入散布 → 30-100 聚合旋轉球 → 112-140 塌縮爆閃
+  const conv = interpolate(frame, [24, 96], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const convE = 1 - Math.pow(1 - conv, 3);
+  const collapse = interpolate(frame, [112, 140], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const rot = frame * 0.045;
+  const flash = interpolate(frame, [118, 130, 150], [0, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const cx = 960, cy = 540;
+  const R = 320 * (1 - collapse) * (0.55 + 0.45 * convE);
+  return (
+    <AbsoluteFill style={{ fontFamily: F, overflow: "hidden", background: "#FFFDF9" }}>
+      <Bg e={0.7} />
+      {/* 球體光暈底 */}
+      <div style={{ position: "absolute", left: cx, top: cy, width: 720, height: 720, transform: "translate(-50%,-50%)", borderRadius: "50%", background: `radial-gradient(circle, rgba(255,138,0,${0.22 * convE}), rgba(255,183,0,${0.08 * convE}) 45%, transparent 68%)` }} />
+      {Array.from({ length: N }).map((_, i) => {
+        const th = Math.acos(2 * rnd(i) - 1);
+        const ph = rnd(i + N) * Math.PI * 2 + rot;
+        const sx = Math.sin(th) * Math.cos(ph);
+        const sy = Math.cos(th);
+        const sz = Math.sin(th) * Math.sin(ph);
+        const start = { x: (rnd(i + 2 * N) - 0.5) * 2400, y: (rnd(i + 3 * N) - 0.5) * 1500 };
+        const px = start.x * (1 - convE) + sx * R * convE;
+        const py = start.y * (1 - convE) + sy * R * convE;
+        const pz = sz * R * convE;
+        const per = 1 / (1.5 - (pz / 340) * 0.55);
+        const base = 4.5 + rnd(i + 4 * N) * 6;
+        const sz2 = base * per * (1 - collapse * 0.7);
+        const depth = (pz / (R || 1)) * 0.5 + 0.5; // 0(後)~1(前)
+        const op = (0.55 + 0.45 * depth) * (1 - collapse * 0.4);
+        const c = cols[i % cols.length];
+        return (
+          <div key={i} style={{ position: "absolute", left: cx + px * per, top: cy + py * per, width: sz2, height: sz2, marginLeft: -sz2 / 2, marginTop: -sz2 / 2, borderRadius: "50%", background: c, opacity: op, boxShadow: `0 0 ${sz2 * 1.6}px ${c}` }} />
+        );
+      })}
+      {/* 塌縮爆閃 */}
+      <div style={{ position: "absolute", left: cx, top: cy, width: 60, height: 60, transform: `translate(-50%,-50%) scale(${1 + collapse * 34})`, borderRadius: "50%", background: "#fff", opacity: flash, boxShadow: `0 0 140px 70px rgba(255,170,60,${flash})` }} />
+    </AbsoluteFill>
+  );
+};
