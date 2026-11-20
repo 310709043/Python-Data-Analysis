@@ -105,3 +105,19 @@ class FlaggedEncounterOut(BaseModel):
     occurred_at: datetime
     flag_reasons: str | None
     review_status: str
+
+
+class NotificationOut(BaseModel):
+    id: int
+    kind: str
+    message: str  # 已組好的中文文字，前端可以直接顯示
+    actor_nickname: str | None  # 對方刪除帳號後為 None
+    encounter_id: int | None
+    link_id: int | None
+    actionable: bool  # 還需要這個人處理（確認紀錄或回應邀請）
+    read: bool
+    created_at: datetime
+
+
+class UnreadCountOut(BaseModel):
+    unread: int

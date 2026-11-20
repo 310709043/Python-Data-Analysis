@@ -66,9 +66,10 @@ _phone_counter = [0]
 _accounts: dict[str, tuple[str, str]] = {}
 
 
-def login(client, nickname):
-    """重新登入（session 30 天過期）。回傳新的 headers。"""
-    phone, device = _accounts[nickname]
+def login(client, nickname, device=None):
+    """重新登入（session 30 天過期）。回傳新的 headers。device 預設用註冊時的裝置。"""
+    phone, signup_device = _accounts[nickname]
+    device = device or signup_device
     code = client.post("/auth/otp/request", json={"phone": phone}).json()["dev_code"]
     r = client.post("/auth/otp/verify", json={"phone": phone, "code": code}, headers={"X-Device-Id": device})
     assert r.status_code == 200 and r.json()["is_new"] is False, r.text

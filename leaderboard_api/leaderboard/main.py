@@ -17,8 +17,9 @@ from sqlalchemy.orm import Session
 from . import clock, rules
 from .config import DEV_MODE, PRIVACY_POLICY_VERSION
 from .db import Base, engine, get_db
-from .models import AuthSession, Encounter, OtpCode, PartnerLink, User
-from .notify import notify, send_sms
+from .models import AuthSession, DeviceSighting, Encounter, Notification, OtpCode, PartnerLink, User
+from .notifications import actionable_clause, encounter_date, is_actionable, notify, render
+from .notify import send_sms
 from .schemas import (
     AgeVerificationIn,
     ConsentIn,
@@ -27,6 +28,7 @@ from .schemas import (
     FlaggedEncounterOut,
     LeaderboardRow,
     MeOut,
+    NotificationOut,
     OtpRequestIn,
     OtpRequestOut,
     OtpVerifyIn,
@@ -36,9 +38,11 @@ from .schemas import (
     SettingsIn,
     StatsOut,
     TokenOut,
+    UnreadCountOut,
 )
 from .security import (
     device_hash,
+    get_current_session,
     get_current_user,
     new_otp_code,
     new_token,
@@ -138,6 +142,13 @@ def otp_verify(body: OtpVerifyIn, db: Session = Depends(get_db), dev: str | None
         db.add(user)
         db.flush()
 
+    if dev is not None:
+        sighting = db.get(DeviceSighting, (user.id, dev))
+        if sighting is None:
+            db.add(DeviceSighting(user_id=user.id, device_hash=dev, first_seen_at=now, last_seen_at=now))
+        else:
+            sighting.last_seen_at = now
+
     token = new_token()
     db.add(
         AuthSession(
@@ -150,6 +161,20 @@ def otp_verify(body: OtpVerifyIn, db: Session = Depends(get_db), dev: str | None
     )
     db.commit()
     return TokenOut(token=token, user_id=user.id, is_new=is_new)
+
+
+@app.post("/auth/logout", status_code=204)
+def logout(sess: AuthSession = Depends(get_current_session), db: Session = Depends(get_db)):
+    """登出這台裝置：只刪掉目前這個 token。"""
+    db.delete(sess)
+    db.commit()
+
+
+@app.post("/auth/logout-all", status_code=204)
+def logout_all(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """登出所有裝置：刪掉這個帳號全部的 token。裝置紀錄 (device_sightings) 保留，防作弊要用。"""
+    db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
+    db.commit()
 
 
 # ── 我的帳號 ───────────────────────────────────────────
@@ -232,6 +257,9 @@ def delete_me(user: User = Depends(get_current_user), db: Session = Depends(get_
         delete(PartnerLink).where((PartnerLink.user_low_id == uid) | (PartnerLink.user_high_id == uid))
     )
     db.execute(delete(AuthSession).where(AuthSession.user_id == uid))
+    db.execute(delete(DeviceSighting).where(DeviceSighting.user_id == uid))
+    db.execute(delete(Notification).where(Notification.user_id == uid))
+    db.execute(update(Notification).where(Notification.actor_id == uid).values(actor_id=None))
     if user.phone_hash:
         db.execute(delete(OtpCode).where(OtpCode.phone_hash == user.phone_hash))
     user.phone_hash = None
@@ -303,8 +331,9 @@ def request_partner(body: PartnerRequestIn, user: User = Depends(get_current_use
         low, high = rules.ordered_pair(user.id, other.id)
         link = PartnerLink(user_low_id=low, user_high_id=high, requested_by=user.id, status="pending", created_at=now)
         db.add(link)
+    db.flush()
+    notify(db, other.id, "partner_request", actor_id=user.id, link_id=link.id)
     db.commit()
-    notify(other.id, "partner_request", {"link_id": link.id})
     return link_out(link, user.id, db)
 
 
@@ -315,8 +344,8 @@ def accept_partner(link_id: int, user: User = Depends(get_current_user), db: Ses
     if link.status != "pending" or link.requested_by == user.id:
         err(409, "not_acceptable", "這個邀請無法接受")
     link.status, link.responded_at = "accepted", clock.now()
+    notify(db, link.requested_by, "partner_accepted", actor_id=user.id, link_id=link.id)
     db.commit()
-    notify(link.requested_by, "partner_accepted", {"link_id": link.id})
     return link_out(link, user.id, db)
 
 
@@ -403,8 +432,12 @@ def create_encounter(
         initiator_device_hash=dev,
     )
     db.add(enc)
+    db.flush()
+    notify(
+        db, partner.id, "encounter_pending",
+        actor_id=user.id, encounter_id=enc.id, data={"date": encounter_date(enc)},
+    )
     db.commit()
-    notify(partner.id, "encounter_pending", {"encounter_id": enc.id})
     return encounter_out(enc, user.id, db)
 
 
@@ -470,8 +503,12 @@ def confirm_encounter(
     enc.status = "confirmed"
     enc.responded_at = now
     rules.add_flags(enc, rules.compute_flags(db, enc))
+    notify(
+        db, enc.initiator_id, "encounter_confirmed",
+        actor_id=user.id, encounter_id=enc.id,
+        data={"date": encounter_date(enc), "flagged": enc.review_status == "flagged"},
+    )
     db.commit()
-    notify(enc.initiator_id, "encounter_confirmed", {"encounter_id": enc.id})
     return encounter_out(enc, user.id, db)
 
 
@@ -508,7 +545,85 @@ def get_leaderboard(
     db: Session = Depends(get_db),
 ):
     rows = rules.leaderboard(db, clock.now(), period, limit)
-    return [LeaderboardRow(rank=r, nickname=n, count=c) for r, n, c in rows]
+    return [LeaderboardRow(rank=r, nickname=n, count=c) for r, _uid, n, c in rows]
+
+
+# ── 通知 ───────────────────────────────────────────────
+
+
+@app.get("/notifications", response_model=list[NotificationOut])
+def list_notifications(
+    filter: str = Query("all", pattern="^(all|todo)$"),
+    limit: int = Query(50, ge=1, le=100),
+    before_id: int | None = Query(None, ge=1),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """新的在前。用 before_id 往前翻頁。filter=todo 只回傳還需要處理的。"""
+    rules.expire_stale(db, clock.now())
+    db.commit()
+    query = select(Notification).where(Notification.user_id == user.id)
+    if filter == "todo":
+        # 在 SQL 裡就篩掉已處理的，limit 和 before_id 翻頁才會正確
+        query = (
+            query.outerjoin(Encounter, Encounter.id == Notification.encounter_id)
+            .outerjoin(PartnerLink, PartnerLink.id == Notification.link_id)
+            .where(actionable_clause())
+        )
+    if before_id is not None:
+        query = query.where(Notification.id < before_id)
+    batch = db.scalars(query.order_by(Notification.id.desc()).limit(limit)).all()
+
+    out = []
+    for n in batch:
+        actionable = True if filter == "todo" else is_actionable(db, n)
+        actor = db.get(User, n.actor_id) if n.actor_id is not None else None
+        out.append(
+            NotificationOut(
+                id=n.id,
+                kind=n.kind,
+                message=render(n, actor),
+                actor_nickname=actor.nickname if actor is not None and actor.deleted_at is None else None,
+                encounter_id=n.encounter_id,
+                link_id=n.link_id,
+                actionable=actionable,
+                read=n.read_at is not None,
+                created_at=clock.to_aware(n.created_at),
+            )
+        )
+    return out
+
+
+@app.get("/notifications/unread-count", response_model=UnreadCountOut)
+def unread_count(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rules.expire_stale(db, clock.now())
+    db.commit()
+    n = db.scalar(
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user.id, Notification.read_at.is_(None))
+    )
+    return UnreadCountOut(unread=n)
+
+
+@app.post("/notifications/{notif_id}/read", status_code=204)
+def mark_read(notif_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    n = db.get(Notification, notif_id)
+    if n is None or n.user_id != user.id:
+        err(404, "not_found", "找不到這則通知")
+    if n.read_at is None:
+        n.read_at = clock.now()
+        db.commit()
+
+
+@app.post("/notifications/read-all", status_code=204)
+def mark_all_read(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.execute(
+        update(Notification)
+        .where(Notification.user_id == user.id, Notification.read_at.is_(None))
+        .values(read_at=clock.now())
+    )
+    db.commit()
 
 
 # ── 管理後台 ───────────────────────────────────────────
@@ -520,7 +635,10 @@ def set_age_verification(user_id: int, body: AgeVerificationIn, db: Session = De
     user = db.get(User, user_id)
     if user is None or user.deleted_at is not None:
         raise HTTPException(404, "user_not_found")
+    newly_verified = body.verified and not user.age_verified
     user.age_verified = body.verified
+    if newly_verified:
+        notify(db, user.id, "age_verified")
     db.commit()
     return {"id": user.id, "age_verified": user.age_verified}
 
@@ -552,7 +670,13 @@ def review_encounter(enc_id: int, body: ReviewIn, db: Session = Depends(get_db))
     enc = db.get(Encounter, enc_id)
     if enc is None:
         raise HTTPException(404, "not_found")
-    enc.review_status = "cleared" if body.decision == "clear" else "void"
+    new_status = "cleared" if body.decision == "clear" else "void"
+    if enc.review_status != new_status:
+        enc.review_status = new_status
+        kind = "review_cleared" if new_status == "cleared" else "review_voided"
+        data = {"date": encounter_date(enc)}
+        notify(db, enc.initiator_id, kind, actor_id=enc.partner_id, encounter_id=enc.id, data=data)
+        notify(db, enc.partner_id, kind, actor_id=enc.initiator_id, encounter_id=enc.id, data=data)
     db.commit()
     return {"id": enc.id, "review_status": enc.review_status}
 
@@ -562,3 +686,10 @@ def run_ring_detection(db: Session = Depends(get_db)):
     rings = rules.detect_rings(db, clock.now())
     db.commit()
     return {"rings": rings}
+
+
+@app.post("/admin/jobs/rank-notifications", dependencies=[Depends(require_admin)])
+def run_rank_notifications(db: Session = Depends(get_db)):
+    sent = rules.notify_rank_changes(db, clock.now())
+    db.commit()
+    return {"sent": sent}

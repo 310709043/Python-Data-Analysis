@@ -69,6 +69,8 @@ B 在 24 小時內按「確認」 ──→ 雙方各 +1（若被系統標記則
 |---|---|---|
 | POST | `/auth/otp/request` | 寄簡訊驗證碼 `{phone}` |
 | POST | `/auth/otp/verify` | 驗證並登入 `{phone, code, nickname?}`，新帳號要帶暱稱 |
+| POST | `/auth/logout` | 登出這台裝置 |
+| POST | `/auth/logout-all` | 登出所有裝置 |
 | GET | `/privacy-policy/version` | 目前的隱私權政策版本 |
 | GET | `/me` | 我的帳號狀態 |
 | POST | `/me/consent` | 同意隱私權政策 `{version}` |
@@ -85,6 +87,10 @@ B 在 24 小時內按「確認」 ──→ 雙方各 +1（若被系統標記則
 | POST | `/encounters/{id}/confirm` · `/reject` | 對方確認／否認 |
 | POST | `/encounters/{id}/cancel` | 發起人撤回 |
 | GET | `/leaderboard?period=week\|month\|all` | 排行榜 |
+| GET | `/notifications?filter=all\|todo&limit=&before_id=` | 通知列表（新的在前，`todo` 只回傳還需要處理的） |
+| GET | `/notifications/unread-count` | 未讀數 |
+| POST | `/notifications/{id}/read` | 標成已讀 |
+| POST | `/notifications/read-all` | 全部標成已讀 |
 
 管理 API（帶 `X-Admin-Token`）：
 
@@ -94,6 +100,7 @@ B 在 24 小時內按「確認」 ──→ 雙方各 +1（若被系統標記則
 | GET | `/admin/encounters/flagged` | 待審核清單 |
 | POST | `/admin/encounters/{id}/review` | `{decision: clear\|void}` |
 | POST | `/admin/jobs/detect-rings` | 跑小圈圈互刷偵測（建議每天排程） |
+| POST | `/admin/jobs/rank-notifications` | 發「本月排名上升」通知（建議每天排程） |
 
 ## 資料表
 
@@ -103,9 +110,30 @@ B 在 24 小時內按「確認」 ──→ 雙方各 +1（若被系統標記則
 |---|---|
 | `users` | 暱稱、手機雜湊、年齡驗證、同意紀錄、是否公開 |
 | `otp_codes` | 簡訊驗證碼（只存雜湊） |
-| `auth_sessions` | 登入 token（只存雜湊）＋裝置雜湊 |
+| `auth_sessions` | 登入 token（只存雜湊）＋裝置雜湊，登出時刪除 |
+| `device_sightings` | 每個帳號用過的裝置雜湊。登出不刪，防作弊判斷「同一台裝置登入雙方帳號」要用 |
 | `partner_links` | 伴侶關係，同一對只有一列 |
 | `encounters` | 每筆紀錄：雙方、時間、確認狀態、審核狀態 |
+| `notifications` | 站內通知。只存 id 參照，對方刪除帳號後通知裡改顯示「對方」 |
+
+## 通知
+
+會發通知的事件：
+
+| kind | 誰收到 | 什麼時候 |
+|---|---|---|
+| `partner_request` | 被邀請的人 | 有人邀請你成為伴侶 |
+| `partner_accepted` | 邀請的人 | 對方接受邀請（拒絕不通知） |
+| `encounter_pending` | 被記錄的人 | 對方記錄了一次，等你確認 |
+| `encounter_confirmed` | 發起的人 | 對方確認了；被標記時文字改成「審核通過後就會計入」 |
+| `encounter_expired` | 發起的人 | 對方 24 小時內沒確認 |
+| `review_cleared` / `review_voided` | 雙方 | 人工審核結果 |
+| `age_verified` | 本人 | 第一次通過 18 歲驗證 |
+| `rank_up` | 本人 | 每日排程發現「本月」名次上升 |
+
+- API 回傳已組好的中文 `message`，前端可以直接顯示，也可以用 `kind` 自己組。
+- `actionable` 是即時判斷的：紀錄已確認或過期、邀請已回應之後就會變成 `false`。
+- 推播只送固定文字「你有一則新通知」，不帶名字或內容，避免出現在鎖定畫面上。
 
 ## 隱私與個資
 
@@ -119,9 +147,10 @@ B 在 24 小時內按「確認」 ──→ 雙方各 +1（若被系統標記則
 
 - [ ] **簡訊服務**：串接真正的簡訊服務（`notify.py` 的 `send_sms`）
 - [ ] **年齡驗證**：串接 18 歲驗證（KYC 服務的 webhook 呼叫 `/admin/users/{id}/age-verification`）
-- [ ] **推播通知**：串接推播（`notify.py` 的 `notify`），通知文字不要出現敏感字眼
 - [ ] **資料庫**：改用 PostgreSQL ＋ Alembic 管理 migration，不要用自動建表
 - [ ] **環境變數**：設定 `APP_SECRET`（長隨機字串，不可外流）、`ADMIN_TOKEN`，關掉 `DEV_MODE`
 - [ ] **加密與流量限制**：全站 HTTPS，加上 API 流量限制（例如 nginx 或 Cloudflare）
-- [ ] **排程**：每天排程呼叫 `/admin/jobs/detect-rings`
+- [ ] **排程**：每天排程呼叫 `/admin/jobs/detect-rings` 和 `/admin/jobs/rank-notifications`
+- [ ] **推播**：串接推播服務（`notify.py` 的 `send_push`），並改成交易 commit 之後才送
+- [ ] **通知保存期限**：決定通知要保留多久（例如 90 天），排程刪除舊通知
 - [ ] **法律審閱**：請律師審閱隱私權政策與服務條款

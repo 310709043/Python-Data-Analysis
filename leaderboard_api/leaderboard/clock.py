@@ -2,7 +2,7 @@
 
 測試時可以替換 now() 來模擬時間經過。
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 def now() -> datetime:
@@ -17,3 +17,12 @@ def to_naive_utc(dt: datetime) -> datetime:
 def to_aware(dt: datetime | None) -> datetime | None:
     """輸出給前端時補上 UTC 時區。"""
     return dt.replace(tzinfo=timezone.utc) if dt is not None else None
+
+
+# 「每天」、日期顯示都以台灣時間為準。
+LOCAL_UTC_OFFSET = timedelta(hours=8)
+
+
+def local_date_str(dt: datetime) -> str:
+    """UTC 時間 → 台灣時間的「MM/DD」，給通知文字用。"""
+    return (dt + LOCAL_UTC_OFFSET).strftime("%m/%d")
