@@ -1,6 +1,7 @@
 """站內通知：建立、組文字、判斷還需不需要處理。"""
 import json
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from . import clock
@@ -67,12 +68,40 @@ def render(n: Notification, actor: User | None) -> str:
     return "你有一則新通知"
 
 
+def actionable_clause():
+    """SQL 版的「需要處理」條件。查詢時要 outer join Encounter 和 PartnerLink。
+
+    - encounter_pending：那筆紀錄還在等這個人確認
+    - partner_request：邀請還在等這個人回應，而且這則通知屬於「目前這一次」邀請。
+      同一對人重新邀請會重用同一列 PartnerLink（created_at 會更新），
+      比它早的邀請通知就不算了。
+    """
+    return or_(
+        and_(
+            Notification.kind == "encounter_pending",
+            Encounter.status == "pending",
+            Encounter.partner_id == Notification.user_id,
+        ),
+        and_(
+            Notification.kind == "partner_request",
+            PartnerLink.status == "pending",
+            PartnerLink.requested_by != Notification.user_id,
+            Notification.created_at >= PartnerLink.created_at,
+        ),
+    )
+
+
 def is_actionable(db: Session, n: Notification) -> bool:
-    """「需要處理」：對應的紀錄還在等這個人確認，或邀請還在等這個人回應。"""
+    """和 actionable_clause() 同樣的條件，單筆判斷用。"""
     if n.kind == "encounter_pending" and n.encounter_id is not None:
         enc = db.get(Encounter, n.encounter_id)
         return enc is not None and enc.status == "pending" and enc.partner_id == n.user_id
     if n.kind == "partner_request" and n.link_id is not None:
         link = db.get(PartnerLink, n.link_id)
-        return link is not None and link.status == "pending" and link.requested_by != n.user_id
+        return (
+            link is not None
+            and link.status == "pending"
+            and link.requested_by != n.user_id
+            and n.created_at >= link.created_at
+        )
     return False

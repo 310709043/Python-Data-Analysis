@@ -249,3 +249,35 @@ def test_logout_all_does_not_erase_device_history(client, clock):
     ha = login(client, "alice", device="third-phone")
     enc = log_and_confirm(client, ha, hb, b, clock.t - timedelta(hours=1))
     assert enc["review_status"] == "flagged"
+
+
+# ── Codex 審查指出的問題 ─────────────────────────────
+
+
+def test_todo_filter_finds_older_actionable_past_handled_ones(client, clock):
+    """最新幾則都處理完了，更舊的待處理通知還是要找得到。"""
+    a, ha = signup(client, "alice")
+    old_sender, h_old = signup(client, "oldie")
+    client.post("/partners", json={"nickname": "alice"}, headers=h_old)  # 這則一直沒處理
+    for i in range(4):
+        _, h = signup(client, f"user{i}")
+        link_id = client.post("/partners", json={"nickname": "alice"}, headers=h).json()["id"]
+        client.post(f"/partners/{link_id}/reject", headers=ha)
+
+    todo = client.get("/notifications?filter=todo&limit=1", headers=ha).json()
+    assert [n["message"] for n in todo] == ["oldie 想加你為伴侶"]
+
+
+def test_reinvite_does_not_revive_old_invitation_notifications(client, clock):
+    a, ha = signup(client, "alice")
+    b, hb = signup(client, "bob")
+    link_id = client.post("/partners", json={"nickname": "bob"}, headers=ha).json()["id"]
+    client.post(f"/partners/{link_id}/accept", headers=hb)
+    client.delete(f"/partners/{link_id}", headers=ha)  # 解除
+    clock.advance(minutes=1)
+    assert client.post("/partners", json={"nickname": "bob"}, headers=ha).json()["id"] == link_id  # 同一列重用
+
+    todo = notes(client, hb, "todo")
+    assert len(todo) == 1  # 只有新的這一則
+    actionable = [n for n in notes(client, hb) if n["kind"] == "partner_request" and n["actionable"]]
+    assert len(actionable) == 1

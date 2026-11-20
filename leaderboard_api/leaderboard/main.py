@@ -18,7 +18,7 @@ from . import clock, rules
 from .config import DEV_MODE, PRIVACY_POLICY_VERSION
 from .db import Base, engine, get_db
 from .models import AuthSession, DeviceSighting, Encounter, Notification, OtpCode, PartnerLink, User
-from .notifications import encounter_date, is_actionable, notify, render
+from .notifications import actionable_clause, encounter_date, is_actionable, notify, render
 from .notify import send_sms
 from .schemas import (
     AgeVerificationIn,
@@ -564,17 +564,19 @@ def list_notifications(
     db.commit()
     query = select(Notification).where(Notification.user_id == user.id)
     if filter == "todo":
-        query = query.where(Notification.kind.in_(("encounter_pending", "partner_request")))
+        # 在 SQL 裡就篩掉已處理的，limit 和 before_id 翻頁才會正確
+        query = (
+            query.outerjoin(Encounter, Encounter.id == Notification.encounter_id)
+            .outerjoin(PartnerLink, PartnerLink.id == Notification.link_id)
+            .where(actionable_clause())
+        )
     if before_id is not None:
         query = query.where(Notification.id < before_id)
-    # todo 要在 Python 端再篩一次（看對應的紀錄／邀請還在不在等），所以多拿一些
-    batch = db.scalars(query.order_by(Notification.id.desc()).limit(limit * 3 if filter == "todo" else limit)).all()
+    batch = db.scalars(query.order_by(Notification.id.desc()).limit(limit)).all()
 
     out = []
     for n in batch:
-        actionable = is_actionable(db, n)
-        if filter == "todo" and not actionable:
-            continue
+        actionable = True if filter == "todo" else is_actionable(db, n)
         actor = db.get(User, n.actor_id) if n.actor_id is not None else None
         out.append(
             NotificationOut(
@@ -589,8 +591,6 @@ def list_notifications(
                 created_at=clock.to_aware(n.created_at),
             )
         )
-        if len(out) >= limit:
-            break
     return out
 
 
