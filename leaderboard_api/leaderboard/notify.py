@@ -14,6 +14,7 @@ def send_sms(phone: str, code: str) -> None:
         log.info("SMS code sent to ***%s", phone[-3:])
 
 
-def notify(user_id: int, kind: str, payload: dict) -> None:
-    # TODO: 串接推播。通知內容不要包含敏感字眼，例如只寫「你有一筆待確認的紀錄」。
-    log.info("notify user=%s kind=%s payload=%s", user_id, kind, payload)
+def send_push(user_id: int) -> None:
+    """推播只送固定文字，不帶任何名字或紀錄內容，避免出現在別人看得到的鎖定畫面上。"""
+    # TODO: 串接推播服務。標題固定「你有一則新通知」，點開 App 才看得到內容。
+    log.info("push user=%s: 你有一則新通知", user_id)
