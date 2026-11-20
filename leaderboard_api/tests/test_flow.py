@@ -229,3 +229,47 @@ def test_admin_endpoints_require_token(client, clock):
     a, _ = signup(client, "alice")
     r = client.post(f"/admin/users/{a}/age-verification", json={"verified": True})
     assert r.status_code == 403
+
+
+def test_unconfirmed_incoming_does_not_block_confirmation(client, clock):
+    """別人發來、還沒確認的紀錄不能佔用我的額度（否則別人可以用待確認紀錄卡住我）。"""
+    a, ha = signup(client, "alice")
+    b, hb = signup(client, "bob")
+    c, hc = signup(client, "carol")
+    link(client, ha, hb, "bob")
+    link(client, hc, hb, "bob")
+    t = clock.t - timedelta(hours=2)
+    from_a = log(client, ha, b, t).json()["id"]
+    from_c = log(client, hc, b, t + timedelta(minutes=10)).json()["id"]
+
+    # bob 可以確認其中一筆
+    assert client.post(f"/encounters/{from_c}/confirm", headers=hb).status_code == 200
+    # 另一筆跟已確認的太接近，才會被擋
+    r = client.post(f"/encounters/{from_a}/confirm", headers=hb)
+    assert r.status_code == 429 and r.json()["error"] == "too_frequent"
+
+
+def test_many_incoming_requests_do_not_exhaust_daily_cap(client, clock):
+    b, hb = signup(client, "bob")
+    senders = [signup(client, f"user{i}") for i in range(6)]
+    day_start = clock.t.replace(hour=16, minute=30) - timedelta(days=1)
+    ids = []
+    for i, (_, h) in enumerate(senders):
+        link(client, h, hb, "bob")
+        ids.append(log(client, h, b, day_start + timedelta(hours=i)).json()["id"])
+
+    results = [client.post(f"/encounters/{i}/confirm", headers=hb) for i in ids]
+    assert [r.status_code for r in results] == [200] * 5 + [429]
+    assert results[-1].json()["error"] == "daily_cap_reached"
+
+
+def test_own_outgoing_pending_still_reserves_capacity(client, clock):
+    a, ha = signup(client, "alice")
+    b, hb = signup(client, "bob")
+    c, hc = signup(client, "carol")
+    link(client, ha, hb, "bob")
+    link(client, ha, hc, "carol")
+    t = clock.t - timedelta(hours=1)
+    assert log(client, ha, b, t).status_code == 201
+    r = log(client, ha, c, t + timedelta(minutes=10))
+    assert r.status_code == 429 and r.json()["error"] == "too_frequent"

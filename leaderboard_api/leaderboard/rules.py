@@ -36,7 +36,6 @@ RING_MIN_PER_MEMBER = 10  # 每人 30 天內至少 10 筆
 # ── 伴侶邀請 ───────────────────────────────────────────
 PARTNER_REREQUEST_COOLDOWN = timedelta(days=30)  # 被拒絕後多久才能再邀請
 
-ACTIVE_STATUSES = ("pending", "confirmed")
 COUNTED_REVIEW = ("ok", "cleared")
 
 
@@ -109,6 +108,16 @@ def check_linked(db: Session, a: int, b: int) -> None:
         raise RuleError("not_partners", "雙方要先互相加為伴侶才能記錄", 403)
 
 
+def lock_users(db: Session, *user_ids: int | None) -> None:
+    """在交易裡鎖住相關使用者（PostgreSQL 的 SELECT ... FOR UPDATE），
+    讓「檢查額度 → 寫入」對同一個人是序列化的，兩個並行請求不能同時通過檢查。
+    依 id 排序上鎖，避免死結。SQLite 會忽略 FOR UPDATE（它的寫入本來就是一次一個）。
+    """
+    ids = sorted({i for i in user_ids if i is not None})
+    if ids:
+        db.execute(select(User.id).where(User.id.in_(ids)).order_by(User.id).with_for_update())
+
+
 def check_occurred_at(occurred_at: datetime, now: datetime) -> None:
     if occurred_at > now + MAX_FUTURE_SKEW:
         raise RuleError("occurred_in_future", "時間不能在未來")
@@ -119,10 +128,18 @@ def check_occurred_at(occurred_at: datetime, now: datetime) -> None:
 def check_capacity(db: Session, user_id: int, occurred_at: datetime, exclude_id: int | None = None) -> None:
     """檢查同一人的間隔與每日上限。
 
+    佔用額度的只有：已確認的紀錄，以及「我自己發出、等對方確認」的紀錄。
+    別人發給我、我還沒確認的不算，否則別人可以用一堆待確認紀錄卡住我的額度。
+
     注意：建立紀錄時只檢查發起人自己；對方的上限在「對方按確認」時才檢查，
     錯誤訊息只給對方看，避免發起人從錯誤推測出對方跟別人的紀錄。
+    呼叫前要先 lock_users()，避免並行請求同時通過檢查。
     """
-    base = [involves(user_id), Encounter.status.in_(ACTIVE_STATUSES), Encounter.review_status != "void"]
+    reserved = or_(
+        and_(involves(user_id), Encounter.status == "confirmed"),
+        and_(Encounter.initiator_id == user_id, Encounter.status == "pending"),
+    )
+    base = [reserved, Encounter.review_status != "void"]
     if exclude_id is not None:
         base.append(Encounter.id != exclude_id)
 

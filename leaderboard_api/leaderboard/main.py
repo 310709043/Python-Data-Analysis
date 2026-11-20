@@ -389,6 +389,7 @@ def create_encounter(
 
     occurred_at = clock.to_naive_utc(body.occurred_at)
     rules.check_occurred_at(occurred_at, now)
+    rules.lock_users(db, user.id)
     rules.check_capacity(db, user.id, occurred_at)
 
     enc = Encounter(
@@ -455,6 +456,10 @@ def confirm_encounter(
     rules.expire_stale(db, now)
     db.commit()
     enc = get_pending_for(db, enc_id, user.id, role="partner")
+    rules.lock_users(db, enc.initiator_id, user.id)
+    db.refresh(enc)  # 上鎖後重讀，避免同時被撤回或重複確認
+    if enc.status != "pending":
+        err(409, "not_pending", f"這筆紀錄目前狀態是 {enc.status}，無法操作")
 
     rules.check_self_eligible(user)
     rules.check_partner_eligible(db.get(User, enc.initiator_id))
