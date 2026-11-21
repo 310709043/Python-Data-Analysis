@@ -35,8 +35,10 @@ class Office:
         *,
         name: str | None = None,
         role: str | None = None,
+        kind: str | None = None,
         message: str | None = None,
         to: str | None = None,
+        quiet: bool = False,
     ) -> bool:
         """回報一次狀態。status: idle / thinking / working / waiting / error / done。
 
@@ -47,9 +49,11 @@ class Office:
             payload["status"] = status
         if task is not ...:
             payload["task"] = task
-        for key, value in (("name", name), ("role", role), ("message", message), ("to", to)):
+        for key, value in (("name", name), ("role", role), ("kind", kind), ("message", message), ("to", to)):
             if value is not None:
                 payload[key] = value
+        if quiet:
+            payload["quiet"] = True
         return self._post("/api/event", payload)
 
     def handoff(self, agent: str, to: str, message: str | None = None, status: str = "idle") -> bool:

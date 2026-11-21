@@ -86,6 +86,7 @@ class OfficeState:
                     "id": agent_id,
                     "name": agent_id,
                     "role": "",
+                    "kind": "",
                     "status": "idle",
                     "task": "",
                     "since": now,
@@ -102,6 +103,8 @@ class OfficeState:
                 current["name"] = str(payload["name"]).strip()[:40] or agent_id
             if payload.get("role") is not None:
                 current["role"] = str(payload["role"]).strip()[:40]
+            if payload.get("kind") is not None:
+                current["kind"] = str(payload["kind"]).strip().lower()[:20]
 
             if "task" in payload:
                 task = "" if payload["task"] is None else str(payload["task"]).strip()[:200]
@@ -111,6 +114,7 @@ class OfficeState:
                 task = prev_task
 
             message = str(payload.get("message") or "").strip()[:300]
+            quiet = bool(payload.get("quiet"))  # 即時顯示，但不寫入動態紀錄（例如每次工具呼叫後的「分析結果」）
             to = str(payload.get("to") or "").strip()[:64]
 
             meaningful = (
@@ -137,18 +141,20 @@ class OfficeState:
                 "agent": agent_id,
                 "name": current["name"],
                 "role": current["role"],
+                "kind": current["kind"],
                 "status": status,
                 "task": task,
                 "message": message,
                 "to": to,
                 "new": is_new,
                 "auto": auto,
+                "quiet": quiet,
             }
             if status == "offline":
                 self._agents.pop(agent_id, None)
             else:
                 self._agents[agent_id] = current
-            if not auto:
+            if not auto and not quiet:
                 self._log.append(event)
             self._broadcast(event)
             return {"changed": True, "event": event}

@@ -13,13 +13,13 @@ import threading
 import client
 
 TEAM = [
-    ("planner", "Planner", "規劃師"),
-    ("researcher", "Researcher", "研究員"),
-    ("coder", "Coder", "工程師"),
-    ("reviewer", "Reviewer", "審查員"),
-    ("tester", "Tester", "測試員"),
-    ("analyst", "Analyst", "資料分析"),
-    ("writer", "Writer", "文件撰寫"),
+    ("planner", "Planner", "規劃師", "claude"),
+    ("researcher", "Researcher", "研究員", "claude"),
+    ("coder", "Coder", "工程師", "codex"),
+    ("reviewer", "Reviewer", "審查員", "claude"),
+    ("tester", "Tester", "測試員", "codex"),
+    ("analyst", "Analyst", "資料分析", "claude"),
+    ("writer", "Writer", "文件撰寫", "claude"),
 ]
 
 FEATURES = ["新增使用者登入功能", "修正訂單金額計算", "串接第三方付款 API", "優化首頁載入速度", "重構資料匯入流程"]
@@ -97,8 +97,8 @@ def research_line(t: _Track) -> None:
 
 def run(office: client.Office, stop: threading.Event | None = None) -> None:
     stop = stop or threading.Event()
-    for agent_id, name, role in TEAM:
-        office.report(agent_id, "idle", name=name, role=role)
+    for agent_id, name, role, kind in TEAM:
+        office.report(agent_id, "idle", name=name, role=role, kind=kind)
         if stop.wait(0.6):
             return
 

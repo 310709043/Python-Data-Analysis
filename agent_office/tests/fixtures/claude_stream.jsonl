@@ -1,0 +1,22 @@
+{"type": "active_goal", "value": null}
+{"type": "system", "subtype": "init", "cwd": "/tmp"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "assistant", "message": {"model": "claude-sonnet-5-5", "type": "message", "role": "assistant", "content": [{"type": "tool_use", "id": "toolu_01A3TcXQ7mEvAsjta6GTUgco", "name": "Bash", "input": {"command": "echo hello", "description": "Print hello"}, "caller": {"type": "direct"}}], "container": null, "stop_reason": null, "stop_sequence": null, "stop_details": null, "input_transformations": [], "diagnostics": null, "context_management": null}, "timestamp": "2026-11-21T20:32:24.013Z", "request_id": "req_011ChGi7UQq5hADScKyQPwde", "wire_tool_inputs": {"toolu_01A3TcXQ7mEvAsjta6GTUgco": {"command": "echo hello", "description": "Print hello"}}}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "user", "message": {"role": "user", "content": [{"tool_use_id": "toolu_01A3TcXQ7mEvAsjta6GTUgco", "type": "tool_result", "content": "hello", "is_error": false}]}, "timestamp": "2026-11-21T20:32:24.142Z", "tool_use_result": {"stdout": "hello", "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false}, "tool_result_meta": [{"id": "toolu_01A3TcXQ7mEvAsjta6GTUgco", "permission_decision": {"decision": "accept", "source": "config", "reason_type": "rule"}}]}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "assistant", "message": {"model": "claude-sonnet-5-5", "type": "message", "role": "assistant", "content": [{"type": "text", "text": "done"}], "container": null, "stop_reason": null, "stop_sequence": null, "stop_details": null, "input_transformations": [], "diagnostics": null, "context_management": null}, "timestamp": "2026-11-21T20:32:24.645Z", "request_id": "req_011ChGi7a5PejgMSFhrGWiqp"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "stream_event"}
+{"type": "result", "subtype": "success", "is_error": false, "result": "done", "duration_ms": 2995}

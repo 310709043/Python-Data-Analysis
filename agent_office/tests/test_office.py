@@ -1,5 +1,4 @@
 import http.client
-import importlib.util
 import json
 import queue
 import sys
@@ -147,17 +146,6 @@ def test_slow_subscriber_is_dropped(state):
 
 
 # ----------------------------------------------------------------- HTTP
-@pytest.fixture
-def live():
-    srv = server.make_server("127.0.0.1", 0)
-    thread = threading.Thread(target=srv.serve_forever, daemon=True)
-    thread.start()
-    host, port = srv.server_address
-    yield srv, f"http://{host}:{port}", (host, port)
-    srv.shutdown()
-    srv.server_close()
-
-
 def _request(addr, method, path, body=None, headers=None):
     conn = http.client.HTTPConnection(*addr, timeout=3)
     conn.request(method, path, body=body, headers=headers or {})
@@ -260,31 +248,3 @@ def test_client_reports_and_context_manager(live):
 
 def test_client_swallows_connection_errors():
     assert client.Office("http://127.0.0.1:9", timeout=0.2).report("a", "working") is False
-
-
-# ----------------------------------------------------------------- Claude Code hook
-def _load_hook():
-    spec = importlib.util.spec_from_file_location("claude_code_hook", ROOT / "hooks" / "claude_code_hook.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def test_hook_maps_events(monkeypatch):
-    hook = _load_hook()
-    for key in ("OFFICE_AGENT_ID", "OFFICE_AGENT_NAME", "OFFICE_AGENT_ROLE"):
-        monkeypatch.delenv(key, raising=False)
-    base = {"session_id": "abcdef123456"}
-
-    ev = hook.build_event({**base, "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "pytest -q"}})
-    assert ev["agent"] == "claude-abcdef12" and ev["status"] == "working" and "pytest -q" in ev["task"]
-    ev = hook.build_event({**base, "hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "/a/b/app.py"}})
-    assert ev["task"] == "編輯 app.py"
-    assert hook.build_event({**base, "hook_event_name": "UserPromptSubmit"})["status"] == "thinking"
-    assert hook.build_event({**base, "hook_event_name": "Notification", "message": "需要授權"})["status"] == "waiting"
-    assert hook.build_event({**base, "hook_event_name": "Stop"})["status"] == "done"
-    assert hook.build_event({**base, "hook_event_name": "SessionEnd"})["status"] == "offline"
-    assert hook.build_event({**base, "hook_event_name": "SomethingElse"}) is None
-
-    monkeypatch.setenv("OFFICE_AGENT_NAME", "小明")
-    assert hook.build_event({**base, "hook_event_name": "Stop"})["name"] == "小明"

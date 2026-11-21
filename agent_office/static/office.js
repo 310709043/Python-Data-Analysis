@@ -100,7 +100,7 @@ function createAgent(id, instant) {
   const h = hash(id);
   const desk = deskOwner.indexOf(null);
   const a = {
-    id, name: id, role: '', status: 'idle', task: '', since: nowMs(),
+    id, name: id, role: '', kind: '', status: 'idle', task: '', since: nowMs(),
     desk, spot: -1, atDesk: false, goal: null,
     x: 160, y: H + 14, path: [], pose: 'stand', face: 'd',
     stage: null, timer: 0, carry: false, errandTo: null,
@@ -216,7 +216,7 @@ function eventText(ev) {
   if (ev.message) return ev.message;
   if (ev.to) { const to = agents.get(ev.to); return `${ev.name} 把成果交給 ${to ? to.name : ev.to}`; }
   const s = STATUS[ev.status];
-  return `${ev.name}：${s ? s.label : ev.status}${ev.task ? ' · ' + ev.task : ''}`;
+  return `${ev.name}：${s ? s.label : ev.status}${ev.task && !(s && ev.task === s.label) && ev.task !== '完成' ? ' · ' + ev.task : ''}`;
 }
 
 function pushFeed(ev) {
@@ -242,6 +242,7 @@ function handle(ev, opts = {}) {
   const prevStatus = a.status;
   if (ev.name) a.name = ev.name;
   if (ev.role != null) a.role = ev.role;
+  if (ev.kind != null) a.kind = ev.kind;
   a.task = ev.task || '';
   a.status = STATUS[ev.status] ? ev.status : 'idle';
   if (a.status !== prevStatus || isNew) { a.since = (ev.ts ? ev.ts * 1000 : nowMs()); a.statusAt = performance.now() / 1000; }
@@ -251,7 +252,7 @@ function handle(ev, opts = {}) {
 
   if (!a.stage && (a.status !== prevStatus || isNew)) plan(a, !!opts.instant);
   if (ev.to && !opts.silent) startErrand(a, ev.to);
-  if (!ev.auto && !opts.silent && (isNew || a.status !== prevStatus || ev.message || ev.to || ev.task !== undefined && a._lastTask !== a.task)) pushFeed({ ...ev, name: a.name });
+  if (!ev.auto && !ev.quiet && !opts.silent && (isNew || a.status !== prevStatus || ev.message || ev.to || ev.task !== undefined && a._lastTask !== a.task)) pushFeed({ ...ev, name: a.name });
   a._lastTask = a.task;
   renderCard(a);
   updateCounters();
@@ -291,7 +292,7 @@ function buildCard(a) {
   li.style.setProperty('--shirt', a.shirt);
   li.dataset.id = a.id;
   const who = el('div', 'who');
-  const nm = el('div', 'nm'); nm.append(el('span'), el('small'));
+  const nm = el('div', 'nm'); nm.append(el('span'), el('small'), el('em', 'kind'));
   who.append(nm, el('div', 'job'));
   const meta = el('div', 'meta');
   meta.append(el('span', 'pill'), el('span', 'since'));
@@ -308,6 +309,10 @@ function renderCard(a) {
   c.style.setProperty('--st', s.color);
   c.querySelector('.nm span').textContent = a.name;
   c.querySelector('.nm small').textContent = a.role;
+  const kind = c.querySelector('.kind');
+  kind.textContent = a.kind === 'claude' ? 'Claude' : a.kind === 'codex' ? 'Codex' : a.kind;
+  kind.dataset.kind = a.kind;
+  kind.hidden = !a.kind;
   c.querySelector('.job').textContent = a.task || (a.status === 'idle' ? '休息中' : s.label);
   c.querySelector('.pill').textContent = s.label;
 }
@@ -603,8 +608,8 @@ new ResizeObserver(resize).observe($('#stage'));
 
 /* ============================================================ 示範團隊（瀏覽器內建） */
 const TEAM = [
-  ['planner', 'Planner', '規劃師'], ['researcher', 'Researcher', '研究員'], ['coder', 'Coder', '工程師'],
-  ['reviewer', 'Reviewer', '審查員'], ['tester', 'Tester', '測試員'], ['analyst', 'Analyst', '資料分析'], ['writer', 'Writer', '文件撰寫'],
+  ['planner', 'Planner', '規劃師', 'claude'], ['researcher', 'Researcher', '研究員', 'claude'], ['coder', 'Coder', '工程師', 'codex'],
+  ['reviewer', 'Reviewer', '審查員', 'claude'], ['tester', 'Tester', '測試員', 'codex'], ['analyst', 'Analyst', '資料分析', 'claude'], ['writer', 'Writer', '文件撰寫', 'claude'],
 ];
 const FEATURES = ['新增使用者登入功能', '修正訂單金額計算', '串接第三方付款 API', '優化首頁載入速度', '重構資料匯入流程'];
 const TOPICS = ['電商銷售資料', '使用者留存分析', '競品功能比較', '客服工單趨勢', '廣告投放成效'];
@@ -616,11 +621,11 @@ function startDemo() {
   demoToken = token;
   const sleep = (lo, hi = lo) => new Promise((res, rej) => setTimeout(() => (token.stop ? rej(token) : res()), rnd(lo, hi) * 1000));
   const meta = {};
-  TEAM.forEach(([id, name, role]) => { meta[id] = { name, role }; });
+  TEAM.forEach(([id, name, role, kind]) => { meta[id] = { name, role, kind }; });
   const emit = (agent, status, task, extra = {}) => {
     if (token.stop) return;
     const prev = agents.get(agent);
-    const ev = { ts: nowMs() / 1000, agent, name: meta[agent].name, role: meta[agent].role, status, task: task === undefined ? (prev && status !== 'idle' ? prev.task : '') : task, message: '', to: '', ...extra };
+    const ev = { ts: nowMs() / 1000, agent, name: meta[agent].name, role: meta[agent].role, kind: meta[agent].kind, status, task: task === undefined ? (prev && status !== 'idle' ? prev.task : '') : task, message: '', to: '', ...extra };
     handle(ev);
   };
   const doing = async (who, status, task, lo, hi) => { emit(who, status, task); await sleep(lo, hi); };
@@ -696,7 +701,7 @@ function startLive() {
     for (const s of snap.agents) {
       seen.add(s.id);
       const existed = agents.has(s.id);
-      handle({ ts: s.since, agent: s.id, name: s.name, role: s.role, status: s.status, task: s.task }, { instant: !existed, silent: true, countDone: false });
+      handle({ ts: s.since, agent: s.id, name: s.name, role: s.role, kind: s.kind, status: s.status, task: s.task }, { instant: !existed, silent: true, countDone: false });
       const a = agents.get(s.id);
       if (a) a.since = s.since * 1000;
     }
