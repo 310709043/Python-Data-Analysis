@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Agent Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Press+Start+2P&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1 class="brand">Agent Office</h1>
+    <div class="counters" aria-label="總覽">
+      <span class="counter"><b id="cWorking">0</b> 工作中</span>
+      <span class="counter"><b id="cIdle">0</b> 待命</span>
+      <span class="counter"><b id="cDone">0</b> 已完成</span>
+    </div>
+    <label class="skin">角色
+      <select id="skinSel">
+        <option value="toon">蠟筆小新風</option>
+        <option value="animal">可愛動物</option>
+      </select>
+    </label>
+    <div class="mode" role="group" aria-label="資料來源">
+      <button type="button" id="modeLive" class="seg">即時</button>
+      <button type="button" id="modeDemo" class="seg">示範</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" role="status" hidden></div>
+
+  <main class="layout">
+    <section class="stage-card" aria-label="辦公室">
+      <div id="stage" class="stage">
+        <div id="scene" class="scene">
+          <canvas id="canvas" width="320" height="184" role="img" aria-label="像素風辦公室，顯示各個 agent 目前的位置與工作狀態"></canvas>
+          <div id="tags" class="tags"></div>
+          <div id="empty" class="empty" hidden>
+            <p class="empty-title">辦公室還沒有人上班</p>
+            <p>啟動示範團隊，或讓你的 agent 回報狀態：</p>
+            <pre>python agent_office/demo.py</pre>
+            <button type="button" id="emptyDemo" class="btn">先看示範</button>
+          </div>
+        </div>
+      </div>
+      <ul class="legend" aria-label="狀態圖例">
+        <li style="--st: var(--c-working)">工作中</li>
+        <li style="--st: var(--c-thinking)">思考中</li>
+        <li style="--st: var(--c-waiting)">等待中</li>
+        <li style="--st: var(--c-error)">出錯了</li>
+        <li style="--st: var(--c-done)">完成</li>
+        <li style="--st: var(--c-idle)">待命（去休息區）</li>
+      </ul>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>員工</h2>
+        <ul id="roster" class="roster"></ul>
+        <p id="rosterEmpty" class="muted small">目前沒有員工。</p>
+      </section>
+      <section class="panel">
+        <h2>動態</h2>
+        <ol id="feed" class="feed" aria-live="polite"></ol>
+        <p id="feedEmpty" class="muted small">還沒有任何動態。</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<script src="office.js"></script>
+</body>
+</html>
