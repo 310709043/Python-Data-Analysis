@@ -86,7 +86,7 @@ def main() -> None:
     parser.add_argument("--agent", required=True, help="員工代號（同一位員工用同一個）")
     parser.add_argument("--name")
     parser.add_argument("--role")
-    parser.add_argument("--animal", help="cat dog rabbit panda fox bear frog penguin；不指定就依代號自動挑")
+    parser.add_argument("--animal", help="shin nene masao bo kazama hiroshi misae shiro（小新風）或 cat dog rabbit panda fox bear frog penguin（動物）；不指定就依代號自動挑")
     parser.add_argument("--write", type=Path, help="合併進這個設定檔；沒指定就只印到螢幕")
     parser.add_argument("--remove", action="store_true", help="移除這位員工的 hook（需搭配 --write）")
     args = parser.parse_args()

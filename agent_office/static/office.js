@@ -36,6 +36,26 @@ const ANIMALS = {
 };
 const ANIMAL_ORDER = Object.keys(ANIMALS);
 
+/* 「小新家族」風格的人物（我自己畫的簡化像素小人，只抓特徵）。八位剛好對應八張桌子。
+ * skin 膚色、hair 髮色、shirt/legs 固定的服裝顏色、ear 頭頂往上凸出的高度（用來放對話框） */
+const PERSONS = {
+  shin:    { person: true, style: 'shin',    skin: '#f6c3a0', hair: '#1c1c24', shirt: '#e8423f', legs: '#f2d23c', ear: 2 },
+  nene:    { person: true, style: 'nene',    skin: '#fbd5bd', hair: '#a8452a', shirt: '#f5a3c0', legs: '#f5a3c0', ear: 1, tie: '#4fc9b0' },
+  masao:   { person: true, style: 'masao',   skin: '#f3bf9b', hair: '#78b0a8', shirt: '#8fd77e', legs: '#3b5db0', ear: 1 },
+  bo:      { person: true, style: 'bo',      skin: '#f4c4a2', hair: '#4a3320', shirt: '#f0a93c', legs: '#2f8f6a', ear: 1 },
+  kazama:  { person: true, style: 'kazama',  skin: '#f6c3a0', hair: '#1f2a5a', shirt: '#4f8fe0', legs: '#e8873a', ear: 5 },
+  hiroshi: { person: true, style: 'hiroshi', skin: '#f1b996', hair: '#2a2a32', shirt: '#eeeeea', legs: '#3a4a6a', ear: 1 },
+  misae:   { person: true, style: 'misae',   skin: '#f8cdb0', hair: '#6b4a2b', shirt: '#f6d36a', legs: '#e46d6d', ear: 1 },
+  shiro:   { base: 'dog', fur: '#f7f4ec', light: '#ffffff', ear: 0, nose: INK, flop: '#d9d2c0' },
+};
+const PERSON_ORDER = Object.keys(PERSONS);
+const SPECIES = { ...ANIMALS, ...PERSONS };
+let skinSet = 'toon';                    // 'toon' 小新家族 | 'animal' 可愛動物
+try { skinSet = localStorage.getItem('agent-office-skin') === 'animal' ? 'animal' : 'toon'; } catch { /* 沒有儲存空間也沒關係 */ }
+if (/[?&]skin=animal/.test(location.search)) skinSet = 'animal';
+if (/[?&]skin=toon/.test(location.search)) skinSet = 'toon';
+const activeOrder = () => (skinSet === 'animal' ? ANIMAL_ORDER : PERSON_ORDER);
+
 /* 八張辦公桌：兩排四欄。seat 是坐下時的腳底位置，stand 是椅子前面的站位 */
 const DESKS = [];
 for (let r = 0; r < 2; r++) {
@@ -116,38 +136,46 @@ function createAgent(id, instant, wantAnimal) {
     x: 160, y: H + 14, path: [], pose: 'stand', face: 'd',
     stage: null, timer: 0, carry: false, errandTo: null,
     say: null, flash: 0, wanderAt: 0, statusAt: 0,
-    shirt: SHIRTS[nextShirt++ % SHIRTS.length], seed: h % 9, animal: '', skin: '#fff', legs: '#fff', earH: 0,
+    shirt: SHIRTS[nextShirt++ % SHIRTS.length], seed: h % 9, animal: '', wanted: '', shirtColor: null, skin: '#fff', legs: '#fff', earH: 0,
     tag: null, card: null,
   };
   if (desk >= 0) deskOwner[desk] = id;
   a.tag = buildTag(a);
   a.card = buildCard(a);
   agents.set(id, a);
-  setAnimal(a, pickAnimal(id, wantAnimal));
+  a.wanted = SPECIES[wantAnimal] ? wantAnimal : '';
+  setAnimal(a, pickAnimal(id, wantAnimal, a));
   plan(a, instant);
   syncRosterVisibility();
   return a;
 }
 
 /* 沒指定動物時，依代號挑一種；盡量不跟辦公室裡已有的重複 */
-function pickAnimal(id, want) {
-  if (ANIMALS[want]) return want;
-  const used = new Set([...agents.values()].map((a) => a.animal));
-  const start = hash(id) % ANIMAL_ORDER.length;
-  for (let i = 0; i < ANIMAL_ORDER.length; i++) {
-    const k = ANIMAL_ORDER[(start + i) % ANIMAL_ORDER.length];
+function pickAnimal(id, want, self) {
+  if (SPECIES[want]) return want;                       // 明確指定的優先
+  const order = activeOrder();
+  const used = new Set([...agents.values()].filter((x) => x !== self).map((x) => x.animal));
+  const start = hash(id) % order.length;
+  for (let i = 0; i < order.length; i++) {
+    const k = order[(start + i) % order.length];
     if (!used.has(k)) return k;
   }
-  return ANIMAL_ORDER[start];
+  return order[start];
 }
 function setAnimal(a, name) {
-  const sp = ANIMALS[name];
+  const sp = SPECIES[name];
   if (!sp || a.animal === name) return;
   a.animal = name;
-  a.skin = sp.limb || sp.fur;
-  a.legs = sp.limb || sp.fur;
+  a.skin = sp.person ? sp.skin : sp.limb || sp.fur;
+  a.legs = sp.person ? sp.legs : sp.limb || sp.fur;
+  a.shirtColor = sp.person ? sp.shirt : null;
   a.earH = sp.ear;
   if (a.card) drawAvatar(a.card.querySelector('.avatar'), a);
+}
+/* 角色風格切換：沒有明確指定角色的人全部重新挑 */
+function reskin() {
+  for (const a of agents.values()) if (!SPECIES[a.wanted]) a.animal = '';
+  for (const a of agents.values()) setAnimal(a, pickAnimal(a.id, a.wanted, a));
 }
 
 function removeAgent(id) {
@@ -272,7 +300,7 @@ function handle(ev, opts = {}) {
   }
   const isNew = !agents.has(ev.agent);
   const a = agents.get(ev.agent) || createAgent(ev.agent, !!opts.instant, ev.animal);
-  if (ev.animal && ANIMALS[ev.animal]) setAnimal(a, ev.animal);
+  if (ev.animal && SPECIES[ev.animal]) { a.wanted = ev.animal; setAnimal(a, ev.animal); }
   const prevStatus = a.status;
   if (ev.name) a.name = ev.name;
   if (ev.role != null) a.role = ev.role;
@@ -522,6 +550,61 @@ function drawMonitors(t) {
 }
 
 /* ---- 角色 ---- */
+/* 人物的頭：同樣 8x7 的臉，但有頭髮、帽子、眉毛與各自的招牌特徵 */
+function headPerson(a, sp, hx, hy, face, t) {
+  const { skin, hair, style } = sp;
+  const front = face === 'd', back = face === 'u', side = !front && !back;
+  const dir = face === 'l' ? -1 : 1;
+  const blink = Math.floor(t * 0.7 + a.seed) % 9 === 0;
+  const WHITE = '#ffffff', MOUTH = '#a8443f';
+  // 頭後面的東西
+  if (style === 'nene') {
+    R(hx - 2, hy + 1, 2, 5, hair); R(hx + 8, hy + 1, 2, 5, hair);
+    R(hx - 2, hy + 1, 2, 1, sp.tie); R(hx + 8, hy + 1, 2, 1, sp.tie);
+  } else if (style === 'kazama') {
+    R(hx + 3, hy - 4, 3, 2, hair); R(hx + 4, hy - 5, 2, 1, hair);
+  }
+  // 臉與耳朵
+  R(hx + 1, hy, 6, 7, skin); R(hx, hy + 1, 8, 5, skin);
+  if (!side) { R(hx - 1, hy + 3, 1, 2, skin); R(hx + 8, hy + 3, 1, 2, skin); }
+  // 背對鏡頭：頭髮蓋住後腦勺（正男和阿呆頭髮很少，所以不蓋）
+  if (back && style !== 'masao' && style !== 'bo') { R(hx + 1, hy, 6, 1, hair); R(hx, hy + 1, 8, 5, hair); }
+  // 頭頂的頭髮／帽子
+  switch (style) {
+    case 'shin': R(hx, hy, 8, 2, hair); R(hx + 1, hy - 1, 2, 1, hair); R(hx + 4, hy - 1, 3, 1, hair); R(hx + 2, hy - 2, 1, 1, hair); R(hx + 6, hy - 2, 1, 1, hair); R(hx, hy + 2, 1, 1, hair); R(hx + 7, hy + 2, 1, 1, hair); break;
+    case 'nene': R(hx - 1, hy - 1, 10, 3, hair); R(hx, hy + 2, 1, 2, hair); R(hx + 7, hy + 2, 1, 2, hair); break;
+    case 'masao': R(hx + 1, hy - 1, 5, 1, hair); R(hx, hy, 3, 1, hair); R(hx, hy + 1, 1, 2, hair); break;
+    case 'bo': R(hx + 2, hy - 1, 4, 1, hair); break;
+    case 'kazama': R(hx - 1, hy - 1, 10, 2, hair); R(hx + 1, hy - 2, 6, 1, hair); R(hx, hy + 1, 1, 2, hair); R(hx + 7, hy + 1, 1, 2, hair); break;
+    case 'hiroshi': R(hx, hy - 1, 8, 3, hair); R(hx, hy + 2, 1, 1, hair); R(hx + 7, hy + 2, 1, 1, hair); break;
+    case 'misae': R(hx - 1, hy - 1, 10, 3, hair); R(hx - 1, hy + 2, 1, 4, hair); R(hx + 8, hy + 2, 1, 4, hair); break;
+    default: break;
+  }
+  const bigEyes = style === 'shin' || style === 'nene' || style === 'kazama' || style === 'misae';
+  if (front) {
+    if (bigEyes) {
+      if (blink) { R(hx + 1, hy + 4, 2, 1, INK); R(hx + 5, hy + 4, 2, 1, INK); }
+      else { R(hx + 1, hy + 3, 2, 2, INK); R(hx + 5, hy + 3, 2, 2, INK); R(hx + 2, hy + 3, 1, 1, WHITE); R(hx + 6, hy + 3, 1, 1, WHITE); }
+    } else if (style === 'masao') { R(hx + 1, hy + 4, 2, 1, INK); R(hx + 5, hy + 4, 2, 1, INK); }
+    else { R(hx + 2, hy + 4, 1, blink ? 0 : 1, INK); R(hx + 5, hy + 4, 1, blink ? 0 : 1, INK); }
+    if (style === 'shin') { R(hx + 1, hy + 2, 3, 1, INK); R(hx + 4, hy + 2, 3, 1, INK); }      // 招牌粗眉毛
+    else if (style === 'nene' || style === 'misae') { R(hx + 1, hy + 2, 2, 1, hair); R(hx + 5, hy + 2, 2, 1, hair); }
+    else if (style === 'masao') { R(hx + 1, hy + 2, 2, 1, INK); R(hx + 5, hy + 2, 2, 1, INK); }
+    else if (style === 'hiroshi' || style === 'kazama') { R(hx + 1, hy + 2, 2, 1, INK); R(hx + 5, hy + 2, 2, 1, INK); }
+    if (style === 'bo') R(hx + 4, hy + 5, 1, 2, '#bfe6ff');                                      // 鼻涕
+    else R(hx + 3, hy + 5, 2, 1, MOUTH);
+    if (style === 'nene') { R(hx + 1, hy + 5, 1, 1, '#f19a9a'); R(hx + 6, hy + 5, 1, 1, '#f19a9a'); }
+    if (style === 'hiroshi') { R(hx + 2, hy + 6, 1, 1, '#9a8478'); R(hx + 4, hy + 6, 1, 1, '#9a8478'); R(hx + 6, hy + 6, 1, 1, '#9a8478'); }
+  } else if (side) {
+    const ex = dir < 0 ? hx + 2 : hx + 5;
+    if (bigEyes) { R(ex, hy + 3, 1, 2, INK); R(ex + (dir < 0 ? 0 : 0), hy + 3, 1, 1, blink ? INK : WHITE); }
+    else R(ex, hy + 4, 1, 1, INK);
+    R(dir < 0 ? hx - 1 : hx + 8, hy + 4, 1, 1, skin);                                           // 鼻子
+    R(dir < 0 ? hx + 1 : hx + 6, hy + 5, 1, 1, MOUTH);
+    if (style === 'shin') R(ex - (dir < 0 ? 0 : 0), hy + 2, 2, 1, INK);
+  }
+}
+
 const shadeCache = {};
 function shade(hex, f) {
   const key = hex + f;
@@ -533,17 +616,19 @@ function shade(hex, f) {
 
 /* 動物的頭：8x7 的圓臉，加上依物種不同的耳朵、臉與表情。y 是頭頂（不含耳朵） */
 function head(x, y, a, face, t, dx = 0) {
-  const sp = ANIMALS[a.animal] || ANIMALS.cat;
+  const sp = SPECIES[a.animal] || ANIMALS.cat;
+  if (sp.person) return headPerson(a, sp, x - 4 + dx, y, face, t);
+  const form = sp.base || a.animal;
   const hx = x - 4 + dx, hy = y, fur = sp.fur, side = face === 'l' || face === 'r';
   const front = face === 'd', dir = face === 'l' ? -1 : 1;
   const pink = '#f6b3c0';
   // 耳朵／眼突（畫在頭後面）
-  switch (a.animal) {
+  switch (form) {
     case 'cat': case 'fox': {
-      const tip = a.animal === 'fox' ? INK : fur;
+      const tip = form === 'fox' ? INK : fur;
       R(hx, hy - 1, 3, 1, fur); R(hx, hy - 2, 2, 1, fur); R(hx, hy - 3, 1, 1, tip);
       R(hx + 5, hy - 1, 3, 1, fur); R(hx + 6, hy - 2, 2, 1, fur); R(hx + 7, hy - 3, 1, 1, tip);
-      if (front && a.animal === 'cat') { R(hx + 1, hy - 1, 1, 1, pink); R(hx + 6, hy - 1, 1, 1, pink); }
+      if (front && form === 'cat') { R(hx + 1, hy - 1, 1, 1, pink); R(hx + 6, hy - 1, 1, 1, pink); }
       break;
     }
     case 'rabbit':
@@ -563,34 +648,36 @@ function head(x, y, a, face, t, dx = 0) {
   R(hx + 1, hy - 1, 6, 1, edge); R(hx - 1, hy + 1, 1, 5, edge); R(hx + 8, hy + 1, 1, 5, edge);
   R(hx, hy, 1, 1, edge); R(hx + 7, hy, 1, 1, edge);
   R(hx + 1, hy, 6, 7, fur); R(hx, hy + 1, 8, 5, fur);
-  if (a.animal === 'cat' && face !== 'u') R(hx + 3, hy, 2, 1, '#c9772f');
-  if (a.animal === 'penguin' && face !== 'u') { R(hx + 1, hy + 2, 6, 4, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); }
+  if (form === 'cat' && face !== 'u') R(hx + 3, hy, 2, 1, '#c9772f');
+  if (form === 'penguin' && face !== 'u') { R(hx + 1, hy + 2, 6, 4, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); }
   const blink = Math.floor(t * 0.7 + a.seed) % 9 === 0;
   const eye = (ex, ey) => { R(ex, ey, 1, blink ? 1 : 2, INK); };
   if (front) {
-    if (a.animal === 'panda') { R(hx + 1, hy + 2, 2, 3, sp.dark); R(hx + 5, hy + 2, 2, 3, sp.dark); if (!blink) { R(hx + 2, hy + 3, 1, 1, '#ffffff'); R(hx + 5, hy + 3, 1, 1, '#ffffff'); } }
-    else if (a.animal !== 'frog') { eye(hx + 2, hy + 3); eye(hx + 5, hy + 3); }
-    if (a.animal === 'penguin') R(hx + 3, hy + 5, 2, 1, sp.nose);
-    else if (a.animal === 'frog') { R(hx + 1, hy + 5, 6, 1, '#2f7a3c'); R(hx + 1, hy + 4, 1, 1, pink); R(hx + 6, hy + 4, 1, 1, pink); }
-    else if (a.animal === 'fox') { R(hx + 1, hy + 4, 6, 2, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); R(hx + 3, hy + 4, 2, 1, sp.nose); }
+    if (form === 'panda') { R(hx + 1, hy + 2, 2, 3, sp.dark); R(hx + 5, hy + 2, 2, 3, sp.dark); if (!blink) { R(hx + 2, hy + 3, 1, 1, '#ffffff'); R(hx + 5, hy + 3, 1, 1, '#ffffff'); } }
+    else if (form !== 'frog') { eye(hx + 2, hy + 3); eye(hx + 5, hy + 3); }
+    if (form === 'penguin') R(hx + 3, hy + 5, 2, 1, sp.nose);
+    else if (form === 'frog') { R(hx + 1, hy + 5, 6, 1, '#2f7a3c'); R(hx + 1, hy + 4, 1, 1, pink); R(hx + 6, hy + 4, 1, 1, pink); }
+    else if (form === 'fox') { R(hx + 1, hy + 4, 6, 2, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); R(hx + 3, hy + 4, 2, 1, sp.nose); }
     else { R(hx + 2, hy + 4, 4, 3, sp.light); R(hx + 3, hy + 4, 2, 1, sp.nose); }
   } else if (side) {
     const ex = dir < 0 ? hx + 2 : hx + 5, fx = dir < 0 ? hx - 2 : hx + 8;
-    if (a.animal === 'panda') { R(ex - (dir < 0 ? 0 : 1), hy + 2, 2, 3, sp.dark); if (!blink) R(ex, hy + 3, 1, 1, '#ffffff'); }
-    else if (a.animal !== 'frog') eye(ex, hy + 3);
+    if (form === 'panda') { R(ex - (dir < 0 ? 0 : 1), hy + 2, 2, 3, sp.dark); if (!blink) R(ex, hy + 3, 1, 1, '#ffffff'); }
+    else if (form !== 'frog') eye(ex, hy + 3);
     else { R(ex, hy + 4, 1, 1, '#2f7a3c'); }
-    if (a.animal === 'penguin') R(fx, hy + 4, 2, 1, sp.nose);
-    else if (a.animal !== 'frog') { R(fx, hy + 4, 2, 3, a.animal === 'fox' || a.animal === 'dog' || a.animal === 'bear' ? sp.light : fur); R(dir < 0 ? fx : fx + 1, hy + 4, 1, 1, sp.nose); }
+    if (form === 'penguin') R(fx, hy + 4, 2, 1, sp.nose);
+    else if (form !== 'frog') { R(fx, hy + 4, 2, 3, form === 'fox' || form === 'dog' || form === 'bear' ? sp.light : fur); R(dir < 0 ? fx : fx + 1, hy + 4, 1, 1, sp.nose); }
   }
-  if (a.animal === 'dog') { R(hx - 1, hy + 1, 2, 4, sp.flop); R(hx + 7, hy + 1, 2, 4, sp.flop); }
+  if (form === 'dog') { R(hx - 1, hy + 1, 2, 4, sp.flop); R(hx + 7, hy + 1, 2, 4, sp.flop); }
 }
 
 /* 尾巴（畫在身體後面）。小幅搖擺 */
 function tail(a, x, y, bob, face, t) {
-  const sp = ANIMALS[a.animal];
+  const sp = SPECIES[a.animal];
+  if (!sp || sp.person) return;
+  const form = sp.base || a.animal;
   const tx = face === 'r' ? x - 7 : x + 5;
   const wag = Math.round(Math.sin(t * 5 + a.seed));
-  switch (a.animal) {
+  switch (form) {
     case 'cat': R(tx + wag, y - 11 + bob, 2, 6, sp.fur); R(tx + wag, y - 11 + bob, 2, 1, '#c9772f'); break;
     case 'fox': R(tx + wag, y - 9 + bob, 3, 5, sp.fur); R(tx + wag, y - 9 + bob, 3, 2, '#ffffff'); break;
     case 'dog': R(tx + wag, y - 9 + bob, 2, 4, sp.fur); break;
@@ -608,8 +695,8 @@ function drawAvatar(cv, a) {
   c.clearRect(0, 0, 16, 16);
   const saved = ctx;
   ctx = c;
-  const top = (ANIMALS[a.animal] || ANIMALS.cat).ear + 1;
-  R(2, top + 6, 12, 16 - top - 6, a.shirt);
+  const top = (SPECIES[a.animal] || ANIMALS.cat).ear + 1;
+  R(2, top + 6, 12, 16 - top - 6, (a.shirtColor || a.shirt));
   head(8, top, { ...a, seed: 99 }, 'd', 0);
   ctx = saved;
 }
@@ -624,16 +711,16 @@ function drawStanding(a, x, y, t, moving) {
   const lL = moving && f === 1 ? 1 : 0, lR = moving && f === 3 ? 1 : 0;
   tail(a, x, y, bob, a.face, t);
   R(x - 3, y - 5, 2, 5 - lL, a.legs); R(x + 1, y - 5, 2, 5 - lR, a.legs);
-  R(x - 4, y - 12 + bob, 8, 7, a.shirt);
+  R(x - 4, y - 12 + bob, 8, 7, (a.shirtColor || a.shirt));
   const swing = moving ? (f === 1 ? 1 : f === 3 ? -1 : 0) : 0;
   const coffee = a.pose === 'coffee';
-  R(x - 6, y - 12 + bob + swing, 2, 6, a.shirt); R(x - 6, y - 6 + bob + swing, 2, 1, a.skin);
+  R(x - 6, y - 12 + bob + swing, 2, 6, (a.shirtColor || a.shirt)); R(x - 6, y - 6 + bob + swing, 2, 1, a.skin);
   if (coffee) {
     const sip = Math.floor(t * 0.8) % 3 === 0 ? -2 : 0;
-    R(x + 4, y - 14 + sip, 2, 6, a.shirt); R(x + 4, y - 15 + sip, 2, 1, a.skin);
+    R(x + 4, y - 14 + sip, 2, 6, (a.shirtColor || a.shirt)); R(x + 4, y - 15 + sip, 2, 1, a.skin);
     R(x + 3, y - 18 + sip, 4, 3, '#ffffff'); R(x + 3, y - 18 + sip, 4, 1, '#c0392b');
     if (Math.floor(t * 3) % 2) R(x + 4, y - 21 + sip, 1, 2, 'rgba(255,255,255,0.7)');
-  } else { R(x + 4, y - 12 + bob - swing, 2, 6, a.shirt); R(x + 4, y - 6 + bob - swing, 2, 1, a.skin); }
+  } else { R(x + 4, y - 12 + bob - swing, 2, 6, (a.shirtColor || a.shirt)); R(x + 4, y - 6 + bob - swing, 2, 1, a.skin); }
   head(x, y - 18 + bob, a, a.face, t);
   if (a.carry) paper(x + (a.face === 'l' ? -9 : 5), y - 10 + bob);
 }
@@ -646,18 +733,18 @@ function drawSeated(a, x, y, t) {
   const cheering = a.status === 'done' && since < 2.6;
   if (cheering) hop = Math.floor(t * 6) % 2 ? 2 : 0;
   const by = y - hop;
-  R(x - 4 + jx, by - 10, 8, 7, a.shirt);
+  R(x - 4 + jx, by - 10, 8, 7, (a.shirtColor || a.shirt));
   head(x + jx, by - 17, a, 'u', t, lookX);
   R(x - 1 + jx, by - 11, 2, 1, a.skin);
   const tL = a.status === 'working' && Math.floor(t * 9) % 2, tR = a.status === 'working' && Math.floor(t * 9 + 1) % 2;
   const arm = (side, up) => {
     const ax = side < 0 ? x - 6 + jx : x + 4 + jx;
-    R(ax, by - up, 2, up - 3, a.shirt); R(ax, by - up - 1, 2, 1, a.skin);
+    R(ax, by - up, 2, up - 3, (a.shirtColor || a.shirt)); R(ax, by - up - 1, 2, 1, a.skin);
   };
   if (cheering) { arm(-1, 22); arm(1, 22); }
   else if (a.status === 'working') { arm(-1, tL ? 17 : 18); arm(1, tR ? 17 : 18); }
-  else if (a.status === 'thinking') { arm(-1, 12); R(x + 4, by - 14, 2, 5, a.shirt); R(x + 3, by - 15, 2, 1, a.skin); }
-  else if (a.status === 'error') { R(x - 6 + jx, by - 17, 2, 7, a.shirt); R(x + 4 + jx, by - 17, 2, 7, a.shirt); R(x - 5 + jx, by - 18, 2, 1, a.skin); R(x + 3 + jx, by - 18, 2, 1, a.skin); }
+  else if (a.status === 'thinking') { arm(-1, 12); R(x + 4, by - 14, 2, 5, (a.shirtColor || a.shirt)); R(x + 3, by - 15, 2, 1, a.skin); }
+  else if (a.status === 'error') { R(x - 6 + jx, by - 17, 2, 7, (a.shirtColor || a.shirt)); R(x + 4 + jx, by - 17, 2, 7, (a.shirtColor || a.shirt)); R(x - 5 + jx, by - 18, 2, 1, a.skin); R(x + 3 + jx, by - 18, 2, 1, a.skin); }
   else { arm(-1, 12); arm(1, 12); }
   drawChair(x, y, '#46526b');
   if (cheering) for (let i = 0; i < 4; i++) { const k = (t * 3 + i * 1.7) % 2; R(x - 10 + i * 7, by - 24 - k * 4, 1, 1, ['#ffd25e', '#7fb4ff', '#ff8b8f', '#8ff0c0'][i]); }
@@ -665,8 +752,8 @@ function drawSeated(a, x, y, t) {
 }
 
 function drawSofa(a, x, y, t) {
-  R(x - 4, y - 9, 8, 6, a.shirt);
-  R(x - 6, y - 9, 2, 5, a.shirt); R(x + 4, y - 9, 2, 5, a.shirt);
+  R(x - 4, y - 9, 8, 6, (a.shirtColor || a.shirt));
+  R(x - 6, y - 9, 2, 5, (a.shirtColor || a.shirt)); R(x + 4, y - 9, 2, 5, (a.shirtColor || a.shirt));
   R(x - 6, y - 4, 2, 1, a.skin); R(x + 4, y - 4, 2, 1, a.skin);
   R(x - 3, y - 3, 6, 3, a.legs); R(x - 4, y, 3, 1, a.legs); R(x + 1, y, 3, 1, a.legs);
   head(x, y - 15, a, 'd', t);
@@ -721,8 +808,8 @@ new ResizeObserver(resize).observe($('#stage'));
 
 /* ============================================================ 示範團隊（瀏覽器內建） */
 const TEAM = [
-  ['planner', 'Planner', '規劃師', 'claude', 'fox'], ['researcher', 'Researcher', '研究員', 'claude', 'rabbit'], ['coder', 'Coder', '工程師', 'codex', 'cat'],
-  ['reviewer', 'Reviewer', '審查員', 'claude', 'panda'], ['tester', 'Tester', '測試員', 'codex', 'frog'], ['analyst', 'Analyst', '資料分析', 'claude', 'dog'], ['writer', 'Writer', '文件撰寫', 'claude', 'penguin'],
+  ['planner', 'Planner', '規劃師', 'claude', ''], ['researcher', 'Researcher', '研究員', 'claude', ''], ['coder', 'Coder', '工程師', 'codex', ''],
+  ['reviewer', 'Reviewer', '審查員', 'claude', ''], ['tester', 'Tester', '測試員', 'codex', ''], ['analyst', 'Analyst', '資料分析', 'claude', ''], ['writer', 'Writer', '文件撰寫', 'claude', ''],
 ];
 const FEATURES = ['新增使用者登入功能', '修正訂單金額計算', '串接第三方付款 API', '優化首頁載入速度', '重構資料匯入流程'];
 const TOPICS = ['電商銷售資料', '使用者留存分析', '競品功能比較', '客服工單趨勢', '廣告投放成效'];
@@ -857,6 +944,14 @@ async function detectLive() {
     return true;
   } catch { return false; }
 }
+
+const skinSel = $('#skinSel');
+skinSel.value = skinSet;
+skinSel.addEventListener('change', () => {
+  skinSet = skinSel.value === 'animal' ? 'animal' : 'toon';
+  try { localStorage.setItem('agent-office-skin', skinSet); } catch { /* ignore */ }
+  reskin();
+});
 
 dom.modeLive.addEventListener('click', async () => {
   if (!liveAvailable) liveAvailable = await detectLive();

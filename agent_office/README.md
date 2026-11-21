@@ -1,6 +1,7 @@
 # Agent Office
 
-一間像素風的虛擬辦公室，每個 AI agent 是一隻可愛的動物（貓、狗、兔子、熊貓、狐狸、小熊、青蛙、企鵝），讓你「看著」牠們上班：
+一間像素風的虛擬辦公室，每個 AI agent 是一個可愛的角色，讓你「看著」牠們上班。預設是蠟筆小新風（小新、妮妮、正男、阿呆、風間、廣志、美冴、小白），
+右上角的「角色」可以切換成可愛動物（貓、狗、兔子、熊貓、狐狸、小熊、青蛙、企鵝）：
 
 | agent 狀態 | 辦公室裡的樣子 |
 | --- | --- |
@@ -104,7 +105,7 @@ curl -X POST http://127.0.0.1:8765/api/event \
 | `agent` | 必填。唯一代號，同一個 agent 每次用同一個值 |
 | `status` | `idle` `thinking` `working` `waiting` `error` `done` `offline`。省略＝維持目前狀態 |
 | `task` | 目前在做什麼（最多 200 字）。省略＝沿用；`null` 或 `""`＝清空；回到 `idle` 會自動清空 |
-| `name` `role` `kind` `animal` | 顯示名稱、職稱、引擎（`claude` / `codex`，名冊會顯示標籤）、角色動物（`cat` `dog` `rabbit` `panda` `fox` `bear` `frog` `penguin`；不指定就依代號自動挑，盡量不重複），通常只需第一次給 |
+| `name` `role` `kind` `animal` | 顯示名稱、職稱、引擎（`claude` / `codex`，名冊會顯示標籤）、角色（小新風：`shin` `nene` `masao` `bo` `kazama` `hiroshi` `misae` `shiro`；動物：`cat` `dog` `rabbit` `panda` `fox` `bear` `frog` `penguin`；不指定就依代號和目前的角色風格自動挑，盡量不重複），通常只需第一次給 |
 | `message` | 在頭上冒出一個虛線對話框（4.5 秒），並寫入動態紀錄 |
 | `to` | 另一位 agent 的代號。會觸發「拿文件走過去交接」動畫 |
 | `quiet` | `true`＝只更新畫面，不寫入動態紀錄（適合很頻繁的小事件） |
@@ -218,6 +219,12 @@ python agent_office/run.py --agent reviewer --name Reviewer --role 審查員 -- 
 
 在你的 agent 開始/結束每個步驟、呼叫工具、拋出例外的地方各加一行 `office.report(...)` 即可。
 框架本身不需要改。
+
+## 關於小新風角色
+
+小新風的角色是我用像素自己畫的簡化小人，只取外觀特徵（髮型、服裝、招牌表情），沒有使用任何官方圖片或素材。
+蠟筆小新的角色版權屬於原作者與出版方，這份小新風只適合放在你自己的電腦上自用，不建議公開發布或散布；
+若要公開分享這個專案，請切回「可愛動物」（`?skin=animal`），或把 `static/office.js` 裡的 `PERSONS` 換成你自己的原創角色。
 
 ## 安全性
 

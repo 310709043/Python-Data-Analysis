@@ -147,7 +147,7 @@ def main() -> None:
     parser.add_argument("--name", help="顯示名稱")
     parser.add_argument("--role", help="職稱")
     parser.add_argument("--kind", choices=["claude", "codex"], help="引擎；不指定時依指令自動判斷")
-    parser.add_argument("--animal", help="角色動物：cat dog rabbit panda fox bear frog penguin；不指定就依代號自動挑")
+    parser.add_argument("--animal", help="角色動物：角色：shin nene masao bo kazama hiroshi misae shiro（小新風）或 cat dog rabbit panda fox bear frog penguin（動物）；不指定就依代號自動挑")
     parser.add_argument("--task", help="任務描述（沒指定就顯示指令即時的動作）")
     parser.add_argument("--parse", choices=["auto", "claude", "codex", "none"], default="auto")
     parser.add_argument("--url", help="伺服器位置，預設 http://127.0.0.1:8765 或環境變數 AGENT_OFFICE_URL")
