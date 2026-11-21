@@ -87,6 +87,7 @@ class OfficeState:
                     "name": agent_id,
                     "role": "",
                     "kind": "",
+                    "animal": "",
                     "status": "idle",
                     "task": "",
                     "since": now,
@@ -103,6 +104,8 @@ class OfficeState:
                 current["name"] = str(payload["name"]).strip()[:40] or agent_id
             if payload.get("role") is not None:
                 current["role"] = str(payload["role"]).strip()[:40]
+            if payload.get("animal") is not None:
+                current["animal"] = str(payload["animal"]).strip().lower()[:20]
             if payload.get("kind") is not None:
                 current["kind"] = str(payload["kind"]).strip().lower()[:20]
 
@@ -142,6 +145,7 @@ class OfficeState:
                 "name": current["name"],
                 "role": current["role"],
                 "kind": current["kind"],
+                "animal": current["animal"],
                 "status": status,
                 "task": task,
                 "message": message,

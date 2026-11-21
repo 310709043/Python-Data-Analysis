@@ -36,6 +36,7 @@ class Office:
         name: str | None = None,
         role: str | None = None,
         kind: str | None = None,
+        animal: str | None = None,
         message: str | None = None,
         to: str | None = None,
         quiet: bool = False,
@@ -49,7 +50,7 @@ class Office:
             payload["status"] = status
         if task is not ...:
             payload["task"] = task
-        for key, value in (("name", name), ("role", role), ("kind", kind), ("message", message), ("to", to)):
+        for key, value in (("name", name), ("role", role), ("kind", kind), ("animal", animal), ("message", message), ("to", to)):
             if value is not None:
                 payload[key] = value
         if quiet:

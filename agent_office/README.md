@@ -1,6 +1,6 @@
 # Agent Office
 
-一間像素風的虛擬辦公室，讓你「看著」自己的 AI agent 上班：
+一間像素風的虛擬辦公室，每個 AI agent 是一隻可愛的動物（貓、狗、兔子、熊貓、狐狸、小熊、青蛙、企鵝），讓你「看著」牠們上班：
 
 | agent 狀態 | 辦公室裡的樣子 |
 | --- | --- |
@@ -15,24 +15,61 @@
 另外有：員工名冊（含目前任務與已進行時間）、動態紀錄、牆上的任務看板（依實際狀態更新）、
 日夜主題（跟隨系統深淺色）。
 
-## 快速開始
+## 第一次使用（約 5 分鐘）
 
-不需要安裝任何套件（只用 Python 標準函式庫，Python 3.9+）。
+辦公室跑在**你自己的電腦**上（你的 Claude Code / Codex 也在那裡跑），所以以下都在你的電腦操作。
+需要 Python 3.9 以上，不用安裝任何套件。
 
-```bash
-python agent_office/server.py --demo
-```
-
-打開 <http://127.0.0.1:8765>，會看到七位示範員工分成兩條產線在工作。
-要接上自己的 agent，把 `--demo` 拿掉，讓 agent 回報狀態即可。
-
-只想先看看畫面、不啟動伺服器：
+**1. 取得程式**
 
 ```bash
-python agent_office/build_standalone.py   # 產生 agent_office/dist/agent-office.html
+git clone https://github.com/310709043/Python-Data-Analysis.git
+cd Python-Data-Analysis
+git checkout claude/wonderful-newton-vjbdr1   # 這個功能還在這個分支上，合併進主分支後就不用這行
 ```
 
-雙擊那個檔案就能開（示範模式，內容是瀏覽器模擬的）。
+**2. 先看示範，確認畫面正常**
+
+```bash
+python3 agent_office/server.py --demo
+```
+
+打開 <http://127.0.0.1:8765>，會看到七隻動物分成兩條產線在工作。看夠了按 `Ctrl-C` 關掉。
+
+**3. 啟動真正的辦公室（不帶 `--demo`），並留著這個終端機不要關**
+
+```bash
+python3 agent_office/server.py
+```
+
+重新整理瀏覽器，這時辦公室是空的。
+
+**4. 讓你的第一個 agent 進來**，開另一個終端機，挑一種：
+
+- *馬上試試看（不用改任何設定）*：用 `run.py` 包住一次 Claude Code 或 Codex 的執行
+
+  ```bash
+  python3 agent_office/run.py --agent coder --name Coder --animal cat -- claude -p "用一句話介紹這個專案"
+  python3 agent_office/run.py --agent reviewer --name Reviewer --animal panda -- codex exec "用一句話介紹這個專案"
+  ```
+
+  貓會從門口走進來，坐到座位上，頭上顯示牠正在做的事，結束後去休息區。
+
+- *平常互動使用*：一行指令把 hook 裝進設定檔（會保留你原有的設定並先備份）
+
+  ```bash
+  # Claude Code：裝在你要用它的專案裡（或改成 ~/.claude/settings.json 讓所有專案都生效）
+  python3 agent_office/install_hooks.py claude --agent coder --name Coder --role 工程師 --animal cat --write .claude/settings.json
+  # Codex
+  python3 agent_office/install_hooks.py codex --agent reviewer --name Reviewer --role 審查員 --animal panda --write ~/.codex/hooks.json
+  ```
+
+  重新啟動 Claude Code / Codex，之後你每送出一個需求，牠就會在辦公室裡開始工作。
+
+**5. 之後的日常**：先 `python3 agent_office/server.py`，再照常使用你的 agent。
+不想用某位員工了：`install_hooks.py ... --remove --write 同一個檔案`。
+
+只想先看畫面、不啟動伺服器：`python3 agent_office/build_standalone.py`，雙擊產生的 `agent_office/dist/agent-office.html`（示範模式）。
 
 ## 讓你的 agent 回報狀態
 
@@ -67,7 +104,7 @@ curl -X POST http://127.0.0.1:8765/api/event \
 | `agent` | 必填。唯一代號，同一個 agent 每次用同一個值 |
 | `status` | `idle` `thinking` `working` `waiting` `error` `done` `offline`。省略＝維持目前狀態 |
 | `task` | 目前在做什麼（最多 200 字）。省略＝沿用；`null` 或 `""`＝清空；回到 `idle` 會自動清空 |
-| `name` `role` `kind` | 顯示名稱、職稱、引擎（`claude` / `codex`，名冊會顯示標籤），通常只需第一次給 |
+| `name` `role` `kind` `animal` | 顯示名稱、職稱、引擎（`claude` / `codex`，名冊會顯示標籤）、角色動物（`cat` `dog` `rabbit` `panda` `fox` `bear` `frog` `penguin`；不指定就依代號自動挑，盡量不重複），通常只需第一次給 |
 | `message` | 在頭上冒出一個虛線對話框（4.5 秒），並寫入動態紀錄 |
 | `to` | 另一位 agent 的代號。會觸發「拿文件走過去交接」動畫 |
 | `quiet` | `true`＝只更新畫面，不寫入動態紀錄（適合很頻繁的小事件） |
@@ -86,10 +123,13 @@ curl -X POST http://127.0.0.1:8765/api/event \
 
 兩種方式可以混用：**hook** 適合平常在終端機互動使用的 agent；**`run.py`** 適合 `claude -p` / `codex exec` 這類無人值守的執行。
 
-先決定每位員工的代號、名字、職稱。同一位員工每次都用同一個 `--agent`，畫面上就是同一個人。
+先決定每位員工的代號、名字、職稱、動物。同一位員工每次都用同一個 `--agent`，畫面上就是同一個人。
 不指定的話，每個工作階段會變成一位新員工（名字會是「引擎 + 資料夾名稱」）。
 
 #### 方式一：hook（互動使用）
+
+最省事的做法是用安裝器（見上面「第一次使用」第 4 步），它會產生下面這些設定並安全地合併進你的設定檔。
+想手動貼的話，不加 `--write` 它就只印出 JSON。下面是它產生的內容，供你看懂或手動調整：
 
 `hooks/agent_hook.py` 同時支援兩邊，用 `--kind claude` 或 `--kind codex` 區分，名冊會顯示引擎標籤。
 
@@ -192,6 +232,7 @@ agent_office/
 ├── client.py            回報狀態用的 Python 小工具
 ├── demo.py              示範團隊（也可當接入範例：python agent_office/demo.py）
 ├── adapters.py          Claude Code / Codex 事件 → 狀態的對應規則（hook 與 run.py 共用）
+├── install_hooks.py     一行指令把 hook 裝進 Claude Code / Codex 的設定檔（安全合併、可移除）
 ├── run.py               包住 claude -p / codex exec / 任何指令並即時回報
 ├── hooks/agent_hook.py  Claude Code 與 Codex 共用的 hook
 ├── build_standalone.py  打包成單一 HTML

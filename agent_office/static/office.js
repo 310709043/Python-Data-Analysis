@@ -22,9 +22,19 @@ const STATUS = {
 const AT_DESK = new Set(['thinking', 'working', 'waiting', 'error', 'done']);
 
 const SHIRTS = ['#e0556b', '#4f86e8', '#e0a63c', '#44b58a', '#9a6bd6', '#e07b3c', '#3cb8c9', '#7c8aa0'];
-const HAIRS  = ['#2b2118', '#4a2e1a', '#d9b45a', '#1e1e28', '#8a3b2a', '#c9c9d1', '#5a3a78'];
-const SKINS  = ['#f2c9a0', '#e3a97c', '#c68a5c', '#8d5a3b', '#f6d7b8'];
-const PANTS = '#2f3447', SHOE = '#14161f', INK = '#232838';
+const INK = '#232838';
+/* 八種動物：fur 毛色、light 臉頰/肚子的淺色、limb 手腳顏色（預設同毛色）、ear 耳朵往上凸出的高度 */
+const ANIMALS = {
+  cat:     { fur: '#e8a35a', light: '#fbe7c8', ear: 3, nose: '#e8828f' },
+  dog:     { fur: '#c98f5d', light: '#f5dfc4', ear: 0, nose: INK, flop: '#7a4a2a' },
+  rabbit:  { fur: '#f2f2f6', light: '#ffffff', ear: 5, nose: '#f08fa0' },
+  panda:   { fur: '#f6f6f6', light: '#ffffff', ear: 2, nose: INK, limb: '#262a36', dark: '#262a36' },
+  fox:     { fur: '#e5692f', light: '#fff1e2', ear: 3, nose: INK },
+  bear:    { fur: '#8f6140', light: '#dcb892', ear: 2, nose: INK },
+  frog:    { fur: '#68bf6e', light: '#d7f2b8', ear: 2, nose: '#3c8a47' },
+  penguin: { fur: '#2d3447', light: '#ffffff', ear: 0, nose: '#f6a623', limb: '#2d3447' },
+};
+const ANIMAL_ORDER = Object.keys(ANIMALS);
 
 /* 八張辦公桌：兩排四欄。seat 是坐下時的腳底位置，stand 是椅子前面的站位 */
 const DESKS = [];
@@ -78,7 +88,8 @@ const dom = {
   banner: $('#banner'), modeLive: $('#modeLive'), modeDemo: $('#modeDemo'),
   cWorking: $('#cWorking'), cIdle: $('#cIdle'), cDone: $('#cDone'),
 };
-const ctx = dom.canvas.getContext('2d');
+let ctx = dom.canvas.getContext('2d');
+const mainCtx = ctx;
 ctx.imageSmoothingEnabled = false;
 
 /* ============================================================ 路線規劃 */
@@ -96,7 +107,7 @@ function route(from, to) {
 }
 
 /* ============================================================ Agent 生命週期 */
-function createAgent(id, instant) {
+function createAgent(id, instant, wantAnimal) {
   const h = hash(id);
   const desk = deskOwner.indexOf(null);
   const a = {
@@ -105,16 +116,38 @@ function createAgent(id, instant) {
     x: 160, y: H + 14, path: [], pose: 'stand', face: 'd',
     stage: null, timer: 0, carry: false, errandTo: null,
     say: null, flash: 0, wanderAt: 0, statusAt: 0,
-    shirt: SHIRTS[nextShirt++ % SHIRTS.length], hair: HAIRS[h % HAIRS.length], skin: SKINS[(h >>> 5) % SKINS.length],
+    shirt: SHIRTS[nextShirt++ % SHIRTS.length], seed: h % 9, animal: '', skin: '#fff', legs: '#fff', earH: 0,
     tag: null, card: null,
   };
   if (desk >= 0) deskOwner[desk] = id;
   a.tag = buildTag(a);
   a.card = buildCard(a);
   agents.set(id, a);
+  setAnimal(a, pickAnimal(id, wantAnimal));
   plan(a, instant);
   syncRosterVisibility();
   return a;
+}
+
+/* 沒指定動物時，依代號挑一種；盡量不跟辦公室裡已有的重複 */
+function pickAnimal(id, want) {
+  if (ANIMALS[want]) return want;
+  const used = new Set([...agents.values()].map((a) => a.animal));
+  const start = hash(id) % ANIMAL_ORDER.length;
+  for (let i = 0; i < ANIMAL_ORDER.length; i++) {
+    const k = ANIMAL_ORDER[(start + i) % ANIMAL_ORDER.length];
+    if (!used.has(k)) return k;
+  }
+  return ANIMAL_ORDER[start];
+}
+function setAnimal(a, name) {
+  const sp = ANIMALS[name];
+  if (!sp || a.animal === name) return;
+  a.animal = name;
+  a.skin = sp.limb || sp.fur;
+  a.legs = sp.limb || sp.fur;
+  a.earH = sp.ear;
+  if (a.card) drawAvatar(a.card.querySelector('.avatar'), a);
 }
 
 function removeAgent(id) {
@@ -238,7 +271,8 @@ function handle(ev, opts = {}) {
     return;
   }
   const isNew = !agents.has(ev.agent);
-  const a = agents.get(ev.agent) || createAgent(ev.agent, !!opts.instant);
+  const a = agents.get(ev.agent) || createAgent(ev.agent, !!opts.instant, ev.animal);
+  if (ev.animal && ANIMALS[ev.animal]) setAnimal(a, ev.animal);
   const prevStatus = a.status;
   if (ev.name) a.name = ev.name;
   if (ev.role != null) a.role = ev.role;
@@ -287,16 +321,15 @@ function buildTag() {
 
 function buildCard(a) {
   const li = el('li', 'card');
-  li.style.setProperty('--hair', a.hair);
-  li.style.setProperty('--skin', a.skin);
-  li.style.setProperty('--shirt', a.shirt);
-  li.dataset.id = a.id;
+    li.dataset.id = a.id;
   const who = el('div', 'who');
   const nm = el('div', 'nm'); nm.append(el('span'), el('small'), el('em', 'kind'));
   who.append(nm, el('div', 'job'));
   const meta = el('div', 'meta');
   meta.append(el('span', 'pill'), el('span', 'since'));
-  li.append(el('div', 'avatar'), who, meta);
+  const avatar = el('canvas', 'avatar');
+  avatar.width = 16; avatar.height = 16;
+  li.append(avatar, who, meta);
   li.addEventListener('mouseenter', () => { li.classList.add('hl'); a.flash = 1.2; });
   li.addEventListener('mouseleave', () => li.classList.remove('hl'));
   dom.roster.append(li);
@@ -328,7 +361,7 @@ function updateTags(t) {
     const s = STATUS[a.status];
     const seated = a.pose === 'sit' && !a.path.length && a.desk >= 0;
     const ax = seated ? DESKS[a.desk].x + 18 : a.x;
-    const ay = seated ? DESKS[a.desk].y - 3 : a.y - 21;
+    const ay = seated ? DESKS[a.desk].y - 3 : a.y - 22 - a.earH;
     const tag = a.tag;
     tag.style.setProperty('--st', s.color);
     const half = (a._tw || 80) / 2;
@@ -489,16 +522,96 @@ function drawMonitors(t) {
 }
 
 /* ---- 角色 ---- */
+const shadeCache = {};
+function shade(hex, f) {
+  const key = hex + f;
+  if (shadeCache[key]) return shadeCache[key];
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return (shadeCache[key] = `rgb(${c(n >> 16)}, ${c((n >> 8) & 255)}, ${c(n & 255)})`);
+}
+
+/* 動物的頭：8x7 的圓臉，加上依物種不同的耳朵、臉與表情。y 是頭頂（不含耳朵） */
 function head(x, y, a, face, t, dx = 0) {
-  R(x - 3 + dx, y, 6, 6, a.skin);
-  if (face === 'u') { R(x - 3 + dx, y, 6, 6, a.hair); R(x - 3 + dx, y + 5, 6, 1, a.hair); return; }
-  R(x - 3 + dx, y, 6, 2, a.hair);
-  if (face === 'd') {
-    R(x - 3 + dx, y + 2, 1, 1, a.hair); R(x + 2 + dx, y + 2, 1, 1, a.hair);
-    const blink = Math.floor(t * 0.7 + a.x) % 9 === 0;
-    R(x - 2 + dx, y + 3, 1, blink ? 0 : 1, INK); R(x + 1 + dx, y + 3, 1, blink ? 0 : 1, INK);
-  } else if (face === 'l') { R(x + 1 + dx, y + 2, 2, 3, a.hair); R(x - 2 + dx, y + 3, 1, 1, INK); }
-  else { R(x - 3 + dx, y + 2, 2, 3, a.hair); R(x + 1 + dx, y + 3, 1, 1, INK); }
+  const sp = ANIMALS[a.animal] || ANIMALS.cat;
+  const hx = x - 4 + dx, hy = y, fur = sp.fur, side = face === 'l' || face === 'r';
+  const front = face === 'd', dir = face === 'l' ? -1 : 1;
+  const pink = '#f6b3c0';
+  // 耳朵／眼突（畫在頭後面）
+  switch (a.animal) {
+    case 'cat': case 'fox': {
+      const tip = a.animal === 'fox' ? INK : fur;
+      R(hx, hy - 1, 3, 1, fur); R(hx, hy - 2, 2, 1, fur); R(hx, hy - 3, 1, 1, tip);
+      R(hx + 5, hy - 1, 3, 1, fur); R(hx + 6, hy - 2, 2, 1, fur); R(hx + 7, hy - 3, 1, 1, tip);
+      if (front && a.animal === 'cat') { R(hx + 1, hy - 1, 1, 1, pink); R(hx + 6, hy - 1, 1, 1, pink); }
+      break;
+    }
+    case 'rabbit':
+      R(hx + 1, hy - 5, 2, 5, fur); R(hx + 5, hy - 5, 2, 5, fur);
+      if (!(face === 'u')) { R(hx + 2, hy - 4, 1, 3, pink); R(hx + 5, hy - 4, 1, 3, pink); }
+      break;
+    case 'panda': R(hx, hy - 2, 2, 3, sp.dark); R(hx + 6, hy - 2, 2, 3, sp.dark); break;
+    case 'bear': R(hx, hy - 2, 2, 2, fur); R(hx + 6, hy - 2, 2, 2, fur); if (!(face === 'u')) { R(hx, hy - 1, 1, 1, sp.light); R(hx + 7, hy - 1, 1, 1, sp.light); } break;
+    case 'frog':
+      R(hx, hy - 2, 3, 3, fur); R(hx + 5, hy - 2, 3, 3, fur);
+      if (face !== 'u') { R(hx + 1, hy - 1, 2, 2, '#ffffff'); R(hx + 5, hy - 1, 2, 2, '#ffffff'); R(hx + 2, hy, 1, 1, INK); R(hx + 5, hy, 1, 1, INK); }
+      break;
+    default: break;
+  }
+  // 頭（外圍一圈比毛色深的描邊，坐在桌前背對鏡頭時輪廓才清楚）
+  const edge = shade(fur, 0.62);
+  R(hx + 1, hy - 1, 6, 1, edge); R(hx - 1, hy + 1, 1, 5, edge); R(hx + 8, hy + 1, 1, 5, edge);
+  R(hx, hy, 1, 1, edge); R(hx + 7, hy, 1, 1, edge);
+  R(hx + 1, hy, 6, 7, fur); R(hx, hy + 1, 8, 5, fur);
+  if (a.animal === 'cat' && face !== 'u') R(hx + 3, hy, 2, 1, '#c9772f');
+  if (a.animal === 'penguin' && face !== 'u') { R(hx + 1, hy + 2, 6, 4, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); }
+  const blink = Math.floor(t * 0.7 + a.seed) % 9 === 0;
+  const eye = (ex, ey) => { R(ex, ey, 1, blink ? 1 : 2, INK); };
+  if (front) {
+    if (a.animal === 'panda') { R(hx + 1, hy + 2, 2, 3, sp.dark); R(hx + 5, hy + 2, 2, 3, sp.dark); if (!blink) { R(hx + 2, hy + 3, 1, 1, '#ffffff'); R(hx + 5, hy + 3, 1, 1, '#ffffff'); } }
+    else if (a.animal !== 'frog') { eye(hx + 2, hy + 3); eye(hx + 5, hy + 3); }
+    if (a.animal === 'penguin') R(hx + 3, hy + 5, 2, 1, sp.nose);
+    else if (a.animal === 'frog') { R(hx + 1, hy + 5, 6, 1, '#2f7a3c'); R(hx + 1, hy + 4, 1, 1, pink); R(hx + 6, hy + 4, 1, 1, pink); }
+    else if (a.animal === 'fox') { R(hx + 1, hy + 4, 6, 2, sp.light); R(hx + 2, hy + 6, 4, 1, sp.light); R(hx + 3, hy + 4, 2, 1, sp.nose); }
+    else { R(hx + 2, hy + 4, 4, 3, sp.light); R(hx + 3, hy + 4, 2, 1, sp.nose); }
+  } else if (side) {
+    const ex = dir < 0 ? hx + 2 : hx + 5, fx = dir < 0 ? hx - 2 : hx + 8;
+    if (a.animal === 'panda') { R(ex - (dir < 0 ? 0 : 1), hy + 2, 2, 3, sp.dark); if (!blink) R(ex, hy + 3, 1, 1, '#ffffff'); }
+    else if (a.animal !== 'frog') eye(ex, hy + 3);
+    else { R(ex, hy + 4, 1, 1, '#2f7a3c'); }
+    if (a.animal === 'penguin') R(fx, hy + 4, 2, 1, sp.nose);
+    else if (a.animal !== 'frog') { R(fx, hy + 4, 2, 3, a.animal === 'fox' || a.animal === 'dog' || a.animal === 'bear' ? sp.light : fur); R(dir < 0 ? fx : fx + 1, hy + 4, 1, 1, sp.nose); }
+  }
+  if (a.animal === 'dog') { R(hx - 1, hy + 1, 2, 4, sp.flop); R(hx + 7, hy + 1, 2, 4, sp.flop); }
+}
+
+/* 尾巴（畫在身體後面）。小幅搖擺 */
+function tail(a, x, y, bob, face, t) {
+  const sp = ANIMALS[a.animal];
+  const tx = face === 'r' ? x - 7 : x + 5;
+  const wag = Math.round(Math.sin(t * 5 + a.seed));
+  switch (a.animal) {
+    case 'cat': R(tx + wag, y - 11 + bob, 2, 6, sp.fur); R(tx + wag, y - 11 + bob, 2, 1, '#c9772f'); break;
+    case 'fox': R(tx + wag, y - 9 + bob, 3, 5, sp.fur); R(tx + wag, y - 9 + bob, 3, 2, '#ffffff'); break;
+    case 'dog': R(tx + wag, y - 9 + bob, 2, 4, sp.fur); break;
+    case 'bear': R(tx, y - 7 + bob, 2, 2, sp.fur); break;
+    case 'rabbit': R(tx, y - 7 + bob, 3, 3, '#e4e6ee'); break;
+    case 'panda': R(tx, y - 7 + bob, 2, 2, sp.dark); break;
+    default: break;
+  }
+}
+
+/* 名冊裡的小頭像 */
+function drawAvatar(cv, a) {
+  const c = cv.getContext('2d');
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, 16, 16);
+  const saved = ctx;
+  ctx = c;
+  const top = (ANIMALS[a.animal] || ANIMALS.cat).ear + 1;
+  R(2, top + 6, 12, 16 - top - 6, a.shirt);
+  head(8, top, { ...a, seed: 99 }, 'd', 0);
+  ctx = saved;
 }
 
 function paper(x, y) {
@@ -509,8 +622,8 @@ function drawStanding(a, x, y, t, moving) {
   const f = moving ? Math.floor(t * 8) % 4 : 0;
   const bob = moving && (f === 1 || f === 3) ? -1 : 0;
   const lL = moving && f === 1 ? 1 : 0, lR = moving && f === 3 ? 1 : 0;
-  R(x - 3, y - 5, 2, 5 - lL, PANTS); R(x + 1, y - 5, 2, 5 - lR, PANTS);
-  R(x - 3, y - 1 - lL, 2, 1, SHOE); R(x + 1, y - 1 - lR, 2, 1, SHOE);
+  tail(a, x, y, bob, a.face, t);
+  R(x - 3, y - 5, 2, 5 - lL, a.legs); R(x + 1, y - 5, 2, 5 - lR, a.legs);
   R(x - 4, y - 12 + bob, 8, 7, a.shirt);
   const swing = moving ? (f === 1 ? 1 : f === 3 ? -1 : 0) : 0;
   const coffee = a.pose === 'coffee';
@@ -555,7 +668,7 @@ function drawSofa(a, x, y, t) {
   R(x - 4, y - 9, 8, 6, a.shirt);
   R(x - 6, y - 9, 2, 5, a.shirt); R(x + 4, y - 9, 2, 5, a.shirt);
   R(x - 6, y - 4, 2, 1, a.skin); R(x + 4, y - 4, 2, 1, a.skin);
-  R(x - 3, y - 3, 6, 3, PANTS); R(x - 3, y, 2, 1, SHOE); R(x + 1, y, 2, 1, SHOE);
+  R(x - 3, y - 3, 6, 3, a.legs); R(x - 4, y, 3, 1, a.legs); R(x + 1, y, 3, 1, a.legs);
   head(x, y - 15, a, 'd', t);
   if (performance.now() / 1000 - a.statusAt > 10) {
     const k = Math.floor(t * 1.2) % 3;
@@ -608,8 +721,8 @@ new ResizeObserver(resize).observe($('#stage'));
 
 /* ============================================================ 示範團隊（瀏覽器內建） */
 const TEAM = [
-  ['planner', 'Planner', '規劃師', 'claude'], ['researcher', 'Researcher', '研究員', 'claude'], ['coder', 'Coder', '工程師', 'codex'],
-  ['reviewer', 'Reviewer', '審查員', 'claude'], ['tester', 'Tester', '測試員', 'codex'], ['analyst', 'Analyst', '資料分析', 'claude'], ['writer', 'Writer', '文件撰寫', 'claude'],
+  ['planner', 'Planner', '規劃師', 'claude', 'fox'], ['researcher', 'Researcher', '研究員', 'claude', 'rabbit'], ['coder', 'Coder', '工程師', 'codex', 'cat'],
+  ['reviewer', 'Reviewer', '審查員', 'claude', 'panda'], ['tester', 'Tester', '測試員', 'codex', 'frog'], ['analyst', 'Analyst', '資料分析', 'claude', 'dog'], ['writer', 'Writer', '文件撰寫', 'claude', 'penguin'],
 ];
 const FEATURES = ['新增使用者登入功能', '修正訂單金額計算', '串接第三方付款 API', '優化首頁載入速度', '重構資料匯入流程'];
 const TOPICS = ['電商銷售資料', '使用者留存分析', '競品功能比較', '客服工單趨勢', '廣告投放成效'];
@@ -621,11 +734,11 @@ function startDemo() {
   demoToken = token;
   const sleep = (lo, hi = lo) => new Promise((res, rej) => setTimeout(() => (token.stop ? rej(token) : res()), rnd(lo, hi) * 1000));
   const meta = {};
-  TEAM.forEach(([id, name, role, kind]) => { meta[id] = { name, role, kind }; });
+  TEAM.forEach(([id, name, role, kind, animal]) => { meta[id] = { name, role, kind, animal }; });
   const emit = (agent, status, task, extra = {}) => {
     if (token.stop) return;
     const prev = agents.get(agent);
-    const ev = { ts: nowMs() / 1000, agent, name: meta[agent].name, role: meta[agent].role, kind: meta[agent].kind, status, task: task === undefined ? (prev && status !== 'idle' ? prev.task : '') : task, message: '', to: '', ...extra };
+    const ev = { ts: nowMs() / 1000, agent, name: meta[agent].name, role: meta[agent].role, kind: meta[agent].kind, animal: meta[agent].animal, status, task: task === undefined ? (prev && status !== 'idle' ? prev.task : '') : task, message: '', to: '', ...extra };
     handle(ev);
   };
   const doing = async (who, status, task, lo, hi) => { emit(who, status, task); await sleep(lo, hi); };
@@ -701,7 +814,7 @@ function startLive() {
     for (const s of snap.agents) {
       seen.add(s.id);
       const existed = agents.has(s.id);
-      handle({ ts: s.since, agent: s.id, name: s.name, role: s.role, kind: s.kind, status: s.status, task: s.task }, { instant: !existed, silent: true, countDone: false });
+      handle({ ts: s.since, agent: s.id, name: s.name, role: s.role, kind: s.kind, animal: s.animal, status: s.status, task: s.task }, { instant: !existed, silent: true, countDone: false });
       const a = agents.get(s.id);
       if (a) a.since = s.since * 1000;
     }

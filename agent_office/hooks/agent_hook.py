@@ -35,6 +35,7 @@ def build_event(data, args):
         "name": args.name or os.environ.get("OFFICE_AGENT_NAME") or (f"{label} {cwd}" if cwd else f"{label} {session[:4]}"),
         "role": args.role or os.environ.get("OFFICE_AGENT_ROLE") or "",
         "kind": kind,
+        "animal": args.animal or os.environ.get("OFFICE_AGENT_ANIMAL"),
     }
     event.update(mapped)
     return event
@@ -47,6 +48,7 @@ def main():
         parser.add_argument("--agent")
         parser.add_argument("--name")
         parser.add_argument("--role")
+        parser.add_argument("--animal")
         args, _ = parser.parse_known_args()
         data = json.load(sys.stdin)
         event = build_event(data if isinstance(data, dict) else {}, args)

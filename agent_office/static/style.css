@@ -163,14 +163,14 @@ button { font: inherit; color: inherit; }
 
 .roster { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .card {
-  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center;
   padding: 7px 8px; border-radius: 8px; border-left: 3px solid var(--st);
   background: color-mix(in srgb, var(--st) 7%, transparent);
 }
 .card.hl { background: color-mix(in srgb, var(--st) 18%, transparent); }
 .avatar {
-  width: 26px; height: 26px; border-radius: 5px; position: relative; overflow: hidden;
-  background: linear-gradient(var(--hair) 0 38%, var(--skin) 38% 74%, var(--shirt) 74% 100%);
+  width: 28px; height: 28px; border-radius: 6px; background: var(--chip);
+  image-rendering: pixelated; display: block;
 }
 .who { min-width: 0; }
 .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

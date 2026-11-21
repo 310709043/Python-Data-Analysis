@@ -106,7 +106,7 @@ def load_hook():
 
 
 def ns(**kw):
-    return argparse.Namespace(**{"kind": None, "agent": None, "name": None, "role": None, **kw})
+    return argparse.Namespace(**{"kind": None, "agent": None, "name": None, "role": None, "animal": None, **kw})
 
 
 def test_hook_identity(monkeypatch):
@@ -254,3 +254,82 @@ def test_run_missing_command_and_usage_errors():
     proc = run_wrapped("http://127.0.0.1:9", "--agent", "a", "--", "definitely-not-a-command-xyz")
     assert proc.returncode == 127 and "找不到指令" in proc.stderr
     assert run_wrapped("http://127.0.0.1:9", "--agent", "a").returncode == 2
+
+
+# ----------------------------------------------------------------- install_hooks.py
+import shlex  # noqa: E402
+
+import install_hooks  # noqa: E402
+
+
+def run_installer(*args):
+    return subprocess.run([sys.executable, str(ROOT / "install_hooks.py"), *args], capture_output=True, text=True, timeout=20)
+
+
+def test_installer_prints_valid_config_for_both_engines():
+    for kind, events in (("claude", 7), ("codex", 5)):
+        out = run_installer(kind, "--agent", "coder", "--name", "Coder", "--role", "工程師", "--animal", "cat")
+        assert out.returncode == 0, out.stderr
+        cfg = json.loads(out.stdout)
+        assert len(cfg["hooks"]) == events
+        pre = cfg["hooks"]["PreToolUse"][0]
+        assert pre["matcher"] == "*" and "matcher" not in cfg["hooks"]["Stop"][0]
+        command = pre["hooks"][0]["command"]
+        parts = shlex.split(command)
+        assert parts[1].endswith("agent_hook.py") and parts[parts.index("--kind") + 1] == kind
+        assert parts[parts.index("--name") + 1] == "Coder" and parts[parts.index("--animal") + 1] == "cat"
+
+
+def test_installer_merges_without_touching_other_settings(tmp_path):
+    path = tmp_path / "settings.json"
+    existing = {
+        "permissions": {"allow": ["Bash(ls)"]},
+        "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "echo mine"}]}]},
+    }
+    path.write_text(json.dumps(existing), encoding="utf-8")
+    assert run_installer("claude", "--agent", "a", "--animal", "cat", "--write", str(path)).returncode == 0
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    assert cfg["permissions"] == {"allow": ["Bash(ls)"]}
+    pre = cfg["hooks"]["PreToolUse"]
+    assert pre[0]["hooks"][0]["command"] == "echo mine" and len(pre) == 2
+    assert json.loads((tmp_path / "settings.json.agent-office.bak").read_text(encoding="utf-8")) == existing
+
+
+def test_installer_is_idempotent_and_replaces_same_agent_only(tmp_path):
+    path = tmp_path / "hooks.json"
+    for animal in ("cat", "cat", "fox"):  # 重跑兩次相同、再換動物：都不會重複掛
+        assert run_installer("codex", "--agent", "rev", "--animal", animal, "--write", str(path)).returncode == 0
+    assert run_installer("codex", "--agent", "other", "--write", str(path)).returncode == 0
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    stop = [h["command"] for g in cfg["hooks"]["Stop"] for h in g["hooks"]]
+    assert len(stop) == 2
+    assert any("--animal fox" in c and "--agent rev" in c for c in stop) and not any("--animal cat" in c for c in stop)
+    assert run_installer("codex", "--agent", "rev", "--remove", "--write", str(path)).returncode == 0
+    stop = [h["command"] for g in json.loads(path.read_text(encoding="utf-8"))["hooks"]["Stop"] for h in g["hooks"]]
+    assert len(stop) == 1 and "--agent other" in stop[0]
+    assert run_installer("codex", "--agent", "other", "--remove", "--write", str(path)).returncode == 0
+    assert "hooks" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_installer_refuses_to_touch_unreadable_files(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text("{not json", encoding="utf-8")
+    out = run_installer("claude", "--agent", "a", "--write", str(path))
+    assert out.returncode != 0 and "沒有改動" in out.stderr
+    assert path.read_text(encoding="utf-8") == "{not json"
+    path.write_text('{"hooks": {"Stop": "oops"}}', encoding="utf-8")
+    out = run_installer("claude", "--agent", "a", "--write", str(path))
+    assert out.returncode != 0 and path.read_text(encoding="utf-8") == '{"hooks": {"Stop": "oops"}}'
+    assert run_installer("claude", "--agent", "a", "--remove").returncode == 2
+
+
+def test_generated_command_actually_reports_to_the_office(live, tmp_path):
+    """安裝器產生的指令，照它寫的方式用 shell 執行，辦公室就會出現對應的員工。"""
+    srv, url, _ = live
+    command = install_hooks.build_command("codex", "rev", "Rev iewer", "審查員", "panda")
+    payload = json.dumps({"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": "/w"})
+    done = subprocess.run(command, shell=True, input=payload, text=True, env={**os.environ, "AGENT_OFFICE_URL": url}, capture_output=True, timeout=10)
+    assert done.returncode == 0
+    (agent,) = srv.office_state.snapshot()["agents"]
+    assert (agent["id"], agent["name"], agent["role"], agent["kind"], agent["animal"], agent["status"]) == (
+        "rev", "Rev iewer", "審查員", "codex", "panda", "thinking")
