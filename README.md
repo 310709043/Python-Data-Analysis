@@ -14,6 +14,17 @@ Python數據分析練習，包括數據讀取、評估、清洗、分析、可�
 - 簡易多空訊號判斷（偏多 / 偏空 / 中性）
 - 最近資料表格檢視
 
+## Agent Office：看著你的 AI agent 上班
+
+`agent_office/` 是一間像素風虛擬辦公室，即時顯示各個 AI agent 正在工作、思考、等待、出錯或休息，
+agent 之間交接成果時還會拿著文件走到對方座位。零依賴，一行指令啟動：
+
+```bash
+python agent_office/server.py --demo
+```
+
+詳細用法（如何讓你的 agent 回報狀態、接上 Claude Code）見 [agent_office/README.md](agent_office/README.md)。
+
 ## 快速開始
 
 ```bash
