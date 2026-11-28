@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECHO 回聲 — 3D Demo</title>
+<style>
+  :root { --c: #7fe9ff; --g: #ffcf6b; --r: #ff5a6a; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
+    font-family: "Helvetica Neue", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: #dff6ff; }
+  canvas { display: block; }
+  #vig { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.75)); }
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; background: radial-gradient(ellipse at center, rgba(0,0,0,.1), rgba(0,0,0,.8));
+    transition: opacity .9s ease; cursor: pointer; user-select: none; }
+  .hidden { opacity: 0; pointer-events: none; }
+  .logo { font-weight: 200; font-size: min(15vw, 128px); letter-spacing: .5em; margin-right: -.5em; color: #fff;
+    text-shadow: 0 0 24px var(--c), 0 0 70px rgba(127,233,255,.45); }
+  .sub { margin-top: 6px; letter-spacing: .35em; font-weight: 300; opacity: .85; }
+  .keys { margin-top: 48px; font-size: 13px; letter-spacing: .15em; opacity: .65; line-height: 2.2; }
+  .k { display: inline-block; border: 1px solid rgba(223,246,255,.35); padding: 0 8px; margin: 0 4px; border-radius: 3px; line-height: 1.6; }
+  .cta { margin-top: 44px; font-size: 13px; letter-spacing: .5em; animation: breath 2.4s ease-in-out infinite; }
+  @keyframes breath { 50% { opacity: .25; } }
+  #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .8s; }
+  .tl { position: absolute; top: 26px; left: 30px; font-size: 12px; letter-spacing: .6em; opacity: .6; }
+  .tr { position: absolute; top: 20px; right: 30px; font-size: 22px; letter-spacing: .45em; color: var(--g);
+    text-shadow: 0 0 12px rgba(255,207,107,.7); }
+  .bc { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 200px; }
+  .bar { height: 2px; background: rgba(127,233,255,.15); }
+  #cd { height: 100%; width: 100%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .hint { margin-top: 12px; font-size: 11px; letter-spacing: .3em; opacity: .5; text-align: center; }
+  #msg { position: absolute; top: 17%; width: 100%; text-align: center; font-size: 14px; letter-spacing: .45em;
+    opacity: 0; transition: opacity .6s; }
+  .stat { margin-top: 22px; letter-spacing: .25em; font-weight: 300; line-height: 2.1; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="vig"></div>
+
+<div id="hud" class="hidden">
+  <div class="tl">E C H O</div>
+  <div class="tr" id="cr">◇◇◇</div>
+  <div id="msg"></div>
+  <div class="bc"><div class="bar"><div id="cd"></div></div><div class="hint">SPACE 回聲 ・ SHIFT 潛行</div></div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="logo">ECHO</div>
+  <div class="sub">在黑暗中，聲音是你唯一的眼睛</div>
+  <div class="keys">
+    <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 發出回聲　<span class="k">SHIFT</span> 潛行（無腳步聲）<br>
+    找到三顆 <span style="color:var(--g)">金色音核</span>，抵達出口<br>
+    但小心 — <span style="color:var(--r)">守衛</span> 也聽得見你
+  </div>
+  <div class="cta">點 擊 開 始</div>
+</div>
+
+<div id="end" class="overlay hidden">
+  <div class="logo" id="endTitle" style="font-size:min(9vw,72px)"></div>
+  <div class="stat" id="endStat"></div>
+  <div class="cta">點 擊 重 新 開 始</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// =====================================================================
+//  ECHO 回聲 — 3D 玩法原型
+//  核心創意：世界完全黑暗，「聲音」就是視覺。
+//    - 你的回聲會照亮四周，但守衛也會循聲而來（看得見 vs. 被聽見 的取捨）
+//    - 金色音核會自己發出嗡鳴，讓你判斷方向
+//    - 守衛的腳步聲是紅色波紋，你能「聽」到牠們在哪
+//  新手修改建議：先只改 CONFIG 和 MAP，存檔後重新整理。
+// =====================================================================
+const CONFIG = {
+  moveSpeed: 4.2,       // 一般移動速度
+  sneakSpeed: 2.0,      // 潛行速度（不會有腳步聲）
+  echoSpeed: 9,         // 回聲擴散速度
+  echoLife: 2.8,        // 回聲持續秒數
+  echoCooldown: 1.2,    // 回聲冷卻秒數
+  echoHearing: 13,      // 守衛能聽見回聲的距離
+  stepHearing: 4,       // 守衛能聽見腳步的距離
+  guardSpeed: 2.0,      // 守衛巡邏速度
+  guardHuntSpeed: 3.5,  // 守衛追擊速度
+  bloom: 0.95,          // 發光強度（高級感的關鍵之一）
+};
+
+// 地圖：# 牆　. 地板　P 玩家　C 音核　G 守衛　E 出口
+const MAP = [
+  '###############',
+  '#P....#.......#',
+  '#.###.#.#####.#',
+  '#.#C..#...#C..#',
+  '#.#####.#.#.###',
+  '#.......#.#...#',
+  '###.#####.###.#',
+  '#...#..G#...#.#',
+  '#.#.#.#.###.#.#',
+  '#.#...#.....#.#',
+  '#.#####.###.#.#',
+  '#C....#..G#..E#',
+  '###############',
+];
+
+const S = 2, WALL_H = 2.2;
+const ROWS = MAP.length, COLS = MAP[0].length;
+const isWall = (c, r) => r < 0 || r >= ROWS || c < 0 || c >= COLS || MAP[r][c] === '#';
+const toCell = (x, z) => [Math.round(x / S), Math.round(z / S)];
+const openCells = [];
+MAP.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== '#') openCells.push([c, r]); }));
+const findAll = ch => openCells.filter(([c, r]) => MAP[r][c] === ch);
+const CENTER = new THREE.Vector3((COLS - 1) * S / 2, 0, (ROWS - 1) * S / 2);
+
+// ---------- 渲染器與後製（Bloom 泛光） ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 200);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), CONFIG.bloom, 0.55, 0.08);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- 聲波著色器：所有物體共用同一組「聲波」資料 ----------
+const MAXP = 16;
+const U = {
+  uTime: { value: 0 },
+  uP: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(0, 0, 0, -999)) }, // xyz=位置, w=開始時間
+  uQ: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(1, 1, 0, 0)) },    // 速度, 壽命, 強度, 顏色種類
+  uPlayer: { value: new THREE.Vector3() },
+};
+
+const REVEAL = /* glsl */`
+uniform float uTime; uniform vec4 uP[${MAXP}]; uniform vec4 uQ[${MAXP}]; uniform vec3 uPlayer;
+vec3 pulseColor(float k) {
+  return k < 0.5 ? vec3(0.45, 0.9, 1.0) : (k < 1.5 ? vec3(1.0, 0.72, 0.32) : vec3(1.0, 0.28, 0.34));
+}
+vec3 reveal(vec3 p) {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < ${MAXP}; i++) {
+    float age = uTime - uP[i].w;
+    if (age < 0.0 || age > uQ[i].y) continue;
+    float r = age * uQ[i].x;
+    float d = distance(p, uP[i].xyz);
+    float fade = 1.0 - age / uQ[i].y; fade *= fade;
+    float ring = exp(-pow((d - r) / 0.3, 2.0));
+    float trail = d < r ? exp(-(r - d) * 0.5) * 0.22 : 0.0;
+    acc += pulseColor(uQ[i].w) * (ring * 1.5 + trail) * fade * uQ[i].z;
+  }
+  acc += vec3(0.45, 0.9, 1.0) * smoothstep(3.2, 0.0, distance(p, uPlayer)) * 0.16;
+  return acc;
+}`;
+
+const VERT = /* glsl */`varying vec3 vW;
+void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+
+// mode 0 = 純發光（邊線）, 1 = 地板格線, 2 = 牆面掃描線
+function surfaceMat(base, mode) {
+  return new THREE.ShaderMaterial({
+    uniforms: { ...U, uBase: { value: base }, uMode: { value: mode } },
+    vertexShader: VERT,
+    fragmentShader: REVEAL + /* glsl */`
+      uniform float uBase; uniform float uMode; varying vec3 vW;
+      void main() {
+        float pat = 1.0;
+        if (uMode > 0.5 && uMode < 1.5) {
+          vec2 f = abs(fract((vW.xz + 1.0) / 2.0) - 0.5);
+          pat = mix(0.06, 1.0, smoothstep(0.46, 0.5, max(f.x, f.y)));
+        } else if (uMode > 1.5) {
+          pat = mix(0.15, 1.0, smoothstep(0.85, 1.0, fract(vW.y * 3.0)));
+        }
+        gl_FragColor = vec4(reveal(vW) * uBase * pat, 1.0);
+      }`,
+  });
+}
+
+// ---------- 建立關卡（牆合併成一個物件，效能好） ----------
+{
+  const box = new THREE.BoxGeometry(S, WALL_H, S);
+  const edges = new THREE.EdgesGeometry(box);
+  const walls = [], lines = [];
+  MAP.forEach((row, r) => [...row].forEach((ch, c) => {
+    if (ch !== '#') return;
+    const m = new THREE.Matrix4().makeTranslation(c * S, WALL_H / 2, r * S);
+    walls.push(box.clone().applyMatrix4(m));
+    lines.push(edges.clone().applyMatrix4(m));
+  }));
+  scene.add(new THREE.Mesh(mergeGeometries(walls), surfaceMat(0.3, 2)));
+  scene.add(new THREE.LineSegments(mergeGeometries(lines), surfaceMat(2.2, 0)));
+
+  const floor = new THREE.PlaneGeometry(COLS * S, ROWS * S).rotateX(-Math.PI / 2);
+  floor.translate(CENTER.x, 0, CENTER.z);
+  scene.add(new THREE.Mesh(floor, surfaceMat(0.7, 1)));
+
+  // 漂浮塵埃：被聲波掃過時會閃爍
+  const N = 700, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    pos[i * 3] = Math.random() * COLS * S - 1;
+    pos[i * 3 + 1] = 0.2 + Math.random() * 2.6;
+    pos[i * 3 + 2] = Math.random() * ROWS * S - 1;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.ShaderMaterial({
+    uniforms: { ...U },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */`uniform float uTime; varying vec3 vW;
+      void main() {
+        vec3 p = position + vec3(sin(uTime * 0.3 + position.z), sin(uTime * 0.5 + position.x) * 0.5, cos(uTime * 0.3 + position.x)) * 0.25;
+        vec4 w = modelMatrix * vec4(p, 1.0); vW = w.xyz;
+        vec4 mv = viewMatrix * w;
+        gl_PointSize = 45.0 / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: REVEAL + /* glsl */`varying vec3 vW;
+      void main() { if (length(gl_PointCoord - 0.5) > 0.5) discard; gl_FragColor = vec4(reveal(vW) * 1.6, 1.0); }`,
+  })));
+}
+
+// ---------- 聲波管理 ----------
+let time = 0;
+let pulses = [];
+function addPulse(p, speed, life, strength, type, y = 0.4) {
+  pulses.push({ x: p.x, y, z: p.z, t0: time, speed, life, strength, type });
+}
+function uploadPulses() {
+  pulses = pulses.filter(q => time - q.t0 < q.life);
+  const recent = pulses.slice(-MAXP);
+  for (let i = 0; i < MAXP; i++) {
+    const q = recent[i];
+    if (q) { U.uP.value[i].set(q.x, q.y, q.z, q.t0); U.uQ.value[i].set(q.speed, q.life, q.strength, q.type); }
+    else U.uP.value[i].w = -999;
+  }
+}
+// 與著色器相同的公式，用來決定守衛是否被照亮
+function revealAt(p) {
+  let s = 0;
+  for (const q of pulses) {
+    if (q.type !== 0) continue;
+    const age = time - q.t0; if (age < 0 || age > q.life) continue;
+    const r = age * q.speed, d = Math.hypot(p.x - q.x, p.z - q.z);
+    let f = 1 - age / q.life; f *= f;
+    s += (Math.exp(-(((d - r) / 0.3) ** 2)) * 1.5 + (d < r ? Math.exp(-(r - d) * 0.5) * 0.22 : 0)) * f * q.strength;
+  }
+  return Math.min(s, 1.5);
+}
+
+// ---------- 音效（Web Audio 即時合成，不需要音檔） ----------
+let ac, master;
+function initAudio() {
+  if (ac) return ac.resume();
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  master = ac.createGain(); master.gain.value = 0.5;
+  const delay = ac.createDelay(); delay.delayTime.value = 0.32;
+  const fb = ac.createGain(); fb.gain.value = 0.38;
+  const lp = ac.createBiquadFilter(); lp.frequency.value = 2200;
+  const wet = ac.createGain(); wet.gain.value = 0.5;
+  master.connect(ac.destination); master.connect(delay);
+  delay.connect(lp); lp.connect(fb); fb.connect(delay); lp.connect(wet); wet.connect(ac.destination);
+}
+function tone(type, f0, f1, dur, vol) {
+  if (!ac) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  ping: () => { tone('sine', 1400, 700, 0.9, 0.3); tone('sine', 2100, 1050, 0.6, 0.08); },
+  step: () => tone('triangle', 180, 90, 0.08, 0.05),
+  chime: () => { tone('sine', 880, 880, 0.7, 0.2); setTimeout(() => tone('sine', 1320, 1320, 0.9, 0.2), 120); },
+  alert: () => tone('sawtooth', 110, 55, 0.5, 0.1),
+  lose: () => tone('sawtooth', 220, 40, 1.4, 0.22),
+  win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone('sine', f, f, 1.3, 0.16), i * 130)),
+};
+
+// ---------- 遊戲物件 ----------
+let state = 'title'; // title | play | win | lose
+let dyn, player, crystals, guards, exit, collected, echoes, cd, stepT, playTime;
+
+function bfs(a, b) {
+  const key = (c, r) => r * COLS + c, prev = new Map([[key(...a), null]]), q = [a];
+  while (q.length) {
+    const [c, r] = q.shift();
+    if (c === b[0] && r === b[1]) break;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = [c + dc, r + dr];
+      if (isWall(...n) || prev.has(key(...n))) continue;
+      prev.set(key(...n), [c, r]); q.push(n);
+    }
+  }
+  if (!prev.has(key(...b))) return [];
+  const path = [];
+  for (let cur = b; cur && !(cur[0] === a[0] && cur[1] === a[1]); cur = prev.get(key(...cur))) path.unshift(cur);
+  return path;
+}
+
+function reset() {
+  if (dyn) scene.remove(dyn);
+  dyn = new THREE.Group(); scene.add(dyn);
+
+  const [pc, pr] = findAll('P')[0];
+  player = new THREE.Mesh(new THREE.SphereGeometry(0.28, 32, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 2.0, 2.2) }));
+  player.position.set(pc * S, 0.4, pr * S);
+  dyn.add(player);
+
+  crystals = findAll('C').map(([c, r], i) => {
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.5) }));
+    m.position.set(c * S, 0.9, r * S);
+    dyn.add(m);
+    return { mesh: m, hum: i * 0.9 };
+  });
+
+  guards = findAll('G').map(([c, r]) => {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    m.position.set(c * S, 0.5, r * S);
+    dyn.add(m);
+    return { mesh: m, pos: m.position, path: [], mode: 'wander', wait: 1 + Math.random(), stepT: Math.random(), flash: 0, repath: 0 };
+  });
+
+  const [ec, er] = findAll('E')[0];
+  exit = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 16, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.12, 0.14, 0.16) }));
+  exit.position.set(ec * S, 1.0, er * S);
+  exit.userData.open = false;
+  dyn.add(exit);
+
+  collected = 0; echoes = 0; cd = 0; stepT = 0; playTime = 0;
+  updateHud();
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+let msgTimer;
+function showMsg(text, color = '#dff6ff') {
+  const el = $('msg'); el.textContent = text; el.style.color = color; el.style.opacity = 1;
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => el.style.opacity = 0, 2200);
+}
+function updateHud() { $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected); }
+
+function start() {
+  initAudio(); reset(); state = 'play';
+  $('title').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden');
+  showMsg('按 SPACE 發出回聲');
+}
+function end(win) {
+  state = win ? 'win' : 'lose';
+  win ? sfx.win() : sfx.lose();
+  const rank = echoes <= 6 ? '靜 默 大 師' : echoes <= 12 ? '夜 行 者' : '迴 響 者';
+  $('endTitle').textContent = win ? '逃脫' : '被發現了';
+  $('endTitle').style.textShadow = win ? '' : '0 0 24px var(--r), 0 0 70px rgba(255,90,106,.45)';
+  $('endStat').innerHTML = `時間 ${playTime.toFixed(1)} 秒<br>使用回聲 ${echoes} 次` + (win ? `<br><span style="color:var(--g)">${rank}</span>` : '');
+  $('hud').classList.add('hidden');
+  setTimeout(() => $('end').classList.remove('hidden'), 600);
+}
+$('title').addEventListener('click', start);
+$('end').addEventListener('click', () => { if (state === 'win' || state === 'lose') start(); });
+
+// ---------- 輸入 ----------
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  if (e.code === 'Enter' && state !== 'play') start();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+// ---------- 遊戲邏輯 ----------
+function blocked(x, z, r = 0.3) {
+  for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (isWall(...toCell(x + ox, z + oz))) return true;
+  return false;
+}
+
+function hear(origin, radius) {
+  for (const g of guards) {
+    if (g.pos.distanceTo(origin) > radius) continue;
+    if (g.mode !== 'hunt') { sfx.alert(); showMsg('守 衛 聽 見 了 你', '#ff5a6a'); }
+    g.mode = 'hunt';
+    const cur = toCell(g.pos.x, g.pos.z);
+    g.path = [cur, ...bfs(cur, toCell(origin.x, origin.z))];
+  }
+}
+
+function updatePlayer(dt) {
+  const dx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  const dz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+  const sneak = keys.ShiftLeft || keys.ShiftRight;
+  const moving = dx || dz;
+  if (moving) {
+    const m = Math.hypot(dx, dz), sp = (sneak ? CONFIG.sneakSpeed : CONFIG.moveSpeed) * dt;
+    const nx = player.position.x + dx / m * sp, nz = player.position.z + dz / m * sp;
+    if (!blocked(nx, player.position.z)) player.position.x = nx;
+    if (!blocked(player.position.x, nz)) player.position.z = nz;
+    if (!sneak && (stepT -= dt) <= 0) {
+      stepT = 0.42;
+      addPulse(player.position, 5, 0.9, 0.4, 0, 0.05);
+      hear(player.position, CONFIG.stepHearing);
+      sfx.step();
+    }
+  }
+  player.scale.setScalar(sneak ? 0.8 : 1);
+
+  cd = Math.max(0, cd - dt);
+  if (keys.Space && cd === 0) {
+    cd = CONFIG.echoCooldown; echoes++;
+    addPulse(player.position, CONFIG.echoSpeed, CONFIG.echoLife, 1.0, 0, 0.5);
+    hear(player.position, CONFIG.echoHearing);
+    sfx.ping();
+  }
+  $('cd').style.width = `${(1 - cd / CONFIG.echoCooldown) * 100}%`;
+
+  for (const c of crystals) {
+    if (c.mesh.visible && c.mesh.position.distanceTo(player.position) < 0.9) {
+      c.mesh.visible = false; collected++; updateHud(); sfx.chime();
+      addPulse(c.mesh.position, 7, 1.6, 0.9, 1);
+      if (collected === crystals.length) {
+        exit.userData.open = true; exit.material.color.setRGB(1.5, 2.0, 2.2);
+        showMsg('出 口 已 開 啟', '#7fe9ff');
+      } else showMsg(`音 核  ${collected} / ${crystals.length}`, '#ffcf6b');
+    }
+  }
+  if (exit.userData.open && Math.hypot(exit.position.x - player.position.x, exit.position.z - player.position.z) < 1) end(true);
+}
+
+function updateGuards(dt) {
+  const pc = toCell(player.position.x, player.position.z);
+  for (const g of guards) {
+    const d = Math.hypot(g.pos.x - player.position.x, g.pos.z - player.position.z);
+    // 太靠近時直接追擊
+    if (d < 2.8 && (g.repath -= dt) <= 0) {
+      g.repath = 0.35; g.mode = 'hunt';
+      const cur = toCell(g.pos.x, g.pos.z);
+      g.path = [cur, ...bfs(cur, pc)];
+    }
+    if (g.path.length) {
+      const [c, r] = g.path[0], tx = c * S, tz = r * S;
+      const vx = tx - g.pos.x, vz = tz - g.pos.z, dist = Math.hypot(vx, vz);
+      const sp = (g.mode === 'hunt' ? CONFIG.guardHuntSpeed : CONFIG.guardSpeed) * dt;
+      if (dist <= sp) { g.pos.x = tx; g.pos.z = tz; g.path.shift(); }
+      else { g.pos.x += vx / dist * sp; g.pos.z += vz / dist * sp; }
+    } else if ((g.wait -= dt) <= 0) {
+      g.mode = 'wander'; g.wait = 0.6 + Math.random();
+      const cur = toCell(g.pos.x, g.pos.z);
+      g.path = bfs(cur, openCells[Math.floor(Math.random() * openCells.length)]).slice(0, 6);
+    }
+    // 守衛的腳步聲（紅色波紋）
+    if ((g.stepT -= dt) <= 0) {
+      g.stepT = g.mode === 'hunt' ? 0.45 : 0.85;
+      addPulse(g.pos, 3, 1.1, 0.55, 2, 0.05);
+      g.flash = 1;
+    }
+    g.flash = Math.max(0, g.flash - dt * 3);
+    const k = Math.max(revealAt(g.pos), g.flash * 0.5, d < 3 ? (3 - d) / 3 * 0.6 : 0);
+    g.mesh.material.color.setRGB(k * 2.4, k * 0.35, k * 0.45);
+    g.mesh.rotation.y += dt * (g.mode === 'hunt' ? 4 : 1.2);
+    g.mesh.position.y = 0.5 + Math.sin(time * 3 + g.pos.x) * 0.06;
+    if (d < 0.7) return end(false);
+  }
+}
+
+// ---------- 主迴圈 ----------
+const clock = new THREE.Clock();
+const focus = new THREE.Vector3();
+let titlePulseT = 0;
+reset();
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  time += dt;
+  U.uTime.value = time;
+
+  if (state === 'play') {
+    playTime += dt;
+    updatePlayer(dt);
+    if (state === 'play') updateGuards(dt);
+  }
+
+  // 音核：旋轉、漂浮、定期發出金色嗡鳴
+  for (const c of crystals) {
+    if (!c.mesh.visible) continue;
+    c.mesh.rotation.y += dt * 1.2;
+    c.mesh.position.y = 0.9 + Math.sin(time * 2 + c.hum) * 0.12;
+    if ((c.hum -= dt) <= 0) { c.hum = 2.6; addPulse(c.mesh.position, 4, 1.8, 0.7, 1); }
+  }
+  exit.rotation.y += dt * (exit.userData.open ? 1.5 : 0.3);
+
+  // 攝影機
+  if (state === 'title') {
+    if ((titlePulseT -= dt) <= 0) {
+      titlePulseT = 1.5;
+      const [c, r] = openCells[Math.floor(Math.random() * openCells.length)];
+      addPulse({ x: c * S, z: r * S }, 8, 2.8, 1.0, 0, 0.5);
+    }
+    const a = time * 0.08;
+    camera.position.set(CENTER.x + Math.cos(a) * 22, 20, CENTER.z + Math.sin(a) * 22);
+    camera.lookAt(CENTER);
+    U.uPlayer.value.set(9999, 0, 9999);
+  } else {
+    const k = 1 - Math.exp(-dt * 4);
+    camera.position.lerp(new THREE.Vector3(player.position.x, 13, player.position.z + 9), k);
+    focus.lerp(player.position, k);
+    camera.lookAt(focus);
+    U.uPlayer.value.copy(player.position);
+  }
+
+  uploadPulses();
+  composer.render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// 方便除錯用（在瀏覽器 Console 輸入 ECHO 可查看狀態）
+window.ECHO = { get state() { return state; }, get player() { return player; }, get guards() { return guards; },
+  get collected() { return collected; }, crystals: () => crystals, exit: () => exit, start, bfs, MAP };
+</script>
+</body>
+</html>
