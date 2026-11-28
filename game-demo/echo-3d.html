@@ -3,38 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ECHO 回聲 — 3D Demo</title>
+<title>ECHO 回聲</title>
 <style>
   :root { --c: #7fe9ff; --g: #ffcf6b; --r: #ff5a6a; --p: #c49bff; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
     font-family: "Helvetica Neue", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: #dff6ff; }
   canvas { display: block; }
   .g { color: var(--g); } .r { color: var(--r); } .p { color: var(--p); } .c { color: var(--c); }
+  .h { color: #e8d2bf; } .w { color: #b9e34f; } .dim { opacity: .55; }
   #vig { position: fixed; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.75)); }
-  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center;
     text-align: center; background: radial-gradient(ellipse at center, rgba(0,0,0,.1), rgba(0,0,0,.8));
-    transition: opacity .9s ease; cursor: pointer; user-select: none; }
+    transition: opacity .9s ease; cursor: pointer; user-select: none; overflow-y: auto; padding: 24px 0; box-sizing: border-box; }
   .hidden { opacity: 0 !important; pointer-events: none !important; }
-  .logo { font-weight: 200; font-size: min(15vw, 128px); letter-spacing: .5em; margin-right: -.5em; color: #fff;
+  .logo { font-weight: 200; font-size: min(13vw, 108px); letter-spacing: .5em; margin-right: -.5em; color: #fff;
     text-shadow: 0 0 24px var(--c), 0 0 70px rgba(127,233,255,.45); }
-  .sub { margin-top: 6px; letter-spacing: .35em; font-weight: 300; opacity: .85; }
-  .keys { margin-top: 36px; font-size: 13px; letter-spacing: .15em; opacity: .65; line-height: 2.2; }
+  .sub { margin-top: 4px; letter-spacing: .35em; font-weight: 300; opacity: .85; }
+  .keys { margin-top: 26px; font-size: 13px; letter-spacing: .15em; opacity: .65; line-height: 2.2; }
   .k { display: inline-block; border: 1px solid rgba(223,246,255,.35); padding: 0 8px; margin: 0 4px; border-radius: 3px; line-height: 1.6; }
-  .cta { margin-top: 36px; font-size: 13px; letter-spacing: .5em; animation: breath 2.4s ease-in-out infinite; }
+  .cta { margin-top: 26px; font-size: 13px; letter-spacing: .5em; animation: breath 2.4s ease-in-out infinite; }
   @keyframes breath { 50% { opacity: .25; } }
-  #levels { margin-top: 34px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
-  .lv { background: rgba(0,0,0,.35); border: 1px solid rgba(127,233,255,.3); color: #dff6ff; padding: 10px 14px; min-width: 76px;
-    font: inherit; font-size: 12px; letter-spacing: .2em; cursor: pointer; transition: all .25s; }
-  .lv b { display: block; font-weight: 200; font-size: 20px; letter-spacing: .1em; margin-bottom: 2px; }
+  .tabs { margin-top: 26px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+  .tab { background: none; border: none; border-bottom: 1px solid rgba(127,233,255,.2); color: #dff6ff; font: inherit;
+    font-size: 11px; letter-spacing: .25em; padding: 8px 12px; cursor: pointer; opacity: .55; line-height: 1.7; }
+  .tab.on { opacity: 1; border-color: var(--c); color: #fff; }
+  .tab:disabled { opacity: .18; cursor: default; }
+  #levels { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+  .lv { background: rgba(0,0,0,.35); border: 1px solid rgba(127,233,255,.3); color: #dff6ff; padding: 9px 12px; min-width: 84px;
+    font: inherit; font-size: 12px; letter-spacing: .15em; cursor: pointer; transition: all .25s; }
+  .lv b { display: block; font-weight: 200; font-size: 19px; letter-spacing: .1em; margin-bottom: 2px; }
   .lv:hover:not(:disabled) { border-color: var(--c); box-shadow: 0 0 16px rgba(127,233,255,.35); }
-  .lv:disabled { opacity: .25; cursor: default; }
-  .lv .done { color: var(--g); }
+  .lv:disabled { opacity: .22; cursor: default; }
+  .mk { display: block; margin-top: 5px; font-size: 10px; letter-spacing: .35em; }
+  .mk span { opacity: .2; } .mk .on { opacity: 1; color: var(--g); }
+  .meta { margin-top: 18px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .mbtn { background: none; border: 1px solid rgba(127,233,255,.22); color: #dff6ff; font: inherit; font-size: 12px;
+    letter-spacing: .3em; padding: 8px 14px; cursor: pointer; opacity: .8; }
+  .mbtn:hover:not(:disabled) { border-color: var(--c); opacity: 1; }
+  .mbtn:disabled { opacity: .22; cursor: default; }
+  .mbtn.abyss { color: var(--p); border-color: rgba(196,155,255,.4); }
+  #totals { margin-top: 10px; font-size: 11px; letter-spacing: .35em; opacity: .45; }
   #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .8s; }
-  .tl { position: absolute; top: 24px; left: 30px; font-size: 12px; letter-spacing: .45em; opacity: .7; }
+  .tl { position: absolute; top: 24px; left: 30px; font-size: 12px; letter-spacing: .4em; opacity: .7; }
+  #fragHud { position: absolute; top: 46px; left: 30px; font-size: 11px; letter-spacing: .4em; opacity: .55; }
+  #mutHud { position: absolute; bottom: 32px; left: 30px; font-size: 11px; letter-spacing: .2em; opacity: .6; line-height: 1.9; color: var(--p); }
   .tr { position: absolute; top: 20px; right: 30px; font-size: 22px; letter-spacing: .45em; color: var(--g);
     text-shadow: 0 0 12px rgba(255,207,107,.7); }
-  .br { position: absolute; bottom: 32px; right: 30px; font-size: 12px; letter-spacing: .3em; opacity: .8; }
+  .br { position: absolute; bottom: 32px; right: 30px; font-size: 12px; letter-spacing: .3em; opacity: .8; text-align: right; line-height: 1.9; }
   .bc { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 240px; }
   .bar { height: 2px; background: rgba(127,233,255,.15); }
   #cd { height: 100%; width: 100%; background: var(--c); box-shadow: 0 0 10px var(--c); }
@@ -44,32 +60,32 @@
   #intro { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; pointer-events: none; transition: opacity 1s; background: rgba(0,0,0,.55); }
   #intro .num { font-size: 13px; letter-spacing: .8em; opacity: .6; margin-right: -.8em; }
-  #intro .name { font-size: min(10vw, 64px); font-weight: 200; letter-spacing: .4em; margin: 12px -.4em 18px 0; color: #fff;
+  #intro .name { font-size: min(10vw, 60px); font-weight: 200; letter-spacing: .4em; margin: 12px -.4em 18px 0; color: #fff;
     text-shadow: 0 0 24px var(--c); }
-  #intro .desc { font-size: 15px; letter-spacing: .18em; line-height: 2.1; font-weight: 300; max-width: 90vw; }
+  #intro .desc { font-size: 15px; letter-spacing: .18em; line-height: 2.1; font-weight: 300; max-width: 90vw; white-space: pre-line; }
   #intro .skip { margin-top: 36px; font-size: 11px; letter-spacing: .4em; opacity: .45; }
-  .dim { opacity: .55; }
+  .stat { margin-top: 22px; letter-spacing: .25em; font-weight: 300; line-height: 2.1; }
   .panel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,.84); transition: opacity .8s; cursor: pointer; user-select: none; padding: 0 16px; z-index: 10; }
-  #archive { background: radial-gradient(ellipse at center, #060b0f, #000); }
-  .paper { max-width: min(560px, 92vw); text-align: left; }
+  #archive, #gallery { background: radial-gradient(ellipse at center, #060b0f, #000); }
+  #choice { cursor: default; background: rgba(0,0,0,.88); }
+  .paper { max-width: min(580px, 92vw); text-align: left; }
   .paper .ft { font-size: 12px; letter-spacing: .45em; opacity: .6; margin-bottom: 8px; }
   .paper .fn { font-size: 26px; font-weight: 200; letter-spacing: .3em; color: #fff; text-shadow: 0 0 18px var(--c); margin-bottom: 26px; }
   .paper .fb { font-size: 16px; line-height: 2.2; letter-spacing: .12em; font-weight: 300; white-space: pre-line; }
   .paper .fs { margin-top: 22px; text-align: right; font-size: 13px; letter-spacing: .25em; color: var(--g); opacity: .85; }
   .paper .cont { margin-top: 40px; text-align: center; font-size: 11px; letter-spacing: .4em; opacity: .45; animation: breath 2.4s ease-in-out infinite; }
-  #archive .paper { max-height: 82vh; overflow-y: auto; padding-right: 8px; }
+  #archive .paper, #gallery .paper { max-height: 82vh; overflow-y: auto; padding-right: 8px; }
   .entry { padding: 18px 0; border-top: 1px solid rgba(127,233,255,.15); }
   .entry .fn { font-size: 18px; margin-bottom: 10px; }
   .entry .fb { font-size: 14px; line-height: 2; }
   .entry .fs { margin-top: 8px; font-size: 12px; }
   .entry.locked { opacity: .35; }
-  #archBtn { margin-top: 20px; background: none; border: none; color: #dff6ff; font: inherit; font-size: 12px;
-    letter-spacing: .4em; opacity: .7; cursor: pointer; padding: 6px 12px; }
-  #archBtn:hover { opacity: 1; color: var(--c); }
-  #fragHud { position: absolute; top: 46px; left: 30px; font-size: 11px; letter-spacing: .4em; opacity: .55; }
-  .ending { margin: 26px auto 0; line-height: 2.2; letter-spacing: .15em; font-size: 15px; max-width: 88vw; white-space: pre-line; }
-  .stat { margin-top: 22px; letter-spacing: .25em; font-weight: 300; line-height: 2.1; }
+  .opts { margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
+  .opt { background: rgba(0,0,0,.4); border: 1px solid rgba(127,233,255,.3); color: #fff; font: inherit; font-size: 15px;
+    letter-spacing: .2em; padding: 14px 18px; text-align: left; cursor: pointer; transition: all .25s; }
+  .opt:hover { border-color: var(--c); box-shadow: 0 0 16px rgba(127,233,255,.3); }
+  .opt small { display: block; opacity: .55; font-size: 12px; margin-top: 5px; letter-spacing: .12em; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -86,6 +102,7 @@
   <div id="fragHud"></div>
   <div class="tr" id="cr"></div>
   <div class="br" id="st"></div>
+  <div id="mutHud"></div>
   <div id="msg"></div>
   <div class="bc"><div class="bar"><div id="cd"></div></div>
     <div class="hint">SPACE 回聲 ・ SHIFT 潛行 ・ E 丟石頭 ・ R 重來 ・ M 音樂</div></div>
@@ -104,9 +121,21 @@
   <div class="cont">按 任 意 鍵 繼 續</div>
 </div></div>
 
+<div id="choice" class="panel hidden"><div class="paper">
+  <div class="ft" id="chTag"></div>
+  <div class="fb" id="chPrompt"></div>
+  <div class="opts" id="chOpts"></div>
+</div></div>
+
 <div id="archive" class="panel hidden"><div class="paper">
   <div class="fn" style="text-align:center;margin-bottom:12px">殘 響</div>
   <div id="archList"></div>
+  <div class="cont">點 擊 關 閉</div>
+</div></div>
+
+<div id="gallery" class="panel hidden"><div class="paper">
+  <div class="fn" style="text-align:center;margin-bottom:12px">結 局</div>
+  <div id="galList"></div>
   <div class="cont">點 擊 關 閉</div>
 </div></div>
 
@@ -115,11 +144,16 @@
   <div class="sub">在黑暗中，聲音是你唯一的眼睛</div>
   <div class="keys">
     <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 回聲　<span class="k">SHIFT</span> 潛行　<span class="k">E</span> 丟石頭　<span class="k">M</span> 音樂<br>
-    建議戴耳機：守衛的腳步聲會從牠所在的方向傳來<br>
-    找到所有 <span class="g">金色音核</span>，抵達出口 — 但牠們也聽得見你
+    建議戴耳機：牠們的聲音，會從牠們所在的方向傳來
   </div>
+  <div class="tabs" id="tabs"></div>
   <div id="levels"></div>
-  <button id="archBtn"></button>
+  <div class="meta">
+    <button class="mbtn abyss" id="abyssBtn"></button>
+    <button class="mbtn" id="archBtn"></button>
+    <button class="mbtn" id="galBtn"></button>
+  </div>
+  <div id="totals"></div>
   <div class="cta" id="titleCta">點 擊 開 始</div>
 </div>
 
@@ -138,9 +172,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // =====================================================================
-//  ECHO 回聲 — 3D 玩法原型（6 關 + 4 種守衛）
+//  ECHO 回聲
 //  核心創意：世界完全黑暗，「聲音」就是視覺。
-//  新手修改建議：先改 CONFIG、GUARD_TYPES 的數字，或在 LEVELS 畫新地圖。
+//  內容：主線 5 章 26 關（第 2–5 章地圖由固定種子生成）、5 種結局、無盡的深淵模式。
+//  新手修改建議：數值在 CONFIG / GUARD_TYPES；故事文字在 STORY / CHOICES / ENDINGS。
 // =====================================================================
 const CONFIG = {
   moveSpeed: 4.2,       // 一般移動速度
@@ -151,6 +186,8 @@ const CONFIG = {
   stoneRange: 7,        // 石頭最遠丟多遠
   bloom: 0.95,          // 發光強度
 };
+// 實際使用的數值 = CONFIG + 深淵模式的異變加成
+let C = { ...CONFIG, hearMul: 1, extraStones: 0, humEvery: 2.6, exitPulse: false };
 
 // 守衛種類。hear = 各種聲音能被聽見的距離（沒寫 = 聽不見）
 const GUARD_TYPES = {
@@ -162,130 +199,448 @@ const GUARD_TYPES = {
        hear: { echo: 13, step: 4, glass: 9, stone: 10 },
        sweep: { every: 3.4, speed: 5.5, life: 2.4, range: 12 } },
   S: { name: '幽影', speed: 0.85, delay: 3, color: [1.3, 0.7, 2.4], hear: {} },
+  H: { name: '空殼', speed: 1.4, hunt: 3.0, chaseNear: 2.0, silent: true, color: [2.0, 1.65, 1.4],
+       hear: { echo: 11, step: 4.5, glass: 9, stone: 10 } },
+  W: { name: '蟲群', speed: 0, hunt: 5.2, chaseNear: 0, swarm: true, color: [1.4, 2.2, 0.45],
+       hear: { echo: 18 } },
+  M: { name: '擬聲者', mimic: true, color: [2.2, 1.5, 0.5], hear: {} },
 };
 
-// 地圖符號：# 牆　. 地板　~ 碎玻璃　P 玩家　C 音核　E 出口　F 殘響（劇情碎片）
-//          G 巡守者　L 盲聽者　T 哨兵　S 幽影
-const LEVELS = [
-  { name: '初聲', stones: 0, par: 5,
-    desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。<br><span class="dim">有些角落藏著白色的殘響 — 只有回聲照得到。</span>',
-    map: [
-      '#############',
-      '#P..#.......#',
-      '#.#.#.#####.#',
-      '#.#...#...#.#',
-      '#.#####.#.#.#',
-      '#.....#.#C#.#',
-      '#####.#.###.#',
-      '#C....#.....#',
-      '#.#######.#.#',
-      '#........F#E#',
-      '#############',
+// 地圖符號：# 牆　. 地板　~ 碎玻璃　P 玩家　C 音核　E 出口　F 殘響
+//          G 巡守者　L 盲聽者　T 哨兵　S 幽影　H 空殼　W 蟲群　M 擬聲者
+// 第一章是手工地圖（map），之後的章節用 gen 參數生成（同一個 seed 永遠產生同一張圖）
+const CHAPTERS = [
+  { name: '沉默之城', tint: [1, 1, 1, 0], breath: 0, horror: 0,
+    music: [['calm', 50], ['calm', 48], ['tense', 49], ['tense', 47], ['dark', 45], ['dark', 46]],
+    story: '這座城市已經沉默了九千四百天。\n你醒來的時候，是一點光。\n你不知道自己是誰。\n你只知道，你很想唱歌。',
+    levels: [
+      { name: '初聲', stones: 0, par: 5,
+        desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。<br><span class="dim">有些角落藏著白色的殘響 — 只有回聲照得到。</span>',
+        map: [
+          '#############',
+          '#P..#.......#',
+          '#.#.#.#####.#',
+          '#.#...#...#.#',
+          '#.#####.#.#.#',
+          '#.....#.#C#.#',
+          '#####.#.###.#',
+          '#C....#.....#',
+          '#.#######.#.#',
+          '#........F#E#',
+          '#############',
+        ] },
+      { name: '巡守', stones: 0, par: 6,
+        desc: '<span class="r">紅色波紋</span>是守衛的腳步聲。<br>回聲和你的腳步都會引來牠們 — 按住 <span class="c">SHIFT</span> 潛行。',
+        map: [
+          '###############',
+          '#P....#.......#',
+          '#.###.#.#####.#',
+          '#.#C..#...#C..#',
+          '#.#####.#.#.###',
+          '#.......#.#...#',
+          '###.#####.###.#',
+          '#...#..G#...#.#',
+          '#.#.#.#.###.#.#',
+          '#.#...#.....#.#',
+          '#.#####.###.#.#',
+          '#C...F#..G#..E#',
+          '###############',
+        ] },
+      { name: '盲聽者', stones: 3, par: 5,
+        desc: '<span style="color:#ffa64d">盲聽者</span>不會巡邏，但能聽見極遠的聲音。<br><span class="r">碎玻璃</span>就算潛行也會發出巨響。<br>按 <span class="c">E</span> 朝前方丟石頭，把牠引開。',
+        map: [
+          '###############',
+          '#P..~~~.#..F.C#',
+          '#.#####.#.###.#',
+          '#.#C....#...#.#',
+          '#.#.#######.#.#',
+          '#.....~L~.....#',
+          '###.#######.###',
+          '#...#.....#...#',
+          '#.###.#.#.#.#.#',
+          '#~~...#C#...#E#',
+          '###############',
+        ] },
+      { name: '哨兵', stones: 2, par: 6,
+        desc: '<span style="color:#ff6adf">哨兵</span>會沿著走廊來回，並發出<span class="r">紅色掃描波</span>。<br>波紋經過你的瞬間 — 停下，別動。',
+        map: [
+          '#################',
+          '#P......#.......#',
+          '#.#####.#.#####.#',
+          '#.#C...T........#',
+          '#.#####.#.###.#.#',
+          '#.......#...#.#C#',
+          '###.#######.#.###',
+          '#...#..~~.....#F#',
+          '#.#.#.#####.#.#.#',
+          '#.#....T......#.#',
+          '#C#########.#...#',
+          '#...........#.#E#',
+          '#################',
+        ] },
+      { name: '幽影', stones: 2, par: 6,
+        desc: '<span class="p">幽影</span>會穿牆而來，回聲照不到它。<br>只有<span class="g">金光</span>能讓它現形。別停下腳步。',
+        map: [
+          '#################',
+          '#P....#....#...C#',
+          '#.###.#.##.#.#.##',
+          '#.#C#...#..#.#..#',
+          '#.#.#####.##.##.#',
+          '#.#.....G.......#',
+          '#.#####.###.###.#',
+          '#.....#...#.#C#.#',
+          '#####.###.#.#.#.#',
+          '#S....#F..#...#E#',
+          '#################',
+        ] },
+      { name: '終章', stones: 3, par: 8,
+        desc: '所有的聲音，都在等你犯錯。',
+        map: [
+          '###################',
+          '#P....#.....~~...C#',
+          '#.###.#.###.###.#.#',
+          '#.#C#...#.T.....#.#',
+          '#.#.#####.#####.#.#',
+          '#...#...#.....#.#.#',
+          '###.#.#.#.###.#...#',
+          '#...~.#.L.#C#.###.#',
+          '#.#####.###.#...#.#',
+          '#.....#...G.....#.#',
+          '#.###.###.#####.#.#',
+          '#.#C#...#.....#...#',
+          '#.#.###.#.###.###.#',
+          '#S......#..F#....E#',
+          '###################',
+        ] }
     ] },
-  { name: '巡守', stones: 0, par: 6,
-    desc: '<span class="r">紅色波紋</span>是守衛的腳步聲。<br>回聲和你的腳步都會引來牠們 — 按住 <span class="c">SHIFT</span> 潛行。',
-    map: [
-      '###############',
-      '#P....#.......#',
-      '#.###.#.#####.#',
-      '#.#C..#...#C..#',
-      '#.#####.#.#.###',
-      '#.......#.#...#',
-      '###.#####.###.#',
-      '#...#..G#...#.#',
-      '#.#.#.#.###.#.#',
-      '#.#...#.....#.#',
-      '#.#####.###.#.#',
-      '#C...F#..G#..E#',
-      '###############',
+  { name: '縫口之家', tint: [1.0, 0.78, 0.55, 0.45], breath: 0, horror: 0.3, mood: 'tense', root: 48,
+    story: '穿過守夜人的街道，是住宅區。\n每一扇窗都用布封著，每一扇門都用蠟封著。\n屋子裡有人在走動。\n但是沒有腳步聲。',
+    levels: [
+      { name: '封蠟的門', stones: 1, par: 6, desc: '住宅區的每一扇門都用蠟封著。\n屋子裡，有東西在走動。',
+        gen: { w: 15, h: 13, seed: 201, loops: 0.10, rooms: 1, glass: 0.03, crystals: 3, G: 1, H: 1 } },
+      { name: '空殼', stones: 1, par: 6, desc: '<span class="h">空殼</span>不會發出任何腳步聲。\n只有回聲，或貼得夠近，才看得見它們。',
+        gen: { w: 17, h: 13, seed: 202, loops: 0.10, rooms: 2, glass: 0.02, crystals: 3, H: 2 } },
+      { name: '晚餐桌', stones: 2, par: 6, desc: '盲聽者坐在餐桌旁，\n等著有人發出聲音。',
+        gen: { w: 17, h: 15, seed: 203, loops: 0.12, rooms: 2, glass: 0.05, crystals: 3, G: 1, H: 1, L: 1 } },
+      { name: '縫紉機', stones: 2, par: 7, desc: '縫紉機的聲音停了。這代表線用完了。\n他們在找新的線。',
+        gen: { w: 19, h: 15, seed: 204, loops: 0.12, rooms: 2, glass: 0.03, crystals: 3, H: 2, T: 1 } },
+      { name: '名單', stones: 2, par: 7, desc: '市政廳。\n名單就放在最裡面的房間。',
+        gen: { w: 19, h: 15, seed: 205, loops: 0.12, rooms: 2, glass: 0.04, crystals: 4, G: 1, H: 2, L: 1 } },
     ] },
-  { name: '盲聽者', stones: 3, par: 5,
-    desc: '<span style="color:#ffa64d">盲聽者</span>不會巡邏，但能聽見極遠的聲音。<br><span class="r">碎玻璃</span>就算潛行也會發出巨響。<br>按 <span class="c">E</span> 朝前方丟石頭，把牠引開。',
-    map: [
-      '###############',
-      '#P..~~~.#..F.C#',
-      '#.#####.#.###.#',
-      '#.#C....#...#.#',
-      '#.#.#######.#.#',
-      '#.....~L~.....#',
-      '###.#######.###',
-      '#...#.....#...#',
-      '#.###.#.#.#.#.#',
-      '#~~...#C#...#E#',
-      '###############',
+  { name: '骨鐘塔', tint: [0.95, 0.95, 0.88, 0.6], breath: 0, horror: 0.5, mood: 'dark', root: 47,
+    story: '城市的中心是一座白色的塔。\n遠看像象牙，近看才知道是什麼。\n正午的鐘聲之後，\n塔裡的東西會醒來覓食。',
+    levels: [
+      { name: '白色的塔', stones: 2, par: 6, desc: '<span class="w">蟲群</span>只在你的回聲響著時移動。\n回聲一停，牠們就停。',
+        gen: { w: 19, h: 15, seed: 301, loops: 0.12, rooms: 2, glass: 0.03, crystals: 3, W: 1, G: 1 } },
+      { name: '蟲群', stones: 2, par: 6, desc: '鐘的裂縫裡爬滿了東西。\n每一次回聲，都是在餵牠們。',
+        gen: { w: 19, h: 15, seed: 302, loops: 0.12, rooms: 2, glass: 0.03, crystals: 3, W: 2, H: 1 } },
+      { name: '鐘錘', stones: 2, par: 7, desc: '哨兵在搬運新的鐘錘。\n不要問鐘錘是從哪裡來的。',
+        gen: { w: 21, h: 15, seed: 303, loops: 0.12, rooms: 2, glass: 0.05, crystals: 3, W: 1, T: 2 } },
+      { name: '第三百二十二', stones: 3, par: 7, desc: '地底傳來心跳。\n很多很多個，疊在一起。',
+        gen: { w: 21, h: 17, seed: 304, loops: 0.14, rooms: 3, glass: 0.04, crystals: 3, L: 2, W: 1, H: 1 } },
+      { name: '九千顆光', stones: 3, par: 8, desc: '塔頂到了。\n那些光，在等你。',
+        gen: { w: 21, h: 17, seed: 305, loops: 0.14, rooms: 3, glass: 0.04, crystals: 4, W: 2, G: 1, T: 1, H: 1 } },
     ] },
-  { name: '哨兵', stones: 2, par: 6,
-    desc: '<span style="color:#ff6adf">哨兵</span>會沿著走廊來回，並發出<span class="r">紅色掃描波</span>。<br>波紋經過你的瞬間 — 停下，別動。',
-    map: [
-      '#################',
-      '#P......#.......#',
-      '#.#####.#.#####.#',
-      '#.#C...T........#',
-      '#.#####.#.###.#.#',
-      '#.......#...#.#C#',
-      '###.#######.#.###',
-      '#...#..~~.....#F#',
-      '#.#.#.#####.#.#.#',
-      '#.#....T......#.#',
-      '#C#########.#...#',
-      '#...........#.#E#',
-      '#################',
+  { name: '育嬰室', tint: [1.0, 0.62, 0.6, 0.55], breath: 0.25, horror: 0.75, mood: 'dread', root: 46,
+    story: '所有的路，最後都通往這裡。\n三百個搖籃在黑暗中輕輕地搖。\n沒有人推。\n你聽見了——非常非常小聲的——哼唱。',
+    levels: [
+      { name: '搖籃', stones: 2, par: 6, desc: '有些金光是陷阱。<span class="g">擬聲者</span>的嗡鳴總是走音——\n用藍色回聲照它，它會露出真面目。',
+        gen: { w: 21, h: 17, seed: 401, loops: 0.12, rooms: 3, glass: 0.03, crystals: 3, M: 2, H: 1 } },
+      { name: '擬聲者', stones: 2, par: 7, desc: '它們學得越來越像了。\n仔細聽。',
+        gen: { w: 21, h: 17, seed: 402, loops: 0.12, rooms: 3, glass: 0.03, crystals: 3, M: 3, G: 1, W: 1 } },
+      { name: '保母', stones: 3, par: 7, desc: '保母還在唱搖籃曲。\n無聲地。',
+        gen: { w: 23, h: 17, seed: 403, loops: 0.14, rooms: 3, glass: 0.04, crystals: 3, M: 2, L: 1, T: 1, H: 1 } },
+      { name: '地下室', stones: 3, par: 8, desc: '門縫下面滲出金色的光。\n還有指甲刮門的聲音。',
+        gen: { w: 23, h: 19, seed: 404, loops: 0.14, rooms: 3, glass: 0.04, crystals: 3, M: 2, S: 1, H: 1, W: 1 } },
+      { name: '一百一十三', stones: 3, par: 8, desc: '最深處的搖籃。\n上面寫著一個你知道的數字。',
+        gen: { w: 23, h: 19, seed: 405, loops: 0.14, rooms: 3, glass: 0.05, crystals: 4, M: 3, G: 1, L: 1, T: 1, W: 1 } },
     ] },
-  { name: '幽影', stones: 2, par: 6,
-    desc: '<span class="p">幽影</span>會穿牆而來，回聲照不到它。<br>只有<span class="g">金光</span>能讓它現形。別停下腳步。',
-    map: [
-      '#################',
-      '#P....#....#...C#',
-      '#.###.#.##.#.#.##',
-      '#.#C#...#..#.#..#',
-      '#.#.#####.##.##.#',
-      '#.#.....G.......#',
-      '#.#####.###.###.#',
-      '#.....#...#.#C#.#',
-      '#####.###.#.#.#.#',
-      '#S....#F..#...#E#',
-      '#################',
-    ] },
-  { name: '終章', stones: 3, par: 8,
-    desc: '所有的聲音，都在等你犯錯。',
-    map: [
-      '###################',
-      '#P....#.....~~...C#',
-      '#.###.#.###.###.#.#',
-      '#.#C#...#.T.....#.#',
-      '#.#.#####.#####.#.#',
-      '#...#...#.....#.#.#',
-      '###.#.#.#.###.#...#',
-      '#...~.#.L.#C#.###.#',
-      '#.#####.###.#...#.#',
-      '#.....#...G.....#.#',
-      '#.###.###.#####.#.#',
-      '#.#C#...#.....#...#',
-      '#.#.###.#.###.###.#',
-      '#S......#..F#....E#',
-      '###################',
+  { name: '它的胃', tint: [1.1, 0.32, 0.3, 0.8], breath: 1, horror: 1, mood: 'dread', root: 44,
+    story: '地下室的下面，還有下面。\n牆開始變軟、變暖，開始呼吸。\n你已經不在城市裡了。\n你在它裡面。',
+    levels: [
+      { name: '胃壁', stones: 3, par: 7, desc: '牆是軟的。牆在呼吸。\n不要回頭看那些臉。',
+        gen: { w: 23, h: 19, seed: 501, loops: 0.15, rooms: 3, glass: 0.04, crystals: 3, S: 1, H: 2, W: 1 } },
+      { name: '牙', stones: 3, par: 8, desc: '這裡長出了牙齒。\n很多。很整齊。像一排排的小孩。',
+        gen: { w: 25, h: 19, seed: 502, loops: 0.15, rooms: 3, glass: 0.05, crystals: 3, S: 1, M: 2, T: 2, G: 1 } },
+      { name: '芯', stones: 3, par: 8, desc: '你聽見了她的聲音。\n就在前面。',
+        gen: { w: 25, h: 19, seed: 503, loops: 0.15, rooms: 3, glass: 0.04, crystals: 4, S: 2, L: 1, H: 2 } },
+      { name: '協議', stones: 3, par: 9, desc: '九千四百天的沉默，\n全都寫在這裡。',
+        gen: { w: 25, h: 21, seed: 504, loops: 0.16, rooms: 4, glass: 0.05, crystals: 4, S: 1, M: 2, W: 2, T: 1, G: 1 } },
+      { name: '最後一首歌', stones: 4, par: 10, desc: '這是最後了。\n唱，或不唱。',
+        gen: { w: 27, h: 21, seed: 505, loops: 0.16, rooms: 4, glass: 0.05, crystals: 5, S: 2, G: 1, L: 1, T: 1, H: 1, W: 1, M: 2 } },
     ] },
 ];
+const CH_LABEL = ['第一章', '第二章', '第三章', '第四章', '第五章'];
 
-// ---------- 劇情：每關一段「殘響」，全部找到會看見真結局 ----------
+// 攤平成 26 關；每關記住自己在哪一章、用什麼配樂
+const LEVELS = [];
+CHAPTERS.forEach((ch, ci) => ch.levels.forEach((L, j) => {
+  L.ch = ci; L.j = j; L.idx = LEVELS.length;
+  L.music = ch.music ? ch.music[j] : [ch.mood, ch.root - (j % 3)];
+  LEVELS.push(L);
+}));
+const firstOf = ci => LEVELS.findIndex(L => L.ch === ci);
+
+// ---------- 劇情：每關一段殘響（共 26 段） ----------
 const STORY = [
-  { title: '第一聲', sign: '—— 芯，七歲（錄音）',
-    text: '媽媽說，以前的城市是亮的。\n燈不用電，用歌點亮——每個人唱一句，整條街就亮起來。\n可是她說，現在不能唱了。\n「黑暗裡，有東西在聽。」' },
+  // 第一章 沉默之城
+  { title: '第一聲', sign: '—— 芯，七歲（錄音，聲音含糊）',
+    text: '媽媽說，以前的城市是亮的。燈是用歌點亮的。\n可是昨天，她用針線縫住了我的嘴。\n她一邊縫一邊哭，說這樣「它」就聽不見我了。\n線是紅色的。我數過，十四針。' },
   { title: '守夜人守則', sign: '—— 守夜人手冊，第 1 頁',
-    text: '第一條：不發出聲音。\n第二條：聽見聲音，前往確認。\n第三條：若是人，帶他回家。若不是人——\n（後面的字被刮掉了）\n頁邊有人用很小的字寫著：\n我們不是在抓你。我們只是比你更害怕。' },
+    text: '第一條：不發出聲音。\n第二條：聽見聲音，前往確認。\n第三條：若是孩子，帶回育嬰室。\n第四條：若是大人，你知道該怎麼做。\n（頁邊沾著乾掉的蠟。是封嘴用的那種。）' },
   { title: '調音師的信', sign: '—— 盲眼的調音師',
-    text: '我把眼睛交給了黑暗，換來這雙耳朵。\n現在我聽得見整座城的心跳。三百二十一個。\n一天比一天少。\n如果你聽到這封信，請走得輕一點。\n不是為了躲我，是為了躲「它」。' },
+    text: '我用湯匙挖掉了自己的眼睛。不痛，真的。\n比起看見，聽見重要得多。\n現在我聽得見整座城的心跳。三百二十一個。\n還有第三百二十二個——在地底下。\n它的心跳，是很多孩子的哭聲疊在一起。' },
   { title: '鐘樓日誌', sign: '—— 鐘樓哨兵 #3',
-    text: '［報時紀錄］\n第 9,412 日：無人聆聽。照常報時。\n第 9,413 日：無人聆聽。照常報時。\n第 9,414 日：偵測到歌聲。\n錯誤：協議規定，歌聲即危險。\n查詢：協議由誰撰寫？——資料遺失。' },
+    text: '［報時紀錄］\n第 9,412 日：無人聆聽。照常報時。\n第 9,413 日：更換鐘錘。舊鐘錘材質：骨。\n第 9,414 日：偵測到歌聲。\n錯誤：協議規定，歌聲即危險。\n協議簽署人：全體家長。' },
   { title: '它', sign: '—— 無名的筆記',
-    text: '它不是黑暗。它是吃光的東西。\n最後一場慶典那晚，全城一起唱歌，亮得像白天——\n亮到它在很遠很遠的地方，也看見了我們。\n於是大人熄掉了每一盞燈。\n於是我們再也不唱歌。' },
+    text: '最後一場慶典那晚，全城一起唱歌，亮得像白天。\n然後燈一盞一盞熄滅。不是被吹熄的——是被吃掉的。\n第二天早上，唱得最大聲的那些人還站在廣場上。\n他們的嘴還張著。\n裡面是空的。' },
+  { title: '育嬰室的鑰匙', sign: '—— 芯的哥哥',
+    text: '如果你在讀這個，代表你還能讀。\n育嬰室在城市最深處。不要讓他們帶你去。\n他們說那裡是讓孩子「安靜睡覺」的地方。\n我去過。\n那裡一點也不安靜。' },
+  // 第二章 縫口之家
+  { title: '第二次', sign: '—— 一封沒有寄出的信',
+    text: '鄰居家的女兒不肯安靜，所以他們縫了第二次。\n第二次縫的是耳朵。\n「聽不見，就不會想唱了。」她父親這麼說。\n她現在每天在走廊上走來走去。\n她聽不見任何人。也沒有人聽得見她。' },
+  { title: '空殼', sign: '—— 守夜人的警告',
+    text: '空殼不會發出腳步聲。\n因為他們的腳底，被他們自己用刀削平了。\n「這樣走路，就不會吵到大家。」\n如果你在回聲裡看見一個人站著不動——\n他不是不動。他只是走得很輕。' },
+  { title: '晚餐', sign: '—— 芯（用蠟筆寫在牆上）',
+    text: '爸爸說，吃飯不可以發出聲音。\n弟弟咬到了舌頭，叫了一聲。\n之後的晚餐，弟弟的位子一直是空的。\n媽媽還是每天幫他擺一副碗筷。\n碗裡裝的是蠟。' },
+  { title: '縫紉機', sign: '—— 裁縫鋪的帳本',
+    text: '城裡的縫紉機日夜不停。\n棉線早就用完了，現在用的是頭髮。\n每一家都捐出了頭髮。每一家都捐出了孩子。\n縫紉機的聲音，是城裡唯一被允許的聲音。' },
+  { title: '名單', sign: '—— 市政廳檔案',
+    text: '育嬰室收容名單，最後一頁。\n第一百一十三號：芯，七歲。\n備註：聲音特別亮。優先處理。\n第一百一十四號：（空白）\n名單下面有一行小字：「處理」是什麼意思？\n——被人用力劃掉了。' },
+  // 第三章 骨鐘塔
+  { title: '鐘', sign: '—— 刻在塔底的字',
+    text: '骨鐘塔的鐘，是用大人的骨頭做的。\n他們自願的。他們說，總要有東西替孩子們發出聲音。\n每天正午，鐘響一下。\n全城的大人會在那一刻一起張開嘴，\n無聲地，唱完一整首歌。' },
+  { title: '蟲群', sign: '—— 調音師的筆記',
+    text: '牠們住在鐘的裂縫裡。\n牠們吃回聲。你喊一聲，牠們就醒；回音停了，牠們就睡。\n調音師說，牠們以前也是聲音，\n是被吃剩的那一小部分。\n現在牠們只想回家。回到聲音裡。' },
+  { title: '哨兵的夢', sign: '—— 鐘樓維修日誌',
+    text: '［異常紀錄］\n哨兵 #3 在待機時錄到了一段聲音。\n分析結果：兒童。哼唱。\n音源位置：哨兵 #3 內部。\n建議：拆開確認。\n執行結果：（紀錄已刪除）' },
+  { title: '第三百二十二', sign: '—— 守夜人的證詞',
+    text: '調音師把耳朵貼在地上，整整一夜。\n「它不是從遠方來的。」早上他對我說。\n「它在育嬰室下面。它一直都在。」\n他的耳朵在流血。\n他笑得很開心。' },
+  { title: '音核', sign: '—— 無名的筆記',
+    text: '他們從孩子的喉嚨裡取出聲音，封進水晶。\n說這是保護。等「它」走了，再把聲音還給孩子。\n可是水晶越來越多。孩子越來越少。\n你一路撿的那些金色的光——\n你數過，一共有幾顆嗎？' },
+  // 第四章 育嬰室
+  { title: '搖籃', sign: '—— 芯的哥哥',
+    text: '育嬰室裡有三百個搖籃，每個都在輕輕地搖。\n沒有人推。\n搖籃裡的孩子都在睡。嘴巴縫著，胸口起伏。\n只有一個搖籃是空的。\n上面寫著：一百一十三。' },
+  { title: '擬聲者', sign: '—— 調音師的最後一封信',
+    text: '有些音核學會了說謊。\n它們模仿同伴的嗡鳴，等你靠近。\n那是太久沒被人聽見的聲音，慢慢變成了餓。\n仔細聽——\n假的那些，總是唱錯一個音。' },
+  { title: '保母', sign: '—— 保母的懺悔',
+    text: '我的工作是唱搖籃曲。無聲地唱。\n我唱了九千四百天，嘴型從來沒有錯過。\n有一天我發現，搖籃裡的孩子也在跟著做嘴型。\n我把那孩子抱去了地下室。\n我別無選擇。我真的別無選擇。' },
+  { title: '地下室', sign: '—— 守夜人的證詞',
+    text: '地下室的門上有指甲刮過的痕跡。是從裡面刮的。\n門縫下面滲出光。金色的，很溫暖。\n還有聲音。很多很多的聲音，擠在一起，\n像一首永遠唱不完的歌，\n被塞進一個太小的喉嚨。' },
+  { title: '一百一十三', sign: '—— 芯的哥哥（最後的紀錄）',
+    text: '我找到她了。她不在搖籃裡。\n她在地下室最深處，被很多金色的光包圍著。\n她的嘴上沒有線。線被扯斷了——從裡面。\n她在笑。\n她說：「哥哥，你聽，它在唱歌。」' },
+  // 第五章 它的胃
+  { title: '胃壁', sign: '—— 無名',
+    text: '這裡的牆是軟的，會呼吸。\n牆上嵌著很多張臉，嘴巴都張著，沒有聲音。\n當你的回聲掃過，它們會一起轉過頭來。\n不要停下來回看。\n它們只是想知道，是誰還能發出聲音。' },
+  { title: '真相', sign: '—— 調音師（刻在胃壁上）',
+    text: '它不是怪物。它是所有被拿走的聲音。\n每封一顆音核，就有一點聲音漏出來，流到地底。\n九千四百天，漏出來的聲音聚在一起，長出了牙齒。\n是大人們親手，\n把它餵大的。' },
+  { title: '你', sign: '—— 芯',
+    text: '你知道你是誰嗎？\n那天晚上，媽媽縫我的嘴的時候，\n我還有一句歌沒有唱完。\n那句歌從線的縫隙裡逃走了，變成一點點光。\n就是你。' },
+  { title: '協議', sign: '—— 全體家長（協議的最後一頁）',
+    text: '我們以為沉默是愛。\n我們以為縫住孩子的嘴，就能讓他們活下去。\n如果有人讀到這段話——\n請替我們告訴孩子們：對不起。\n我們一直都聽得見。只是不敢回答。' },
   { title: '最後一首歌', sign: '—— 芯',
-    text: '我把最後一首歌藏起來了，藏在一顆小小的光裡。\n它會醒來，會迷路，會害怕。\n但如果有一天，有人敢在黑暗裡再唱一次——\n那就是你，對吧？\n光不是用來躲的。' },
+    text: '我把最後一首歌藏在你裡面。\n你可以把它唱出來，讓城市重新亮起。\n你也可以把它吞回去，讓一切繼續安靜。\n或者——你可以唱給它聽。\n它也只是一群迷路的孩子。' },
 ];
-const ENDING = {
-  normal: '你走出了所有的黑暗。\n但這座城市，依然沉默。',
-  true: '你停下腳步。第一次，不是為了躲藏。\n你唱了。\n一盞燈亮了，然後是第二盞、第三盞。\n守夜人抬起頭，鐘樓敲響了第 9,415 日。\n遠方，它也看見了。\n但這一次，沒有人熄燈。',
+
+// ---------- 章節結尾的抉擇（會決定結局） ----------
+const CHOICES = [
+  { prompt: '育嬰室的入口站著一個守夜人。\n他的嘴被縫得很緊，手裡拿著一盞沒有點的燈。\n他擋住了路，卻在發抖。',
+    options: [
+      { key: 'mercy', label: '拆開他嘴上的線', result: '線一根一根地斷開。他沒有出聲——他早就忘了怎麼出聲。\n但他讓開了路，把那盞燈塞進你手裡。\n燈芯是一綹小孩的頭髮。' },
+      { key: 'pass', label: '從他身邊悄悄繞過', result: '你從他身邊走過。他沒有回頭。\n你聽見身後傳來很細很細的聲音——\n是針穿過皮膚的聲音。他在把自己縫得更緊。' },
+    ] },
+  { prompt: '調音師找到了你。\n他空洞的眼窩對著你，慢慢跪了下來。\n「求你，不要唱。只要再安靜一點點，它就會餓死了。」',
+    options: [
+      { key: 'promise', label: '答應他', result: '他笑了，笑得像個孩子。\n他摸索著，用自己的頭髮在你身上縫了一針。\n很輕。幾乎不痛。' },
+      { key: 'sing', label: '唱一個音給他聽', result: '你發出一個很小、很小的音。\n他愣住了，然後開始哭。\n「原來……原來是這個聲音。」他說，「我都忘了。」' },
+    ] },
+  { prompt: '骨鐘塔的頂端，堆著九千顆音核。\n它們在發光、在嗡鳴、在等待。\n每一顆裡面，都是一個孩子的聲音。',
+    options: [
+      { key: 'free', label: '打碎它們，讓聲音回家', result: '水晶碎裂的聲音，像一場雨。\n九千個聲音飛散到城市的各個角落。\n地底深處，有什麼東西發出了一聲飢餓的嘆息。' },
+      { key: 'hoard', label: '把它們收進身體裡', result: '你把音核一顆一顆收進身體。\n它們好溫暖，好吵。\n你覺得自己變大了一點。\n也更餓了一點。' },
+    ] },
+  { prompt: '地下室最深處，芯的身體躺在金色的光裡。\n她的眼睛是睜開的。\n她在看你。',
+    options: [
+      { key: 'hold', label: '抱起她', result: '她很輕，輕得像一句話。\n她在你懷裡小聲地說：\n「帶我去找它。它很孤單。」' },
+      { key: 'leave', label: '轉身離開', result: '你轉過身。\n身後傳來縫線被拉緊的聲音。\n等你回頭，搖籃已經空了。' },
+    ] },
+  { prompt: '它就在你面前。\n它沒有臉，只有九千張張開的嘴，在黑暗中一起顫抖。\n你裡面那一點光，輕輕地說：\n「輪到你了。」',
+    options: [
+      { key: 'sing', label: '唱歌' },
+      { key: 'silence', label: '沉默' },
+      { key: 'devour', label: '把九千顆音核獻給它', note: '你身體裡的音核在發燙', requires: ch => ch[2] === 'hoard' },
+    ] },
+];
+
+// ---------- 五種結局 ----------
+const ENDING_ORDER = ['sutured', 'echo', 'devour', 'song', 'lullaby'];
+const ENDINGS = {
+  sutured: { title: '縫合', hint: '在最後，選擇沉默。',
+    text: '你選擇了沉默。\n守夜人們圍過來，溫柔地，用頭髮和蠟封住了你。\n很久以後，城裡多了一個新的守夜人。\n它巡邏時從不發出聲音。它很稱職。\n只是偶爾，它會在牆角停下來，\n像是想起了一首歌。' },
+  echo: { title: '回聲', hint: '找齊全部 26 段殘響後，在最後選擇沉默。',
+    text: '你沉默了。黑暗溫柔地合攏。\n然後，在很深、很深的地方，有一個孩子開始哼歌。\n一點光，從縫線的縫隙裡逃了出來。\n它醒來，它迷路，它很害怕。\n第 9,416 日。\n一切重新開始。' },
+  devour: { title: '吞噬', hint: '收下鐘樓的音核，並在最後把它們獻出去。',
+    text: '你把九千顆音核全部獻給了它。\n它終於吃飽了。它張開嘴，唱起歌來——\n用九千個孩子的聲音。\n城市被照得雪白。白得什麼都看不見。\n天亮以後，廣場上站滿了人。\n他們的嘴都張著。裡面是空的。' },
+  song: { title: '歌', hint: '在最後，選擇唱歌。',
+    text: '你唱了。\n燈一盞一盞亮起。守夜人抬起頭，鐘樓敲響了第 9,415 日。\n遠方，它也聽見了。\n它朝城市爬來，帶著九千張張開的嘴。\n但這一次，沒有人熄燈。\n所有人一起唱，直到最後一個聲音。' },
+  lullaby: { title: '搖籃曲', hint: '放走鐘樓的聲音、抱起芯，並找到至少 20 段殘響，然後唱歌。',
+    text: '你沒有唱給城市聽。你轉過身，面向它。\n你和芯一起，唱了一首搖籃曲。\n它安靜下來了。\n那九千張嘴，一張一張地閉上——不是被縫上，是睡著了。\n第 9,415 日，城裡響起了第一聲嬰兒的哭聲。\n很吵。很亮。很好。' },
 };
+function computeEnding() {
+  const ch = progress.choices, found = countFrags();
+  if (ch[4] === 'devour') return 'devour';
+  if (ch[4] === 'silence') return found >= STORY.length ? 'echo' : 'sutured';
+  if (ch[2] === 'free' && ch[3] === 'hold' && found >= 20) return 'lullaby';
+  return 'song';
+}
+
+// ---------- 深淵模式：無盡、隨機、死亡即結束 ----------
+const MUTATIONS = [
+  { name: '靜默之喉', desc: '回聲冷卻 −20%', apply: c => c.echoCooldown *= 0.8 },
+  { name: '長回音', desc: '回聲持續 +25%，看得更遠', apply: c => c.echoLife *= 1.25 },
+  { name: '貓步', desc: '潛行速度 +30%', apply: c => c.sneakSpeed *= 1.3 },
+  { name: '碎骨口袋', desc: '每層多 2 顆石頭', apply: c => c.extraStones += 2 },
+  { name: '蠟封耳', desc: '牠們的聽力 −15%', apply: c => c.hearMul *= 0.85 },
+  { name: '金之耳', desc: '音核的嗡鳴更頻繁', apply: c => c.humEvery = Math.max(1.2, c.humEvery * 0.7) },
+  { name: '血肉羅盤', desc: '出口會發出藍色脈衝', apply: c => c.exitPulse = true },
+  { name: '疾行', desc: '移動速度 +12%', apply: c => c.moveSpeed *= 1.12 },
+  { name: '第二層皮', desc: '被抓到時復活一次', life: true, apply: () => {} },
+];
+const ABYSS_LINES = ['牆在呼吸。', '有人在你身後數數。', '這裡的回聲，比你的聲音晚了一秒。', '地上有很多鞋子。都是小孩的尺寸。',
+  '你聽見了自己的名字。你沒有名字。', '更深的地方，有人在哼你唱過的歌。', '線頭從天花板垂下來，還在輕輕擺動。', '牠們知道你來了。',
+  '這一層的牆上，刻滿了「安靜」。', '有一扇門從裡面被縫起來了。'];
+let run = null; // 深淵的這一趟：{ floor, seed, muts, lives }
+
+function abyssLevel(d) {
+  const R = mulberry32(run.seed + d * 131);
+  const w = Math.min(27, 13 + 2 * Math.floor(d / 2)), h = Math.min(21, 11 + 2 * Math.floor(d / 3));
+  const pool = ['G'];
+  if (d >= 3) pool.push('H'); if (d >= 4) pool.push('L'); if (d >= 5) pool.push('T');
+  if (d >= 7) pool.push('W'); if (d >= 9) pool.push('M');
+  const gen = { w, h, seed: run.seed + d * 977, loops: 0.12, rooms: d > 6 ? 3 : 2, glass: Math.min(0.08, 0.02 + d * 0.004),
+    crystals: 2 + Math.min(3, Math.floor(d / 4)), frag: false };
+  const n = Math.min(10, 1 + Math.floor(d * 0.6));
+  for (let i = 0; i < n; i++) { const t = pool[Math.floor(R() * pool.length)]; gen[t] = (gen[t] || 0) + 1; }
+  gen.L = Math.min(gen.L || 0, 2); gen.M = Math.min(gen.M || 0, 3);
+  if (d >= 10) gen.S = d >= 20 ? 2 : 1;
+  return { name: `第 ${d} 層`, abyss: true, ch: -1, j: d - 1, idx: -1, stones: 2, par: 4 + Math.floor(d / 3), gen,
+    desc: d === 1 ? '深淵沒有盡頭，也沒有存檔。\n死亡即結束——你能走多深？' : ABYSS_LINES[Math.floor(R() * ABYSS_LINES.length)],
+    music: [d < 10 ? 'dark' : 'dread', 44 - (d % 4)], tint: [0.7, 0.5, 1.1, 0.55], breath: d >= 15 ? 0.6 : 0, horror: Math.min(1, 0.4 + d * 0.03) };
+}
+
+// ---------- 地圖生成：迷宮 + 房間 + 迴圈，並驗證每個目標都走得到 ----------
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function generateMap(g) {
+  // 前 60 次用嚴格條件（哨兵的整條巡邏路線也不能是必經之路），之後才放寬
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const m = tryGenerate(g, mulberry32(g.seed * 9973 + attempt * 7919 + 1), attempt < 60);
+    if (m) return m;
+  }
+  throw new Error('地圖生成失敗：seed ' + g.seed);
+}
+function tryGenerate(g, R, strict = true) {
+  const W = g.w, H = g.h, ri = n => Math.floor(R() * n), K = (c, r) => r * W + c;
+  const grid = Array.from({ length: H }, () => Array(W).fill('#'));
+  // 1) 迷宮（深度優先挖掘）
+  const stack = [[1, 1]]; grid[1][1] = '.';
+  while (stack.length) {
+    const [c, r] = stack[stack.length - 1];
+    const nb = DIRS.map(([dc, dr]) => [c + dc * 2, r + dr * 2, c + dc, r + dr])
+      .filter(([nc, nr]) => nc > 0 && nr > 0 && nc < W - 1 && nr < H - 1 && grid[nr][nc] === '#');
+    if (!nb.length) { stack.pop(); continue; }
+    const [nc, nr, wc, wr] = nb[ri(nb.length)];
+    grid[wr][wc] = '.'; grid[nr][nc] = '.'; stack.push([nc, nr]);
+  }
+  // 2) 房間（喘息空間，也讓盲聽者繞得過去）
+  for (let k = 0; k < (g.rooms ?? 2); k++) {
+    const c0 = 1 + 2 * ri((W - 4) / 2), r0 = 1 + 2 * ri((H - 4) / 2);
+    for (let r = r0; r < r0 + 3; r++) for (let c = c0; c < c0 + 3; c++) grid[r][c] = '.';
+  }
+  // 3) 打通一些牆，製造迴圈
+  const walls = [];
+  for (let r = 1; r < H - 1; r++) for (let c = 1; c < W - 1; c++)
+    if (grid[r][c] === '#' && (r % 2) !== (c % 2)) walls.push([c, r]);
+  for (let k = Math.floor(walls.length * (g.loops ?? 0.1)); k > 0; k--) { const [c, r] = walls[ri(walls.length)]; grid[r][c] = '.'; }
+
+  const open = [];
+  for (let r = 1; r < H - 1; r++) for (let c = 1; c < W - 1; c++) if (grid[r][c] === '.') open.push([c, r]);
+  const bfsD = (s, blocked) => {
+    const d = new Map([[K(...s), 0]]), q = [s];
+    while (q.length) {
+      const [c, r] = q.shift();
+      for (const [dc, dr] of DIRS) {
+        const n = [c + dc, r + dr];
+        if (grid[n[1]][n[0]] === '#' || d.has(K(...n)) || (blocked && blocked.has(K(...n)))) continue;
+        d.set(K(...n), d.get(K(c, r)) + 1); q.push(n);
+      }
+    }
+    return d;
+  };
+  const P = [1, 1], dist = bfsD(P);
+  const maxD = Math.max(...dist.values());
+  let E = P; for (const x of open) if (dist.get(K(...x)) === maxD) { E = x; break; }
+  const used = new Set([K(...P), K(...E)]);
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = ri(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const deg = ([c, r]) => DIRS.filter(([dc, dr]) => grid[r + dr][c + dc] !== '#').length;
+  const dead = shuffle(open.filter(x => deg(x) === 1));
+  const any = shuffle(open.slice());
+  const near = (a, b, n) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) < n;
+  const placed = { C: [], F: [], M: [], guards: [] };
+  const take = (cands, n, minD, spacing, others, maxDist = Infinity) => {
+    const out = [];
+    for (const x of cands) {
+      if (out.length >= n) break;
+      const d = dist.get(K(...x));
+      if (used.has(K(...x)) || d < minD || d > maxDist) continue;
+      if ([...out, ...others].some(y => near(x, y, spacing))) continue;
+      out.push(x); used.add(K(...x));
+    }
+    return out.length === n ? out : null;
+  };
+  const minG = Math.min(9, Math.floor(maxD * 0.35));
+  placed.C = take([...dead, ...any], g.crystals || 3, 5, 4, []); if (!placed.C) return null;
+  if (g.frag !== false) { placed.F = take([...dead, ...any], 1, 6, 2, placed.C); if (!placed.F) return null; }
+  if (g.M) { placed.M = take([...dead, ...any], g.M, 5, 3, placed.C); if (!placed.M) return null; }
+  for (const t of ['L', 'G', 'H', 'T', 'W', 'S']) {
+    const n = g[t] || 0; if (!n) continue;
+    const cands = t === 'L' ? any.filter(x => deg(x) >= 3) : any;
+    const minD = t === 'S' ? Math.floor(maxD * 0.55) : minG;
+    const got = take(cands, n, minD, 3, placed.guards); if (!got) return null;
+    got.forEach(x => { x.t = t; placed.guards.push(x); });
+  }
+  // 碎玻璃
+  const glassN = Math.floor(open.length * (g.glass || 0));
+  let gl = 0;
+  for (const x of any) { if (gl >= glassN) break; if (used.has(K(...x)) || dist.get(K(...x)) < 3) continue; grid[x[1]][x[0]] = '~'; used.add(K(...x)); gl++; }
+  // 驗證：把會擋路的東西當成牆，音核、殘響、出口都要走得到
+  //   盲聽者、擬聲者（不動、碰到就死）、蟲群（沒有回聲時不動）、哨兵的整條巡邏走廊（嚴格模式）
+  const lineCells = ([c, r]) => {
+    let best = [];
+    for (const [dc, dr] of [[1, 0], [0, 1]]) {
+      const cells = [[c, r]];
+      for (let k = 1; grid[r - dr * k][c - dc * k] !== '#'; k++) cells.push([c - dc * k, r - dr * k]);
+      for (let k = 1; grid[r + dr * k][c + dc * k] !== '#'; k++) cells.push([c + dc * k, r + dr * k]);
+      if (cells.length > best.length) best = cells;
+    }
+    return best;
+  };
+  const blockedCells = [...placed.M, ...placed.guards.filter(x => x.t === 'L' || x.t === 'W')];
+  if (strict) for (const x of placed.guards.filter(x => x.t === 'T')) blockedCells.push(...lineCells(x));
+  const blocked = new Set(blockedCells.map(x => K(...x)));
+  const reach = bfsD(P, blocked);
+  for (const x of [...placed.C, ...placed.F, E]) if (!reach.has(K(...x))) return null;
+  grid[P[1]][P[0]] = 'P'; grid[E[1]][E[0]] = 'E';
+  placed.C.forEach(([c, r]) => grid[r][c] = 'C');
+  placed.F.forEach(([c, r]) => grid[r][c] = 'F');
+  placed.M.forEach(([c, r]) => grid[r][c] = 'M');
+  placed.guards.forEach(x => grid[x[1]][x[0]] = x.t);
+  return grid.map(row => row.join(''));
+}
+const getMap = L => L.map || (L._map ||= generateMap(L.gen));
 
 const S = 2, WALL_H = 2.2;
 let MAP, ROWS, COLS, openCells;
@@ -297,10 +652,13 @@ const findAll = ch => openCells.filter(([c, r]) => MAP[r][c] === ch);
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ---------- 存檔（只存在你的瀏覽器） ----------
-let progress = { unlocked: 0, best: {} };
-try { progress = { ...progress, ...JSON.parse(localStorage.getItem('echo.progress') || '{}') }; } catch {}
-progress.frags = progress.frags || {};
+let progress = {};
+try { progress = JSON.parse(localStorage.getItem('echo.progress') || '{}'); } catch {}
+progress = { unlocked: 0, best: {}, frags: {}, marks: {}, choices: {}, endings: {}, abyssBest: 0, ...progress };
+for (const k of ['best', 'frags', 'marks', 'choices', 'endings']) progress[k] = progress[k] || {};
 const saveProgress = () => { try { localStorage.setItem('echo.progress', JSON.stringify(progress)); } catch {} };
+const countFrags = () => STORY.filter((_, i) => progress.frags[i]).length;
+const countMarks = () => Object.values(progress.marks).reduce((n, m) => n + !!m.f + !!m.s + !!m.u, 0);
 
 // ---------- 渲染器與後製 ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -323,16 +681,19 @@ addEventListener('resize', () => {
 });
 
 // ---------- 聲波著色器 ----------
-const MAXP = 20;
+const MAXP = 32;
 const U = {
   uTime: { value: 0 },
   uP: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(0, 0, 0, -999)) }, // xyz 位置, w 開始時間
   uQ: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(1, 1, 0, 0)) },    // 速度, 壽命, 強度, 顏色
   uPlayer: { value: new THREE.Vector3() },
+  uTint: { value: new THREE.Vector3(1, 1, 1) },   // 每一章的色調
+  uTintAmt: { value: 0 },                         // 色調強度（0 = 原本的藍色）
+  uBreath: { value: 0 },                          // 牆壁「呼吸」的幅度
 };
 
 const REVEAL = /* glsl */`
-uniform float uTime; uniform vec4 uP[${MAXP}]; uniform vec4 uQ[${MAXP}]; uniform vec3 uPlayer;
+uniform float uTime; uniform vec4 uP[${MAXP}]; uniform vec4 uQ[${MAXP}]; uniform vec3 uPlayer; uniform vec3 uTint; uniform float uTintAmt;
 vec3 pulseColor(float k) {
   if (k < 0.5) return vec3(0.45, 0.9, 1.0);   // 0 藍：你的聲音
   if (k < 1.5) return vec3(1.0, 0.72, 0.32);  // 1 金：音核
@@ -340,7 +701,7 @@ vec3 pulseColor(float k) {
   return vec3(0.7, 0.45, 1.0);                // 3 紫：幽影
 }
 vec3 reveal(vec3 p) {
-  vec3 acc = vec3(0.0);
+  vec3 acc = vec3(0.0), mine = vec3(0.0);   // mine = 你自己的藍色聲音（會被章節色調染色）
   for (int i = 0; i < ${MAXP}; i++) {
     float age = uTime - uP[i].w;
     if (age < 0.0 || age > uQ[i].y) continue;
@@ -349,14 +710,23 @@ vec3 reveal(vec3 p) {
     float fade = 1.0 - age / uQ[i].y; fade *= fade;
     float ring = exp(-pow((d - r) / 0.3, 2.0));
     float trail = d < r ? exp(-(r - d) * 0.5) * 0.22 : 0.0;
-    acc += pulseColor(uQ[i].w) * (ring * 1.5 + trail) * fade * uQ[i].z;
+    vec3 v = pulseColor(uQ[i].w) * (ring * 1.5 + trail) * fade * uQ[i].z;
+    if (uQ[i].w < 0.5) mine += v; else acc += v;
   }
-  acc += vec3(0.45, 0.9, 1.0) * smoothstep(3.2, 0.0, distance(p, uPlayer)) * 0.16;
-  return acc;
+  mine += vec3(0.45, 0.9, 1.0) * smoothstep(3.2, 0.0, distance(p, uPlayer)) * 0.16;
+  // 章節色調：把藍色換成該章的顏色（金色、紅色等提示色不受影響）
+  float lum = dot(mine, vec3(0.3, 0.55, 0.15));
+  return acc + mix(mine, uTint * lum * 1.5, uTintAmt);
 }`;
 
-const VERT = /* glsl */`varying vec3 vW;
-void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+const VERT = /* glsl */`uniform float uTime; uniform float uBreath; varying vec3 vW;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  w.x += sin(uTime * 1.3 + w.z * 0.9 + w.y) * uBreath * 0.07;
+  w.z += cos(uTime * 1.1 + w.x * 0.8 + w.y) * uBreath * 0.07;
+  w.y += sin(uTime * 0.9 + w.x * 0.5 + w.z * 0.5) * uBreath * 0.08 * step(0.01, w.y);
+  vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w;
+}`;
 
 // mode 0 邊線, 1 地板格線, 2 牆面掃描線, 3 碎玻璃裂紋
 function surfaceMat(base, mode) {
@@ -388,11 +758,13 @@ function surfaceMat(base, mode) {
 let staticGroup;
 function disposeTree(o) { o.traverse(n => { n.geometry?.dispose(); n.material?.dispose?.(); }); }
 
-function loadMap(i) {
-  MAP = LEVELS[i].map; ROWS = MAP.length; COLS = MAP[0].length;
+function loadMap(L) {
+  MAP = getMap(L); ROWS = MAP.length; COLS = MAP[0].length;
   openCells = [];
   MAP.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== '#') openCells.push([c, r]); }));
   CENTER.set((COLS - 1) * S / 2, 0, (ROWS - 1) * S / 2);
+  const look = L.ch >= 0 ? CHAPTERS[L.ch] : L;
+  U.uTint.value.set(look.tint[0], look.tint[1], look.tint[2]); U.uTintAmt.value = look.tint[3] || 0; U.uBreath.value = look.breath;
 
   if (staticGroup) { scene.remove(staticGroup); disposeTree(staticGroup); }
   staticGroup = new THREE.Group(); scene.add(staticGroup);
@@ -411,7 +783,7 @@ function loadMap(i) {
   if (glass.length) staticGroup.add(new THREE.Mesh(mergeGeometries(glass), surfaceMat(1.6, 3)));
   [box, edges, tile].forEach(g => g.dispose());
 
-  const floor = new THREE.PlaneGeometry(COLS * S, ROWS * S).rotateX(-Math.PI / 2);
+  const floor = new THREE.PlaneGeometry(COLS * S, ROWS * S, COLS, ROWS).rotateX(-Math.PI / 2);
   floor.translate(CENTER.x, 0, CENTER.z);
   staticGroup.add(new THREE.Mesh(floor, surfaceMat(0.7, 1)));
 
@@ -443,16 +815,19 @@ function loadMap(i) {
 // ---------- 聲波管理 ----------
 let time = 0;
 let pulses = [];
-function addPulse(p, speed, life, strength, type, y = 0.4) {
-  const q = { x: p.x, y, z: p.z, t0: time, speed, life, strength, type };
+function addPulse(p, speed, life, strength, type, y = 0.4, big = false) {
+  const q = { x: p.x, y, z: p.z, t0: time, speed, life, strength, type, big };
   pulses.push(q);
   return q;
 }
 function uploadPulses() {
   pulses = pulses.filter(q => time - q.t0 < q.life);
-  const recent = pulses.slice(-MAXP);
+  // 玩家的回聲永遠優先送進著色器，其他的取最新的
+  const big = pulses.filter(q => q.big).slice(-4);
+  const rest = pulses.filter(q => !q.big).slice(-(MAXP - big.length));
+  const list = [...big, ...rest];
   for (let i = 0; i < MAXP; i++) {
-    const q = recent[i];
+    const q = list[i];
     if (q) { U.uP.value[i].set(q.x, q.y, q.z, q.t0); U.uQ.value[i].set(q.speed, q.life, q.strength, q.type); }
     else U.uP.value[i].w = -999;
   }
@@ -474,7 +849,7 @@ function revealAt(p, types) {
 //   sfx 音效 ──┐
 //   amb 環境音 ─┼─> 壓縮器 ─> 喇叭      （每一路也送進殘響，營造空間感）
 //   music 配樂 ─┘   ← 按 M 只會開關這一路
-let ac, sfxBus, ambBus, musicBus, reverbSend, noiseBuf, analyser;
+let ac, sfxBus, ambBus, musicBus, reverbSend, noiseBuf, analyser, audioOut;
 let musicOn = true;
 const MUSIC_VOL = 0.5;   // 配樂整體音量（0~1）
 try { musicOn = localStorage.getItem('echo.music') !== 'off'; } catch {}
@@ -495,7 +870,6 @@ function bus(gain, send) {
   const s = ac.createGain(); s.gain.value = send; g.connect(s); s.connect(reverbSend);
   return g;
 }
-let audioOut;
 function initAudio() {
   if (ac) { ac.resume(); return; }
   ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -525,6 +899,7 @@ function initAudio() {
   for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
   music.init();
+  music.setMood(state === 'title' ? TITLE_MUSIC : cur.music, state === 'title' ? 0 : levelHorror(cur));
 }
 
 // 一個音：波形、起始/結束頻率、長度、音量、左右(-1~1)、送到哪一路、何時播放
@@ -553,6 +928,7 @@ function spatial(pos, range) {
   const d = flat(pos, player.position);
   return { v: Math.max(0, 1 - d / range) ** 1.5, pan: Math.max(-1, Math.min(1, (pos.x - player.position.x) / 8)) };
 }
+const now = () => (ac ? ac.currentTime : 0);
 
 const sfx = {
   ping: () => { tone('sine', 1400, 700, 0.9, 0.3); tone('sine', 2100, 1050, 0.6, 0.08); },
@@ -565,15 +941,20 @@ const sfx = {
   alert: () => { tone('sawtooth', 110, 55, 0.5, 0.1); noise(0.5, 0.05, 300, 2); },
   lose: () => { tone('sawtooth', 220, 40, 1.4, 0.22); noise(1.4, 0.08, 200, 1); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone('sine', f, f, 1.3, 0.16), i * 130)),
-  memory: () => { const r = music.root || 50, t0 = ac ? ac.currentTime : 0;   // 八音盒般的回憶旋律
+  memory: () => { const r = music.root || 50, t0 = now();   // 八音盒般的回憶旋律
     [0, 7, 12, 15, 19, 24].forEach((n, i) => tone('sine', midi(r + 24 + n), midi(r + 24 + n), 2.2, 0.06, i % 2 ? 0.3 : -0.3, sfxBus, t0 + i * 0.16)); },
-  dawn: () => { const t0 = ac ? ac.currentTime : 0;   // 真結局：燈一盞盞亮起的大和弦
+  dawn: () => { const t0 = now();   // 燈一盞盞亮起的大和弦
     [0, 4, 7, 11, 14, 19, 24].forEach((n, i) => tone('sine', midi(62 + n), midi(62 + n), 7, 0.05, (i % 3 - 1) * 0.4, sfxBus, t0 + i * 0.4)); },
+  dread: () => { const t0 = now();   // 壞結局：往下沉的不和諧音
+    [0, 1, 6, 7].forEach((n, i) => tone('sawtooth', midi(38 + n), midi(31 + n), 6, 0.05, (i % 2 ? 0.4 : -0.4), sfxBus, t0 + i * 0.5)); },
+  choice: () => { tone('sine', 660, 660, 1.2, 0.08); tone('sine', 990, 990, 1.4, 0.04); },
   // 以下是「有位置」的聲音：戴耳機就能用耳朵判斷方向
   guardStep: (pos, hunt) => { const s = spatial(pos, 11); tone('triangle', 120, 65, 0.12, (hunt ? 0.2 : 0.12) * s.v, s.pan); },
   breath: pos => { const s = spatial(pos, 12); noise(1.2, 0.07 * s.v, 650, 1.4, s.pan); },
   sweep: pos => { const s = spatial(pos, 16); tone('sine', 240, 200, 0.9, 0.12 * s.v, s.pan); noise(0.9, 0.04 * s.v, 1800, 3, s.pan); },
   hum: (pos, f) => { const s = spatial(pos, 16); tone('sine', f, f, 1.7, 0.07 * s.v, s.pan); tone('sine', f * 2.01, f * 2, 1.0, 0.015 * s.v, s.pan); },
+  chitter: pos => { const s = spatial(pos, 10), t0 = now();
+    for (let i = 0; i < 3; i++) tone('square', 2400 + Math.random() * 1600, 1700, 0.03, 0.025 * s.v, s.pan, sfxBus, t0 + i * 0.045); },
 };
 
 // ---------- 生成式配樂：和弦、鐘聲、心跳都會隨危險程度改變 ----------
@@ -581,14 +962,14 @@ const MOODS = {
   calm:  { chords: [[0, 3, 7, 14], [-4, 0, 3, 7], [3, 7, 10, 14], [-2, 2, 5, 12]], bells: [0, 3, 5, 7, 10], len: 8, cutoff: 900 },
   tense: { chords: [[0, 3, 7, 12], [1, 5, 8, 13], [-2, 1, 5, 10], [0, 3, 6, 10]], bells: [0, 1, 5, 7, 8], len: 7, cutoff: 750 },
   dark:  { chords: [[0, 3, 7, 10], [-5, -2, 2, 7], [1, 4, 8, 13], [-1, 3, 6, 11]], bells: [0, 3, 6, 7, 10], len: 9, cutoff: 600 },
+  dread: { chords: [[0, 1, 7, 13], [-1, 3, 6, 10], [0, 6, 7, 13], [-2, 1, 5, 6]], bells: [0, 1, 6, 7, 11], len: 10, cutoff: 520 },
 };
 const TITLE_MUSIC = ['calm', 50];
-const LEVEL_MUSIC = [['calm', 50], ['calm', 48], ['tense', 49], ['tense', 47], ['dark', 45], ['dark', 46]]; // [氣氛, 主音 MIDI]
+const levelHorror = L => L.ch >= 0 ? CHAPTERS[L.ch].horror : L.horror;
 
 const music = {
-  key: '', idx: 0, nextChord: 0, nextBell: 0, nextDrip: 0, nextBeat: 0, danger: 0,
+  key: '', idx: 0, nextChord: 0, nextBell: 0, nextDrip: 0, nextBeat: 0, nextWail: 0, danger: 0, horror: 0, mood: MOODS.calm, root: 50,
   init() {
-    const t = ac.currentTime;
     const lfo = (freq, depth, target) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = freq; g.gain.value = depth; o.connect(g); g.connect(target); o.start(); };
 
     this.pad = ac.createBiquadFilter(); this.pad.type = 'lowpass'; this.pad.Q.value = 0.5; this.pad.connect(musicBus);
@@ -596,7 +977,7 @@ const music = {
     // 低音嗡鳴（配樂）
     this.droneF = ac.createBiquadFilter(); this.droneF.type = 'lowpass'; this.droneF.frequency.value = 240;
     this.droneG = ac.createGain(); this.droneG.gain.value = 0.05;
-    this.drone = ['sine', 'sawtooth'].map(type => { const o = ac.createOscillator(); o.type = type; o.connect(this.droneF); o.start(); return o; });
+    this.drone = ['sine', 'sawtooth'].map(type => { const o = ac.createOscillator(); o.type = type; o.frequency.value = midi(38); o.connect(this.droneF); o.start(); return o; });
     this.droneF.connect(this.droneG); this.droneG.connect(musicBus);
     lfo(0.07, 90, this.droneF.frequency);
 
@@ -606,7 +987,7 @@ const music = {
     this.tension = [0, 1].map(() => { const o = ac.createOscillator(); o.connect(trem); o.start(); return o; });
     trem.connect(this.tensionG); this.tensionG.connect(musicBus);
 
-    // 地下室的空氣聲（環境音，不受 M 影響）
+    // 地下空間的空氣聲（環境音，不受 M 影響）
     const wind = ac.createBufferSource(); wind.buffer = noiseBuf; wind.loop = true;
     const wf = ac.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 380; wf.Q.value = 0.6;
     const wg = ac.createGain(); wg.gain.value = 0.1; lfo(0.05, 0.05, wg.gain); lfo(0.031, 120, wf.frequency);
@@ -619,10 +1000,9 @@ const music = {
     this.whisperG = ac.createGain(); this.whisperG.gain.value = 0;
     this.whisperP = ac.createStereoPanner();
     ws.connect(wsf); wsf.connect(am); am.connect(this.whisperG); this.whisperG.connect(this.whisperP); this.whisperP.connect(sfxBus); ws.start();
-
-    this.setMood(TITLE_MUSIC);
   },
-  setMood([name, root]) {
+  setMood([name, root], horror = 0) {
+    this.horror = horror;
     if (!ac) return;
     const key = name + root;
     if (key === this.key) return; // 重來同一關不重新開始配樂
@@ -648,6 +1028,20 @@ const music = {
       }
     }
   },
+  // 遠處的哭聲 / 哼唱（恐怖章節的環境音）
+  wail(t) {
+    const child = Math.random() < 0.5, base = child ? 480 + Math.random() * 220 : 170 + Math.random() * 80;
+    const o = ac.createOscillator(), vib = ac.createOscillator(), vg = ac.createGain();
+    const f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), g = ac.createGain(), p = ac.createStereoPanner();
+    o.type = child ? 'triangle' : 'sawtooth';
+    o.frequency.setValueAtTime(base, t); o.frequency.linearRampToValueAtTime(base * (0.68 + Math.random() * 0.2), t + 3);
+    vib.frequency.value = 5.5; vg.gain.value = base * 0.02; vib.connect(vg); vg.connect(o.frequency);
+    f1.type = f2.type = 'bandpass'; f1.frequency.value = child ? 1100 : 700; f2.frequency.value = child ? 2500 : 1150; f1.Q.value = f2.Q.value = 5;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t + 1); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+    p.pan.value = Math.random() * 1.6 - 0.8;
+    o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(p); p.connect(ambBus);
+    o.start(t); vib.start(t); o.stop(t + 3.3); vib.stop(t + 3.3);
+  },
   update(dt, danger, shade) {
     if (!ac) return;
     const t = ac.currentTime;
@@ -670,6 +1064,11 @@ const music = {
       this.nextDrip += 3 + Math.random() * 8;
     }
 
+    if (this.horror > 0) {           // 恐怖章節：偶爾傳來遠處的哭聲或哼唱
+      if (this.nextWail < t - 1) this.nextWail = t + 4;
+      if (this.nextWail < t + 0.2) { this.wail(this.nextWail); this.nextWail += 10 + Math.random() * 28 * (1.3 - this.horror); }
+    }
+
     if (D > 0.2) {   // 心跳：越危險越快越大聲
       if (this.nextBeat < t) this.nextBeat = t + 0.05;
       if (this.nextBeat < t + 0.15) {
@@ -678,7 +1077,7 @@ const music = {
         this.nextBeat += 60 / (60 + D * 70);
       }
     }
-    this.tensionG.gain.setTargetAtTime(D * D * 0.03, t, 0.3);
+    this.tensionG.gain.setTargetAtTime(D * D * 0.03 + this.horror * 0.004, t, 0.3);
     this.pad.frequency.setTargetAtTime(this.mood.cutoff + D * 1400, t, 0.5);
     this.droneG.gain.setTargetAtTime(0.05 + D * 0.04, t, 0.5);
     this.whisperG.gain.setTargetAtTime(shade.v * 0.12, t, 0.2);
@@ -704,7 +1103,7 @@ function bfs(a, b) {
   while (q.length) {
     const [c, r] = q.shift();
     if (c === b[0] && r === b[1]) break;
-    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dc, dr] of DIRS) {
       const n = [c + dc, r + dr];
       if (isWall(...n) || prev.has(key(...n))) continue;
       prev.set(key(...n), [c, r]); q.push(n);
@@ -729,14 +1128,16 @@ function corridorEnds(c, r) {
 }
 
 // ---------- 遊戲狀態 ----------
-let state = 'title'; // title | play | read（閱讀殘響）| win | lose
-let level = Math.min(progress.unlocked, LEVELS.length - 1);
-let dyn, player, crystals, guards, exit, stones = [], frag = null, readT = 0, dawn = false, dawnT = 0;
-let collected, echoes, cd, stepT, glassT, playTime, stonesLeft, introT = 0;
+let state = 'title'; // title | play | read（閱讀卡片）| choice（抉擇）| win | lose
+let cur = LEVELS[Math.min(progress.unlocked, LEVELS.length - 1)], level = cur.idx;
+let dyn, player, crystals, guards, exit, stones = [], frag = null;
+let collected, echoes, cd, stepT, glassT, playTime, stonesLeft, introT = 0, readT = 0;
+let spotted = false, lastEchoT = -99, deathMsg = '', dawn = null, dawnT = 0, exitPulseT = 0;
 let lastCell = [-1, -1], playerMoving = false;
 const lastDir = new THREE.Vector3(0, 0, -1);
+const keys = {};
 
-function guardMesh(type, color) {
+function guardMesh(type) {
   const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
   if (type === 'L') {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 12), mat);
@@ -749,6 +1150,13 @@ function guardMesh(type, color) {
     mat.transparent = true; mat.blending = THREE.AdditiveBlending; mat.depthWrite = false;
     return new THREE.Mesh(new THREE.DodecahedronGeometry(0.42), mat);
   }
+  if (type === 'H') { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 1.0, 8), mat); m.position.y = 0.5; return m; }
+  if (type === 'W') {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), mat);
+    for (let i = 0; i < 7; i++) m.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat));
+    return m;
+  }
+  if (type === 'M') return new THREE.Mesh(new THREE.OctahedronGeometry(0.35), mat);
   return new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), mat);
 }
 
@@ -762,11 +1170,12 @@ function resetLevel() {
   player.position.set(pc * S, 0.4, pr * S);
   dyn.add(player);
 
+  const root = cur.music[1];
   crystals = findAll('C').map(([c, r], i) => {
     const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.5) }));
     m.position.set(c * S, 0.9, r * S);
     dyn.add(m);
-    return { mesh: m, hum: i * 0.9, note: midi(LEVEL_MUSIC[level][1] + 24 + [0, 7, 3, 10][i % 4]) };
+    return { mesh: m, hum: i * 0.9, note: midi(root + 24 + [0, 7, 3, 10, 5][i % 5]) };
   });
 
   frag = null;
@@ -786,9 +1195,10 @@ function resetLevel() {
       dyn.add(mesh);
       guards.push({
         type, cfg, mesh, pos: mesh.position, home: [c, r], path: [], mode: 'idle',
-        wait: 0.5 + Math.random(), stepT: Math.random(), flash: 0, repath: 0,
+        wait: 0.5 + Math.random(), stepT: Math.random() * 2, flash: 0, repath: 0,
         delay: cfg.delay || 0, sweepT: 1.5 + Math.random(), sweep: null,
         route: type === 'T' ? corridorEnds(c, r) : null, routeIdx: 0,
+        note: midi(root + 24 + 7) * 1.06,   // 擬聲者：故意唱錯半音
       });
     }
   }
@@ -800,7 +1210,8 @@ function resetLevel() {
   dyn.add(exit);
 
   collected = 0; echoes = 0; cd = 0; stepT = 0; glassT = 0; playTime = 0;
-  stonesLeft = LEVELS[level].stones; lastCell = [pc, pr]; lastDir.set(0, 0, -1);
+  spotted = false; lastEchoT = -99; deathMsg = ''; exitPulseT = 0;
+  stonesLeft = cur.stones + C.extraStones; lastCell = [pc, pr]; lastDir.set(0, 0, -1);
   camera.position.set(player.position.x, 13, player.position.z + 9);
   focus.copy(player.position);
   updateHud();
@@ -809,150 +1220,288 @@ function resetLevel() {
 // ---------- UI ----------
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, '0');
-let msgTimer;
+const el = (tag, cls, html) => { const e = document.createElement(tag); e.className = cls; e.innerHTML = html; return e; };
+let msgTimer, endTimer;
 function showMsg(text, color = '#dff6ff') {
-  const el = $('msg'); el.textContent = text; el.style.color = color; el.style.opacity = 1;
-  clearTimeout(msgTimer); msgTimer = setTimeout(() => el.style.opacity = 0, 2200);
+  const m = $('msg'); m.textContent = text; m.style.color = color; m.style.opacity = 1;
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => m.style.opacity = 0, 2200);
 }
+function levelLabel(L) { return L.abyss ? `深淵 · ${L.name}` : `${CH_LABEL[L.ch]} · ${pad(L.j + 1)} ${L.name}`; }
 function updateHud() {
-  $('lv').textContent = `${pad(level + 1)} · ${LEVELS[level].name}`;
-  $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected);
+  $('lv').textContent = levelLabel(cur);
   $('fragHud').textContent = frag ? `殘響 ${frag.taken || progress.frags[level] ? '◈' : '◇'}` : '';
-  const max = LEVELS[level].stones;
-  $('st').textContent = max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(max - stonesLeft)}` : '';
+  $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected);
+  const max = cur.stones + C.extraStones;
+  $('st').innerHTML = (max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(Math.max(0, max - stonesLeft))}` : '') +
+    (run && run.lives ? `<br><span class="p">皮 ×${run.lives}</span>` : '');
+  $('mutHud').innerHTML = run ? run.muts.map(i => MUTATIONS[i].name).join('<br>') : '';
 }
 
-function buildLevelButtons() {
+// 主選單：章節分頁 + 關卡 + 深淵 / 殘響 / 結局
+let selCh = cur.ch >= 0 ? cur.ch : 0;
+function buildTitle() {
+  const unl = progress.unlocked;
+  const tabs = $('tabs'); tabs.innerHTML = '';
+  CHAPTERS.forEach((ch, ci) => {
+    const b = el('button', 'tab' + (ci === selCh ? ' on' : ''), `${CH_LABEL[ci]}<br>${ch.name}`);
+    b.disabled = firstOf(ci) > unl;
+    b.addEventListener('click', e => { e.stopPropagation(); selCh = ci; buildTitle(); });
+    tabs.appendChild(b);
+  });
   const box = $('levels'); box.innerHTML = '';
-  LEVELS.forEach((L, i) => {
-    const b = document.createElement('button');
-    b.className = 'lv'; b.disabled = i > progress.unlocked;
-    const done = progress.best[i] ? ' <span class="done">◆</span>' : '';
-    b.innerHTML = `<b>${pad(i + 1)}</b>${L.name}${done}`;
-    b.addEventListener('click', e => { e.stopPropagation(); startLevel(i); });
+  LEVELS.filter(L => L.ch === selCh).forEach(L => {
+    const mk = progress.marks[L.idx] || {};
+    const b = el('button', 'lv', `<b>${pad(L.j + 1)}</b>${L.name}<span class="mk"><span class="${mk.f ? 'on' : ''}">◈</span><span class="${mk.s ? 'on' : ''}">◆</span><span class="${mk.u ? 'on' : ''}">●</span></span>`);
+    b.disabled = L.idx > unl;
+    b.title = '◈ 找到殘響　◆ 回聲次數達標　● 全程未被發現';
+    b.addEventListener('click', e => { e.stopPropagation(); startLevel(L.idx, { story: L.j === 0 }); });
     box.appendChild(b);
   });
-  const found = STORY.filter((_, i) => progress.frags[i]).length;
-  $('archBtn').textContent = `殘 響　${found} / ${STORY.length}`;
-  const next = Math.min(progress.unlocked, LEVELS.length - 1);
-  $('titleCta').textContent = progress.unlocked > 0 ? `點 擊 繼 續 ・ 第 ${next + 1} 關` : '點 擊 開 始';
+  const ab = $('abyssBtn');
+  ab.disabled = unl < CHAPTERS[0].levels.length;
+  ab.textContent = ab.disabled ? '深 淵（通過第一章解鎖）' : `深 淵${progress.abyssBest ? `　最深 ${progress.abyssBest} 層` : ''}`;
+  $('archBtn').textContent = `殘 響　${countFrags()} / ${STORY.length}`;
+  $('galBtn').textContent = `結 局　${ENDING_ORDER.filter(k => progress.endings[k]).length} / ${ENDING_ORDER.length}`;
+  $('totals').textContent = `徽記 ${countMarks()} / ${LEVELS.length * 3}`;
+  const next = Math.min(unl, LEVELS.length - 1);
+  $('titleCta').textContent = unl > 0 ? `點 擊 繼 續 ・ ${levelLabel(LEVELS[next])}` : '點 擊 開 始';
 }
 
-let endTimer;
-function startLevel(i) {
+function applyMods() {
+  C = { ...CONFIG, hearMul: 1, extraStones: 0, humEvery: 2.6, exitPulse: false };
+  if (run) for (const i of run.muts) MUTATIONS[i].apply(C);
+}
+function hideOverlays() {
+  for (const id of ['title', 'end', 'intro', 'frag', 'choice', 'archive', 'gallery']) $(id).classList.add('hidden');
+}
+
+// 開始一關。story = 先顯示章節開場
+function startLevel(i, opts = {}) {
+  run = null;
+  beginLevel(LEVELS[i], opts.story ? { tag: CH_LABEL[LEVELS[i].ch], name: CHAPTERS[LEVELS[i].ch].name, body: CHAPTERS[LEVELS[i].ch].story } : null);
+}
+function beginLevel(L, story = null) {
   initAudio();
   clearTimeout(endTimer); clearTimeout(msgTimer); $('msg').style.opacity = 0;
-  music.setMood(LEVEL_MUSIC[i]);
-  $('frag').classList.add('hidden'); dawn = false;
-  level = i;
-  loadMap(i); resetLevel();
-  state = 'play';
-  introT = 3.5;
-  $('inNum').textContent = `LEVEL ${pad(i + 1)}`;
-  $('inName').textContent = LEVELS[i].name;
-  $('inDesc').innerHTML = LEVELS[i].desc;
+  hideOverlays(); dawn = null;
+  cur = L; level = L.idx;
+  applyMods();
+  music.setMood(L.music, levelHorror(L));
+  loadMap(L); resetLevel();
+  $('hud').classList.remove('hidden');
+  if (story) showCard({ ...story, onClose: showIntro }); else showIntro();
+}
+function showIntro() {
+  state = 'play'; introT = 3.5;
+  $('inNum').textContent = cur.abyss ? 'THE ABYSS' : `${CH_LABEL[cur.ch]}　LEVEL ${pad(cur.j + 1)}`;
+  $('inName').textContent = cur.name;
+  $('inDesc').innerHTML = cur.desc;
   $('intro').classList.remove('hidden');
-  $('title').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden');
 }
 function endIntro() {
   if (introT <= 0) return;
   introT = 0;
   $('intro').classList.add('hidden');
-  addPulse(player.position, CONFIG.echoSpeed, CONFIG.echoLife, 0.8, 0, 0.5); // 開場免費的回聲，不會被聽見
+  addPulse(player.position, C.echoSpeed, C.echoLife, 0.8, 0, 0.5, true); // 開場免費的回聲，不會被聽見
   sfx.ping();
 }
 function goTitle() {
   clearTimeout(endTimer);
-  music.setMood(TITLE_MUSIC);
-  $('frag').classList.add('hidden'); dawn = false;
-  state = 'title';
-  $('end').classList.add('hidden'); $('hud').classList.add('hidden'); $('intro').classList.add('hidden');
+  music.setMood(TITLE_MUSIC, 0);
+  hideOverlays(); $('hud').classList.add('hidden');
+  state = 'title'; dawn = null; run = null;
   $('title').classList.remove('hidden');
-  buildLevelButtons();
+  buildTitle();
 }
 
-function end(win) {
-  state = win ? 'win' : 'lose';
-  win ? sfx.win() : (sfx.lose(), music.duck(3));
-  const L = LEVELS[level], last = level === LEVELS.length - 1;
-  const rank = echoes <= L.par ? '靜 默 大 師' : echoes <= L.par * 2 ? '夜 行 者' : '迴 響 者';
-  if (win) {
-    progress.unlocked = Math.max(progress.unlocked, Math.min(level + 1, LEVELS.length - 1));
-    const b = progress.best[level];
-    if (!b || echoes < b.echoes || (echoes === b.echoes && playTime < b.time)) progress.best[level] = { echoes, time: +playTime.toFixed(1) };
-    saveProgress();
-  }
-  const found = STORY.filter((_, i) => progress.frags[i]).length, trueEnd = win && last && found === STORY.length;
-  const fragLine = frag ? `<br>殘響 ${frag.taken ? '<span class="c">◈ 已找到</span>' : progress.frags[level] ? '◈ 已收錄' : '<span class="dim">◇ 未找到</span>'}` : '';
-  const ending = !(win && last) ? '' : trueEnd ? `<div class="ending">${ENDING.true}</div>`
-    : `<div class="ending">${ENDING.normal}${found < STORY.length ? `\n<span class="dim">還有 ${STORY.length - found} 段殘響，散落在黑暗裡……</span>` : ''}</div>`;
-  if (trueEnd) { dawn = true; setTimeout(() => sfx.dawn(), 700); }
-  $('endTitle').textContent = win ? (last ? (trueEnd ? '歌' : '重見光明') : '逃脫') : '被發現了';
-  $('endTitle').style.textShadow = win ? '' : '0 0 24px var(--r), 0 0 70px rgba(255,90,106,.45)';
-  $('endStat').innerHTML = `${pad(level + 1)} · ${L.name}<br>時間 ${playTime.toFixed(1)} 秒　回聲 ${echoes} 次（目標 ${L.par}）` +
-    fragLine + (win ? `<br><span class="g">${rank}</span>` : '') + ending;
-  $('endCta').textContent = !win ? '點 擊 重 試 ・ ESC 回 主 選 單' : last ? '點 擊 回 到 主 選 單' : '點 擊 進 入 下 一 關';
-  $('hud').classList.add('hidden');
-  clearTimeout(endTimer);
-  endTimer = setTimeout(() => { if (state === 'win' || state === 'lose') $('end').classList.remove('hidden'); }, 600);
+// ---------- 卡片（殘響、章節開場、抉擇結果、結局） ----------
+let cardCb = null;
+function showCard({ tag = '', name = '', body = '', sign = '', onClose = null }) {
+  $('fTag').textContent = tag; $('fName').textContent = name; $('fBody').textContent = body; $('fSign').textContent = sign;
+  $('end').classList.add('hidden'); $('choice').classList.add('hidden');
+  $('frag').classList.remove('hidden');
+  state = 'read'; readT = 0.8; cardCb = onClose;
+  for (const k in keys) keys[k] = false;
 }
-function endClick() {
-  if (state === 'lose') startLevel(level);
-  else if (state === 'win') level === LEVELS.length - 1 ? goTitle() : startLevel(level + 1);
+function closeCard() {
+  if (state !== 'read' || readT > 0) return;
+  $('frag').classList.add('hidden');
+  const cb = cardCb; cardCb = null;
+  if (cb) cb(); else state = 'play';
 }
-
-addEventListener('pointerdown', () => initAudio(), { once: true });
-addEventListener('keydown', () => initAudio(), { once: true });
-$('title').addEventListener('click', () => startLevel(Math.min(progress.unlocked, LEVELS.length - 1)));
-$('end').addEventListener('click', endClick);
-addEventListener('pointerdown', () => { if (state === 'play') endIntro(); else if (state === 'read') closeFragment(); });
-
-// ---------- 殘響（劇情碎片） ----------
 function readFragment() {
   frag.taken = true; frag.mesh.visible = false;
   const first = !progress.frags[level];
   progress.frags[level] = true; saveProgress();
   const st = STORY[level];
-  $('fTag').textContent = `殘響 ${pad(level + 1)} / ${pad(STORY.length)}` + (first ? '' : '　（已收錄）');
-  $('fName').textContent = st.title; $('fBody').textContent = st.text; $('fSign').textContent = st.sign;
-  $('frag').classList.remove('hidden');
-  state = 'read'; readT = 0.8;
-  for (const k in keys) keys[k] = false;
+  showCard({ tag: `殘響 ${pad(level + 1)} / ${STORY.length}` + (first ? '' : '　（已收錄）'), name: st.title, body: st.text, sign: st.sign });
   addPulse(frag.mesh.position, 6, 2.2, 1.0, 0, 0.7);
   sfx.memory(); music.duck(4);
   updateHud();
 }
-function closeFragment() {
-  if (state !== 'read' || readT > 0) return;
-  $('frag').classList.add('hidden');
-  state = 'play';
+
+// ---------- 抉擇 ----------
+let choiceCb = null, choiceOpts = [];
+function showChoice({ tag, prompt, options, onPick }) {
+  $('chTag').textContent = tag; $('chPrompt').textContent = prompt;
+  const box = $('chOpts'); box.innerHTML = '';
+  choiceOpts = options; choiceCb = onPick;
+  options.forEach((o, i) => {
+    const b = el('button', 'opt', `${i + 1}．${o.label}${o.note ? `<small>${o.note}</small>` : ''}`);
+    b.addEventListener('click', e => { e.stopPropagation(); pickChoice(i); });
+    box.appendChild(b);
+  });
+  $('end').classList.add('hidden'); $('frag').classList.add('hidden'); $('hud').classList.add('hidden');
+  $('choice').classList.remove('hidden');
+  state = 'choice'; readT = 0.6;
+  for (const k in keys) keys[k] = false;
+  sfx.choice();
 }
+function pickChoice(i) {
+  if (state !== 'choice' || readT > 0 || !choiceOpts[i]) return;
+  $('choice').classList.add('hidden');
+  const cb = choiceCb; choiceCb = null;
+  cb(choiceOpts[i]);
+}
+function runChoice(ci) {
+  const def = CHOICES[ci];
+  const options = def.options.filter(o => !o.requires || o.requires(progress.choices));
+  showChoice({ tag: `${CH_LABEL[ci]} · 抉擇`, prompt: def.prompt, options, onPick: o => {
+    progress.choices[ci] = o.key; saveProgress();
+    if (ci === CHAPTERS.length - 1) return showEnding(computeEnding());
+    showCard({ tag: '你的選擇', name: o.label, body: o.result, onClose: () => startLevel(firstOf(ci + 1), { story: true }) });
+  } });
+}
+function showEnding(key) {
+  const E = ENDINGS[key], n = ENDING_ORDER.indexOf(key) + 1, isNew = !progress.endings[key];
+  progress.endings[key] = true; saveProgress();
+  dawn = key === 'song' || key === 'lullaby' ? 'gold' : key === 'devour' ? 'white' : null;
+  if (dawn) setTimeout(() => sfx.dawn(), 300); else sfx.dread();
+  showCard({ tag: `結局 ${n} / ${ENDING_ORDER.length}${isNew ? '　・　新解鎖' : ''}`, name: E.title, body: E.text, sign: `—— 結局：${E.title}`, onClose: goTitle });
+}
+
+// ---------- 殘響 / 結局 一覽 ----------
 function openArchive() {
-  $('archList').innerHTML = STORY.map((st, i) => progress.frags[i]
-    ? `<div class="entry"><div class="ft">${pad(i + 1)} · ${LEVELS[i].name}</div><div class="fn">${st.title}</div><div class="fb">${st.text}</div><div class="fs">${st.sign}</div></div>`
-    : `<div class="entry locked"><div class="ft">${pad(i + 1)} · ${i <= progress.unlocked ? LEVELS[i].name : '？？？'}</div><div class="fn">？？？</div><div class="fb">藏在這一關的某個角落。只有回聲照得到它。</div></div>`).join('');
+  $('archList').innerHTML = STORY.map((st, i) => {
+    const L = LEVELS[i], where = `${CH_LABEL[L.ch]} · ${pad(L.j + 1)} ${i <= progress.unlocked ? L.name : '？？？'}`;
+    return progress.frags[i]
+      ? `<div class="entry"><div class="ft">${where}</div><div class="fn">${st.title}</div><div class="fb">${st.text}</div><div class="fs">${st.sign}</div></div>`
+      : `<div class="entry locked"><div class="ft">${where}</div><div class="fn">？？？</div><div class="fb">藏在這一關的某個角落。只有回聲照得到它。</div></div>`;
+  }).join('');
   $('archive').classList.remove('hidden');
 }
-const archiveOpen = () => !$('archive').classList.contains('hidden');
-const closeArchive = () => $('archive').classList.add('hidden');
-$('archBtn').addEventListener('click', e => { e.stopPropagation(); openArchive(); });
-$('archive').addEventListener('click', closeArchive);
+function openGallery() {
+  $('galList').innerHTML = ENDING_ORDER.map((k, i) => {
+    const E = ENDINGS[k];
+    return progress.endings[k]
+      ? `<div class="entry"><div class="ft">結局 ${i + 1}</div><div class="fn">${E.title}</div><div class="fb">${E.text}</div></div>`
+      : `<div class="entry locked"><div class="ft">結局 ${i + 1}</div><div class="fn">？？？</div><div class="fb">提示：${E.hint}</div></div>`;
+  }).join('');
+  $('gallery').classList.remove('hidden');
+}
+const panelOpen = () => !$('archive').classList.contains('hidden') || !$('gallery').classList.contains('hidden');
+const closePanels = () => { $('archive').classList.add('hidden'); $('gallery').classList.add('hidden'); };
 
-// ---------- 輸入 ----------
-const keys = {};
-addEventListener('keydown', e => {
-  if (state === 'read') {
-    if (e.code === 'Escape') goTitle(); else if (!e.repeat) closeFragment();
+// ---------- 深淵模式 ----------
+function startAbyss() {
+  run = { floor: 1, seed: (Math.random() * 1e9) | 0, muts: [], lives: 0, prevBest: progress.abyssBest };
+  const r = run; beginLevel(abyssLevel(1)); run = r;
+}
+function nextAbyssFloor() {
+  run.floor++;
+  const go = () => { const r = run; beginLevel(abyssLevel(r.floor)); };
+  if (run.floor % 2 === 1) {      // 每過兩層，選一種異變
+    const pool = MUTATIONS.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, 3);
+    showChoice({ tag: `深淵 · 第 ${run.floor - 1} 層之後`, prompt: '黑暗滲進了你的身體。\n選擇一種異變。',
+      options: pool.map(i => ({ key: i, label: MUTATIONS[i].name, note: MUTATIONS[i].desc })),
+      onPick: o => { run.muts.push(o.key); if (MUTATIONS[o.key].life) run.lives++; go(); } });
+  } else go();
+}
+
+// ---------- 勝敗 ----------
+function end(win) {
+  if (!win && run && run.lives > 0) {   // 深淵：第二層皮
+    run.lives--; sfx.lose(); music.duck(2);
+    resetLevel(); showMsg('第 二 層 皮 剝 落 了', '#c49bff');
     return;
   }
-  if (archiveOpen()) { closeArchive(); return; }
+  state = win ? 'win' : 'lose';
+  win ? sfx.win() : (sfx.lose(), music.duck(3));
+  const L = cur;
+  let title, stat, cta;
+  if (L.abyss) {
+    if (win) {
+      progress.abyssBest = Math.max(progress.abyssBest, run.floor); saveProgress();
+      title = `第 ${run.floor} 層`;
+      stat = `時間 ${playTime.toFixed(1)} 秒　回聲 ${echoes} 次<br><span class="dim">更深的地方在等你。</span>`;
+      cta = '點 擊 繼 續 下 潛';
+    } else {
+      const isBest = run.floor > run.prevBest;
+      progress.abyssBest = Math.max(progress.abyssBest, run.floor); saveProgress();
+      title = '深淵吞沒了你';
+      stat = `${deathMsg}<br>抵達第 ${run.floor} 層` + (isBest ? '　<span class="g">新紀錄</span>' : `（最深紀錄 ${progress.abyssBest} 層）`) +
+        (run.muts.length ? `<br><span class="p">${run.muts.map(i => MUTATIONS[i].name).join('・')}</span>` : '');
+      cta = '點 擊 回 到 主 選 單';
+    }
+  } else {
+    const rank = echoes <= L.par ? '靜 默 大 師' : echoes <= L.par * 2 ? '夜 行 者' : '迴 響 者';
+    const fragLine = frag ? `殘響 ${frag.taken ? '<span class="c">◈ 已找到</span>' : progress.frags[level] ? '◈ 已收錄' : '<span class="dim">◇ 未找到</span>'}` : '';
+    if (win) {
+      progress.unlocked = Math.max(progress.unlocked, Math.min(level + 1, LEVELS.length - 1));
+      const b = progress.best[level];
+      if (!b || echoes < b.echoes || (echoes === b.echoes && playTime < b.time)) progress.best[level] = { echoes, time: +playTime.toFixed(1) };
+      const mk = progress.marks[level] = progress.marks[level] || {};
+      if (progress.frags[level]) mk.f = true;
+      if (echoes <= L.par) mk.s = true;
+      if (!spotted) mk.u = true;
+      saveProgress();
+    }
+    const lastInCh = L.j === CHAPTERS[L.ch].levels.length - 1;
+    title = win ? '逃脫' : '被發現了';
+    stat = (win ? '' : `${deathMsg}<br>`) + `${levelLabel(L)}<br>時間 ${playTime.toFixed(1)} 秒　回聲 ${echoes} 次（目標 ${L.par}）<br>` +
+      fragLine + (win ? `<br>${spotted ? '<span class="dim">● 曾被發現</span>' : '<span class="g">● 全程未被發現</span>'}<br><span class="g">${rank}</span>` : '');
+    cta = !win ? '點 擊 重 試 ・ ESC 回 主 選 單' : lastInCh ? '點 擊 繼 續' : '點 擊 進 入 下 一 關';
+  }
+  $('endTitle').textContent = title;
+  $('endTitle').style.textShadow = win ? '' : '0 0 24px var(--r), 0 0 70px rgba(255,90,106,.45)';
+  $('endStat').innerHTML = stat;
+  $('endCta').textContent = cta;
+  $('hud').classList.add('hidden');
+  clearTimeout(endTimer);
+  endTimer = setTimeout(() => { if (state === 'win' || state === 'lose') $('end').classList.remove('hidden'); }, 600);
+}
+function endClick() {
+  if (state === 'lose') return run ? goTitle() : startLevel(level);
+  if (state !== 'win') return;
+  if (run) return nextAbyssFloor();
+  const L = cur;
+  if (L.j === CHAPTERS[L.ch].levels.length - 1) return runChoice(L.ch);
+  startLevel(level + 1);
+}
+
+// ---------- 輸入 ----------
+addEventListener('pointerdown', () => initAudio(), { once: true });
+addEventListener('keydown', () => initAudio(), { once: true });
+$('title').addEventListener('click', () => { const i = Math.min(progress.unlocked, LEVELS.length - 1); startLevel(i, { story: LEVELS[i].j === 0 }); });
+$('end').addEventListener('click', endClick);
+$('archBtn').addEventListener('click', e => { e.stopPropagation(); openArchive(); });
+$('galBtn').addEventListener('click', e => { e.stopPropagation(); openGallery(); });
+$('abyssBtn').addEventListener('click', e => { e.stopPropagation(); startAbyss(); });
+$('archive').addEventListener('click', closePanels);
+$('gallery').addEventListener('click', closePanels);
+addEventListener('pointerdown', () => { if (state === 'play') endIntro(); else if (state === 'read') closeCard(); });
+
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  if (state === 'read') { if (e.code === 'Escape') goTitle(); else if (!e.repeat) closeCard(); return; }
+  if (state === 'choice') { const n = Number(e.key); if (n >= 1 && n <= 3) pickChoice(n - 1); return; }
+  if (panelOpen()) { closePanels(); return; }
   if (e.repeat && keys[e.code]) return;
   keys[e.code] = true;
-  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   if (state === 'play' && introT > 0) { endIntro(); return; }
   if (e.code === 'Enter') { if (state === 'title') $('title').click(); else if (state !== 'play') endClick(); }
   if (e.code === 'Escape' && state !== 'title') goTitle();
-  if (e.code === 'KeyR' && state === 'play') startLevel(level);
+  if (e.code === 'KeyR' && state === 'play') run ? beginLevel(cur) : startLevel(level);
   if (e.code === 'KeyE' && state === 'play') throwStone();
   if (e.code === 'KeyM') { initAudio(); showMsg(music.toggle() ? '音 樂  開' : '音 樂  關'); }
 });
@@ -964,15 +1513,15 @@ function blocked(x, z, r = 0.3) {
   for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (isWall(...toCell(x + ox, z + oz))) return true;
   return false;
 }
-
 function hear(origin, kind) {
   for (const g of guards) {
-    const R = g.cfg.hear[kind];
+    const R = (g.cfg.hear[kind] || 0) * C.hearMul;
     if (!R || flat(g.pos, origin) > R) continue;
-    alertGuard(g, origin, kind === 'stone' ? '守 衛 被 石 頭 吸 引 了' : `${g.cfg.name} 聽 見 了 你`);
+    alertGuard(g, origin, kind === 'stone' ? '牠 被 石 頭 吸 引 了' : `${g.cfg.name} 聽 見 了 你`, kind);
   }
 }
-function alertGuard(g, origin, text) {
+function alertGuard(g, origin, text, cause) {
+  if (cause !== 'stone') spotted = true;
   if (g.mode !== 'hunt') { sfx.alert(); showMsg(text, '#ff5a6a'); }
   goTo(g, cellOf(origin), 'hunt');
   g.wait = 1.6;
@@ -982,7 +1531,7 @@ function throwStone() {
   if (stonesLeft <= 0 || introT > 0) return;
   stonesLeft--; updateHud(); sfx.throw();
   const from = player.position.clone(), to = from.clone();
-  for (let d = 0; d < CONFIG.stoneRange; d += 0.2) {
+  for (let d = 0; d < C.stoneRange; d += 0.2) {
     const nx = from.x + lastDir.x * d, nz = from.z + lastDir.z * d;
     if (blocked(nx, nz, 0.15)) break;
     to.set(nx, 0.1, nz);
@@ -991,7 +1540,6 @@ function throwStone() {
   m.position.copy(from); dyn.add(m);
   stones.push({ mesh: m, from, to, t: 0, dur: 0.25 + from.distanceTo(to) * 0.05 });
 }
-
 function updateStones(dt) {
   for (const s of stones) {
     s.t = Math.min(1, s.t + dt / s.dur);
@@ -1012,7 +1560,7 @@ function updatePlayer(dt) {
   const sneak = keys.ShiftLeft || keys.ShiftRight;
   playerMoving = !!(dx || dz);
   if (playerMoving) {
-    const m = Math.hypot(dx, dz), sp = (sneak ? CONFIG.sneakSpeed : CONFIG.moveSpeed) * dt;
+    const m = Math.hypot(dx, dz), sp = (sneak ? C.sneakSpeed : C.moveSpeed) * dt;
     lastDir.set(dx / m, 0, dz / m);
     const nx = player.position.x + dx / m * sp, nz = player.position.z + dz / m * sp;
     if (!blocked(nx, player.position.z)) player.position.x = nx;
@@ -1034,15 +1582,15 @@ function updatePlayer(dt) {
       hear(player.position, 'step'); sfx.step();
     }
   }
-  player.scale.setScalar(keys.ShiftLeft || keys.ShiftRight ? 0.8 : 1);
+  player.scale.setScalar(sneak ? 0.8 : 1);
 
   cd = Math.max(0, cd - dt);
   if (keys.Space && cd === 0) {
-    cd = CONFIG.echoCooldown; echoes++;
-    addPulse(player.position, CONFIG.echoSpeed, CONFIG.echoLife, 1.0, 0, 0.5);
+    cd = C.echoCooldown; echoes++; lastEchoT = time;
+    addPulse(player.position, C.echoSpeed, C.echoLife, 1.0, 0, 0.5, true);
     hear(player.position, 'echo'); sfx.ping();
   }
-  $('cd').style.width = `${(1 - cd / CONFIG.echoCooldown) * 100}%`;
+  $('cd').style.width = `${(1 - cd / C.echoCooldown) * 100}%`;
 
   for (const c of crystals) {
     if (c.mesh.visible && c.mesh.position.distanceTo(player.position) < 0.9) {
@@ -1060,32 +1608,44 @@ function updatePlayer(dt) {
 
 // ---------- 守衛 AI ----------
 function goTo(g, target, mode, maxSteps = Infinity) {
-  const cur = cellOf(g.pos);
-  g.path = [cur, ...bfs(cur, target).slice(0, maxSteps)];
+  const c0 = cellOf(g.pos);
+  g.path = [c0, ...bfs(c0, target).slice(0, maxSteps)];
   g.mode = mode;
 }
-
 function idleBehavior(g) {
-  const cur = cellOf(g.pos);
-  if (g.type === 'G') {
-    goTo(g, openCells[Math.floor(Math.random() * openCells.length)], 'patrol', 6);
-    g.wait = 0.6 + Math.random();
+  const c0 = cellOf(g.pos);
+  if (g.type === 'G' || g.type === 'H') {
+    goTo(g, pick(openCells), 'patrol', g.type === 'H' ? 4 : 6);
+    g.wait = 0.6 + Math.random() * (g.type === 'H' ? 2.5 : 1);
   } else if (g.type === 'L') {
-    if (cur[0] !== g.home[0] || cur[1] !== g.home[1]) goTo(g, g.home, 'return');
+    if (c0[0] !== g.home[0] || c0[1] !== g.home[1]) goTo(g, g.home, 'return');
     else g.mode = 'idle';
     g.wait = 0.5;
   } else if (g.type === 'T') {
     const t = g.route[g.routeIdx];
-    if (cur[0] === t[0] && cur[1] === t[1]) g.routeIdx ^= 1;
+    if (c0[0] === t[0] && c0[1] === t[1]) g.routeIdx ^= 1;
     goTo(g, g.route[g.routeIdx], 'patrol');
     g.wait = 0.4;
-  }
+  } else { g.mode = 'idle'; g.wait = 0.5; }
 }
-
 function updateGuards(dt) {
+  const echoActive = time - lastEchoT < C.echoLife;
   for (const g of guards) {
     const d = flat(g.pos, player.position);
     let k;
+
+    if (g.type === 'M') {
+      // 擬聲者：假裝是音核。嗡鳴走音；被藍色回聲照到會現出紅色原形
+      if ((g.stepT -= dt) <= 0) { g.stepT = C.humEvery + 0.35; addPulse(g.pos, 4, 1.8, 0.7, 1, 0.9); sfx.hum(g.pos, g.note); }
+      if (revealAt(g.pos, [0]) > 0.25) g.exposedT = 1.6;   // 被照到後，紅色原形會維持一小段時間
+      g.exposedT = Math.max(0, (g.exposedT || 0) - dt);
+      const exposed = g.exposedT > 0;
+      g.mesh.material.color.setRGB(...(exposed ? [2.4, 0.15, 0.2] : [2.2, 1.5, 0.5]));
+      g.mesh.rotation.y += dt * (exposed ? 7 : 1.2);
+      g.mesh.position.y = 0.9 + Math.sin(time * 2 + g.home[0]) * 0.12;
+      if (d < 0.8) { deathMsg = '那不是音核。'; return end(false); }
+      continue;
+    }
 
     if (g.type === 'S') {
       // 幽影：穿牆、緩慢、永遠朝你飄來；只有金光和近距離能看見
@@ -1099,23 +1659,29 @@ function updateGuards(dt) {
       g.mesh.rotation.x += dt * 0.7;
     } else {
       if (g.cfg.chaseNear && d < g.cfg.chaseNear && (g.repath -= dt) <= 0) {
-        g.repath = 0.35; goTo(g, cellOf(player.position), 'hunt'); g.wait = 1.6;
+        g.repath = 0.35; spotted = true; goTo(g, cellOf(player.position), 'hunt'); g.wait = 1.6;
       }
       let moved = false;
-      if (g.path.length) {
+      const canMove = !g.cfg.swarm || echoActive;   // 蟲群：只在回聲響著時移動
+      if (g.path.length && canMove) {
         const [c, r] = g.path[0], tx = c * S, tz = r * S;
         const vx = tx - g.pos.x, vz = tz - g.pos.z, dist = Math.hypot(vx, vz);
         const sp = (g.mode === 'hunt' ? g.cfg.hunt : g.cfg.speed) * dt;
         if (dist <= sp) { g.pos.x = tx; g.pos.z = tz; g.path.shift(); }
         else { g.pos.x += vx / dist * sp; g.pos.z += vz / dist * sp; }
         moved = true;
-      } else if ((g.wait -= dt) <= 0) idleBehavior(g);
+      } else if (!g.path.length && (g.wait -= dt) <= 0) idleBehavior(g);
 
-      // 腳步聲（紅色波紋）；盲聽者站著時發出微弱呼吸聲
-      if ((g.stepT -= dt) <= 0) {
-        if (moved) { g.stepT = g.mode === 'hunt' ? 0.45 : 0.85; addPulse(g.pos, 3, 1.1, 0.55, 2, 0.05); sfx.guardStep(g.pos, g.mode === 'hunt'); }
-        else { g.stepT = 2.2; addPulse(g.pos, 1.6, 1.4, 0.35, 2, 0.05); sfx.breath(g.pos); }
-        g.flash = 1;
+      // 腳步聲（紅色波紋）；空殼完全無聲
+      if (!g.cfg.silent && (g.stepT -= dt) <= 0) {
+        if (moved) {
+          g.stepT = g.cfg.swarm ? 0.3 : g.mode === 'hunt' ? 0.45 : 0.85;
+          addPulse(g.pos, 3, 1.1, g.cfg.swarm ? 0.4 : 0.55, 2, 0.05);
+          g.cfg.swarm ? sfx.chitter(g.pos) : sfx.guardStep(g.pos, g.mode === 'hunt');
+          g.flash = 1;
+        } else if (!g.cfg.swarm) {
+          g.stepT = 2.2; addPulse(g.pos, 1.6, 1.4, 0.35, 2, 0.05); sfx.breath(g.pos); g.flash = 1;
+        } else g.stepT = 0.5;
       }
 
       // 哨兵掃描：紅色波紋經過你時，你在移動就會被發現
@@ -1133,19 +1699,26 @@ function updateGuards(dt) {
           if (r > sw.range) g.sweep.done = true;
           else if (playerMoving && Math.abs(flat(g.sweep, player.position) - r) < 0.6) {
             g.sweep.done = true;
-            alertGuard(g, player.position, '被 哨 兵 掃 描 到 了');
+            alertGuard(g, player.position, '被 哨 兵 掃 描 到 了', 'sweep');
           }
         }
       }
+      if (g.cfg.swarm) g.mesh.children.forEach((s, i) => {
+        const sp = moved ? 7 : 1.2;
+        s.position.set(Math.cos(time * sp + i * 0.9) * 0.34, Math.sin(time * 5 + i * 2) * 0.14, Math.sin(time * sp * 1.1 + i * 0.9) * 0.34);
+      });
       g.flash = Math.max(0, g.flash - dt * 3);
       k = Math.max(revealAt(g.pos, [0]), g.flash * 0.5, d < 3 ? (3 - d) / 3 * 0.6 : 0);
-      g.mesh.rotation.y += dt * (g.mode === 'hunt' ? 4 : 1.2);
+      if (g.type !== 'H') g.mesh.rotation.y += dt * (g.mode === 'hunt' ? 4 : 1.2);
     }
 
     const [cr, cg, cb] = g.cfg.color;
     g.mesh.material.color.setRGB(k * cr, k * cg, k * cb);
-    g.mesh.position.y = 0.5 + Math.sin(time * 3 + g.home[0]) * 0.06;
-    if (d < (g.type === 'L' ? 0.85 : 0.7)) return end(false);
+    g.mesh.position.y = (g.type === 'H' ? 0.55 : 0.5) + Math.sin(time * 3 + g.home[0]) * 0.06;
+    if (d < (g.type === 'L' ? 0.85 : 0.7)) {
+      deathMsg = g.type === 'S' ? '幽影吞沒了你。' : `你被${g.cfg.name}抓住了。`;
+      return end(false);
+    }
   }
 }
 
@@ -1153,7 +1726,7 @@ function updateGuards(dt) {
 const clock = new THREE.Clock();
 const focus = new THREE.Vector3();
 let titlePulseT = 0;
-loadMap(level); resetLevel(); buildLevelButtons();
+loadMap(cur); resetLevel(); buildTitle();
 
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -1167,20 +1740,21 @@ function frame() {
       updatePlayer(dt);
       updateStones(dt);
       if (state === 'play') updateGuards(dt);
+      if (state === 'play' && C.exitPulse && (exitPulseT -= dt) <= 0) { exitPulseT = 3; addPulse(exit.position, 5, 2, 0.6, 0, 1); }
     }
   }
+  if (state === 'read' || state === 'choice') readT -= dt;
 
   for (const c of crystals) {
     if (!c.mesh.visible) continue;
     c.mesh.rotation.y += dt * 1.2;
     c.mesh.position.y = 0.9 + Math.sin(time * 2 + c.hum) * 0.12;
     if ((c.hum -= dt) <= 0) {
-      c.hum = 2.6; addPulse(c.mesh.position, 4, 1.8, 0.7, 1);
+      c.hum = C.humEvery; addPulse(c.mesh.position, 4, 1.8, 0.7, 1);
       if (state === 'play' && introT <= 0) sfx.hum(c.mesh.position, c.note);
     }
   }
   exit.rotation.y += dt * (exit.userData.open ? 1.5 : 0.3);
-  if (state === 'read') readT -= dt;
 
   // 殘響：平常看不見，只有藍色回聲掃過或走得很近時才會閃爍
   if (frag && !frag.taken) {
@@ -1191,17 +1765,17 @@ function frame() {
     m.rotation.x += dt * 0.9; m.rotation.y += dt * 1.3;
     m.position.y = 0.7 + Math.sin(time * 1.5) * 0.08;
   }
-  // 真結局：整座城市一盞一盞亮起來
+  // 結局演出：金色 = 城市亮起；白色 = 被吞噬
   if (dawn && (dawnT -= dt) <= 0) {
     dawnT = 0.12;
     const [c, r] = pick(openCells);
-    addPulse({ x: c * S, z: r * S }, 6, 3, 1.0, Math.random() < 0.7 ? 1 : 0, 0.5);
+    addPulse({ x: c * S, z: r * S }, 6, 3, dawn === 'white' ? 1.6 : 1.0, dawn === 'white' ? 0 : (Math.random() < 0.7 ? 1 : 0), 0.5);
   }
 
   if (state === 'title') {
     if ((titlePulseT -= dt) <= 0) {
       titlePulseT = 1.5;
-      const [c, r] = openCells[Math.floor(Math.random() * openCells.length)];
+      const [c, r] = pick(openCells);
       addPulse({ x: c * S, z: r * S }, 8, 2.8, 1.0, 0, 0.5);
     }
     const a = time * 0.08, R = Math.max(COLS, ROWS) * S * 0.85;
@@ -1220,7 +1794,8 @@ function frame() {
   let danger = 0, shade = { v: 0, pan: 0 };
   if (state === 'play' && introT <= 0) {
     for (const g of guards) {
-      if (g.type === 'S') { if (g.delay <= 0) { shade = spatial(g.pos, 7); danger = Math.max(danger, shade.v * 0.9); } continue; }
+      if (g.type === 'M') continue;
+      if (g.type === 'S') { if (g.delay <= 0) { const s = spatial(g.pos, 7); if (s.v > shade.v) shade = s; danger = Math.max(danger, s.v * 0.9); } continue; }
       danger = Math.max(danger, g.mode === 'hunt' ? 1 : Math.max(0, 1 - flat(g.pos, player.position) / 7) * 0.7);
     }
   }
@@ -1237,14 +1812,17 @@ window.ECHO = {
   get state() { return state; }, get level() { return level; }, get player() { return player; },
   get guards() { return guards; }, get collected() { return collected; }, get stonesLeft() { return stonesLeft; },
   get introT() { return introT; }, get progress() { return progress; }, get time() { return time; },
-  get frag() { return frag; }, get dawn() { return dawn; }, readFragment, closeFragment, openArchive, STORY,
+  get frag() { return frag; }, get dawn() { return dawn; }, get run() { return run; }, get spotted() { return spotted; },
+  get cur() { return cur; }, get C() { return C; }, get pulses() { return pulses; }, get deathMsg() { return deathMsg; },
   audio() {
     if (!analyser) return null;
     const a = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(a);
     let peak = 0, sum = 0; for (const x of a) { peak = Math.max(peak, Math.abs(x)); sum += x * x; }
     return { ctx: ac.state, peak: +peak.toFixed(3), rms: +Math.sqrt(sum / a.length).toFixed(4), danger: +music.danger.toFixed(2), musicOn, mood: music.key };
   },
-  crystals: () => crystals, exit: () => exit, startLevel, endIntro, goTitle, bfs, LEVELS, get MAP() { return MAP; },
+  crystals: () => crystals, exit: () => exit, startLevel, endIntro, goTitle, bfs, LEVELS, CHAPTERS, STORY, CHOICES, ENDINGS,
+  get MAP() { return MAP; }, readFragment, closeFragment: closeCard, closeCard, openArchive, openGallery,
+  generateMap, abyssLevel, startAbyss, pickChoice, computeEnding, runChoice, endClick, MUTATIONS,
 };
 </script>
 </body>
