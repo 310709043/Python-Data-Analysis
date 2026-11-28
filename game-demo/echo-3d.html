@@ -484,11 +484,12 @@ const CHOICES = [
       { key: 'sing', label: '唱歌' },
       { key: 'silence', label: '沉默' },
       { key: 'devour', label: '把九千顆音核獻給它', note: '你身體裡的音核在發燙', requires: ch => ch[2] === 'hoard' },
+      { key: 'answer', label: '叫醒大人們，一起回答它', note: '那個守夜人和調音師，還記得你給他們的聲音', requires: ch => ch[0] === 'mercy' && ch[1] === 'sing' },
     ] },
 ];
 
-// ---------- 五種結局 ----------
-const ENDING_ORDER = ['sutured', 'echo', 'devour', 'song', 'lullaby'];
+// ---------- 六種結局 ----------
+const ENDING_ORDER = ['sutured', 'echo', 'devour', 'song', 'lullaby', 'answer'];
 const ENDINGS = {
   sutured: { title: '縫合', hint: '在最後，選擇沉默。',
     text: '你選擇了沉默。\n守夜人們圍過來，溫柔地，用頭髮和蠟封住了你。\n很久以後，城裡多了一個新的守夜人。\n它巡邏時從不發出聲音。它很稱職。\n只是偶爾，它會在牆角停下來，\n像是想起了一首歌。' },
@@ -500,10 +501,13 @@ const ENDINGS = {
     text: '你唱了。\n燈一盞一盞亮起。守夜人抬起頭，鐘樓敲響了第 9,415 日。\n遠方，它也聽見了。\n它朝城市爬來，帶著九千張張開的嘴。\n但這一次，沒有人熄燈。\n所有人一起唱，直到最後一個聲音。' },
   lullaby: { title: '搖籃曲', hint: '放走鐘樓的聲音、抱起芯，並找到至少 20 段殘響，然後唱歌。',
     text: '你沒有唱給城市聽。你轉過身，面向它。\n你和芯一起，唱了一首搖籃曲。\n它安靜下來了。\n那九千張嘴，一張一張地閉上——不是被縫上，是睡著了。\n第 9,415 日，城裡響起了第一聲嬰兒的哭聲。\n很吵。很亮。很好。' },
+  answer: { title: '回答', hint: '在第一章拆開守夜人嘴上的線、在第二章唱給調音師聽，最後讓大人們一起回答它。',
+    text: '你沒有一個人唱。\n那個被你拆開嘴線的守夜人，第一個走進了黑暗。\n調音師跟在後面，摸著牆，一路哼著你教他的那個音。\n然後是保母、鐘樓的哨兵、三百二十一個大人。\n他們站在它面前，張開嘴——這一次，不是無聲的。\n「對不起。」\n九千張嘴停止了顫抖。它等這句話，等了九千四百天。\n天亮的時候，城裡一個大人也沒有了。\n孩子們的嘴上沒有線。\n他們在唱歌。' },
 };
 function computeEnding() {
   const ch = progress.choices, found = countFrags();
   if (ch[4] === 'devour') return 'devour';
+  if (ch[4] === 'answer') return 'answer';
   if (ch[4] === 'silence') return found >= STORY.length ? 'echo' : 'sutured';
   if (ch[2] === 'free' && ch[3] === 'hold' && found >= 20) return 'lullaby';
   return 'song';
@@ -1451,7 +1455,7 @@ function runChoice(ci) {
 function showEnding(key) {
   const E = ENDINGS[key], n = ENDING_ORDER.indexOf(key) + 1, isNew = !progress.endings[key];
   progress.endings[key] = true; saveProgress();
-  dawn = key === 'song' || key === 'lullaby' ? 'gold' : key === 'devour' ? 'white' : null;
+  dawn = key === 'song' || key === 'lullaby' || key === 'answer' ? 'gold' : key === 'devour' ? 'white' : null;
   if (dawn) setTimeout(() => sfx.dawn(), 300); else sfx.dread();
   showCard({ tag: `結局 ${n} / ${ENDING_ORDER.length}${isNew ? '　・　新解鎖' : ''}`, name: E.title, body: E.text, sign: `—— 結局：${E.title}`, onClose: goTitle });
 }
@@ -1570,7 +1574,7 @@ addEventListener('pointerdown', () => { if (state === 'play') endIntro(); else i
 addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   if (state === 'read') { if (e.code === 'Escape') goTitle(); else if (!e.repeat) closeCard(); return; }
-  if (state === 'choice') { const n = Number(e.key); if (n >= 1 && n <= 3) pickChoice(n - 1); return; }
+  if (state === 'choice') { const n = Number(e.key); if (n >= 1 && n <= 4) pickChoice(n - 1); return; }
   if (panelOpen()) { closePanels(); return; }
   if (e.repeat && keys[e.code]) return;
   keys[e.code] = true;
