@@ -54,6 +54,11 @@
   .bc { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 240px; }
   .bar { height: 2px; background: rgba(127,233,255,.15); }
   #cd { height: 100%; width: 100%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .fear { margin-top: 6px; background: rgba(255,90,106,.12); }
+  #fearBar { height: 100%; width: 0%; background: var(--r); box-shadow: 0 0 10px var(--r); }
+  .diff { margin-top: 14px; display: flex; gap: 6px; justify-content: center; align-items: center; font-size: 11px; letter-spacing: .3em; }
+  .dbtn { background: none; border: none; border-bottom: 1px solid transparent; color: #dff6ff; font: inherit; opacity: .4; cursor: pointer; padding: 4px 8px; }
+  .dbtn.on { opacity: 1; border-color: var(--r); color: #fff; }
   .hint { margin-top: 12px; font-size: 11px; letter-spacing: .25em; opacity: .5; text-align: center; white-space: nowrap; }
   #msg { position: absolute; top: 17%; width: 100%; text-align: center; font-size: 14px; letter-spacing: .45em;
     opacity: 0; transition: opacity .6s; }
@@ -104,8 +109,8 @@
   <div class="br" id="st"></div>
   <div id="mutHud"></div>
   <div id="msg"></div>
-  <div class="bc"><div class="bar"><div id="cd"></div></div>
-    <div class="hint">SPACE 回聲 ・ SHIFT 潛行 ・ E 丟石頭 ・ R 重來 ・ M 音樂</div></div>
+  <div class="bc"><div class="bar"><div id="cd"></div></div><div class="bar fear"><div id="fearBar"></div></div>
+    <div class="hint">SPACE 回聲 ・ SHIFT 潛行 ・ E 丟石頭 ・ Q 尖嘯 ・ R 重來 ・ M 音樂</div></div>
 </div>
 
 <div id="intro" class="hidden">
@@ -143,7 +148,7 @@
   <div class="logo">ECHO</div>
   <div class="sub">在黑暗中，聲音是你唯一的眼睛</div>
   <div class="keys">
-    <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 回聲　<span class="k">SHIFT</span> 潛行　<span class="k">E</span> 丟石頭　<span class="k">M</span> 音樂<br>
+    <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 回聲　<span class="k">SHIFT</span> 潛行　<span class="k">E</span> 丟石頭　<span class="k">Q</span> 尖嘯　<span class="k">M</span> 音樂<br>
     建議戴耳機：牠們的聲音，會從牠們所在的方向傳來
   </div>
   <div class="tabs" id="tabs"></div>
@@ -153,6 +158,7 @@
     <button class="mbtn" id="archBtn"></button>
     <button class="mbtn" id="galBtn"></button>
   </div>
+  <div class="diff" id="diff"></div>
   <div id="totals"></div>
   <div class="cta" id="titleCta">點 擊 開 始</div>
 </div>
@@ -169,6 +175,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // =====================================================================
@@ -185,9 +192,17 @@ const CONFIG = {
   echoCooldown: 1.2,    // 回聲冷卻秒數
   stoneRange: 7,        // 石頭最遠丟多遠
   bloom: 0.95,          // 發光強度
+  screamRadius: 4.5,    // 尖嘯的震波範圍
+  stunTime: 4.5,        // 尖嘯讓守衛暈眩幾秒
+};
+// 難度：守衛速度、聽力、恐懼累積速度、每關尖嘯次數、回聲冷卻
+const DIFFS = {
+  story:     { name: '故事', desc: '守衛較慢、恐懼累積較慢、每關 2 次尖嘯', speed: 0.85, hear: 0.8, fear: 0.6, screams: 2, cd: 1 },
+  fear:      { name: '恐懼', desc: '標準體驗', speed: 1.1, hear: 1.1, fear: 1, screams: 1, cd: 1 },
+  nightmare: { name: '惡夢', desc: '守衛更快更敏銳、恐懼累積極快、回聲冷卻更長', speed: 1.25, hear: 1.25, fear: 1.45, screams: 1, cd: 1.25 },
 };
 // 實際使用的數值 = CONFIG + 深淵模式的異變加成
-let C = { ...CONFIG, hearMul: 1, extraStones: 0, humEvery: 2.6, exitPulse: false };
+let C = { ...CONFIG, hearMul: 1, extraStones: 0, humEvery: 2.6, exitPulse: false, guardSpeedMul: 1, fearMul: 1, screams: 1 };
 
 // 守衛種類。hear = 各種聲音能被聽見的距離（沒寫 = 聽不見）
 const GUARD_TYPES = {
@@ -215,7 +230,7 @@ const CHAPTERS = [
     story: '這座城市已經沉默了九千四百天。\n你醒來的時候，是一點光。\n你不知道自己是誰。\n你只知道，你很想唱歌。',
     levels: [
       { name: '初聲', stones: 0, par: 5,
-        desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。<br><span class="dim">有些角落藏著白色的殘響 — 只有回聲照得到。</span>',
+        desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。<br><span class="dim">有些角落藏著白色的殘響 — 只有回聲照得到。</span><br><span class="r">黑暗會讓你恐懼。</span>恐懼滿了，你會忍不住叫出聲 —<br>靜止不動，或靠近金光，可以讓自己平靜下來。',
         map: [
           '#############',
           '#P..#.......#',
@@ -230,7 +245,7 @@ const CHAPTERS = [
           '#############',
         ] },
       { name: '巡守', stones: 0, par: 6,
-        desc: '<span class="r">紅色波紋</span>是守衛的腳步聲。<br>回聲和你的腳步都會引來牠們 — 按住 <span class="c">SHIFT</span> 潛行。',
+        desc: '<span class="r">紅色波紋</span>是守衛的腳步聲。<br>回聲和你的腳步都會引來牠們 — 按住 <span class="c">SHIFT</span> 潛行。<br>被逼到絕路時，按 <span class="r">Q</span> 尖嘯：震暈身邊的一切，<br>但整座城都會聽見。',
         map: [
           '###############',
           '#P....#.......#',
@@ -505,6 +520,8 @@ const MUTATIONS = [
   { name: '血肉羅盤', desc: '出口會發出藍色脈衝', apply: c => c.exitPulse = true },
   { name: '疾行', desc: '移動速度 +12%', apply: c => c.moveSpeed *= 1.12 },
   { name: '第二層皮', desc: '被抓到時復活一次', life: true, apply: () => {} },
+  { name: '撕裂之喉', desc: '每層多 1 次尖嘯', apply: c => c.screams += 1 },
+  { name: '鎮定', desc: '恐懼累積 −30%', apply: c => c.fearMul *= 0.7 },
 ];
 const ABYSS_LINES = ['牆在呼吸。', '有人在你身後數數。', '這裡的回聲，比你的聲音晚了一秒。', '地上有很多鞋子。都是小孩的尺寸。',
   '你聽見了自己的名字。你沒有名字。', '更深的地方，有人在哼你唱過的歌。', '線頭從天花板垂下來，還在輕輕擺動。', '牠們知道你來了。',
@@ -654,7 +671,7 @@ const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // ---------- 存檔（只存在你的瀏覽器） ----------
 let progress = {};
 try { progress = JSON.parse(localStorage.getItem('echo.progress') || '{}'); } catch {}
-progress = { unlocked: 0, best: {}, frags: {}, marks: {}, choices: {}, endings: {}, abyssBest: 0, ...progress };
+progress = { unlocked: 0, best: {}, frags: {}, marks: {}, choices: {}, endings: {}, abyssBest: 0, diff: 'fear', ...progress };
 for (const k of ['best', 'frags', 'marks', 'choices', 'endings']) progress[k] = progress[k] || {};
 const saveProgress = () => { try { localStorage.setItem('echo.progress', JSON.stringify(progress)); } catch {} };
 const countFrags = () => STORY.filter((_, i) => progress.frags[i]).length;
@@ -673,6 +690,31 @@ const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 30
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), CONFIG.bloom, 0.55, 0.08));
+// 恐怖濾鏡：雜訊顆粒、色差、暗角、隨心跳的紅光、扭曲與閃爍 —— 全部隨「恐懼」加深
+const fx = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uFear: { value: 0 }, uHit: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uFear; uniform float uHit; varying vec2 vUv;
+    float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main() {
+      vec2 uv = vUv;
+      float F = uFear * uFear;
+      uv.x += sin(uv.y * 38.0 + uTime * 6.0) * 0.0018 * F + (rand(vec2(floor(uTime * 30.0), uv.y)) - 0.5) * 0.012 * uHit;
+      vec2 dir = uv - 0.5;
+      float ab = 0.0012 + uFear * 0.006 + uHit * 0.025;
+      vec3 col = vec3(texture2D(tDiffuse, uv + dir * ab).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - dir * ab).b);
+      col += (rand(uv * vec2(1731.0, 977.0) + fract(uTime) * 91.0) - 0.5) * (0.01 + F * 0.05);
+      float vig = smoothstep(0.95 - uFear * 0.35, 0.25 - uFear * 0.1, length(dir) * 1.25);
+      col *= mix(1.0, vig, 0.5 + uFear * 0.4);
+      float beat = pow(max(0.0, sin(uTime * (2.6 + uFear * 5.0))), 10.0) * uFear;
+      col += vec3(0.28, 0.0, 0.02) * beat * smoothstep(0.25, 0.85, length(dir) * 1.4);
+      col *= 1.0 - F * 0.35 * step(0.965, rand(vec2(floor(uTime * 18.0), 3.0)));
+      col = mix(col, vec3(1.0, 0.12, 0.08), uHit * 0.45);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+composer.addPass(fx);
 composer.addPass(new OutputPass());
 
 addEventListener('resize', () => {
@@ -698,7 +740,8 @@ vec3 pulseColor(float k) {
   if (k < 0.5) return vec3(0.45, 0.9, 1.0);   // 0 藍：你的聲音
   if (k < 1.5) return vec3(1.0, 0.72, 0.32);  // 1 金：音核
   if (k < 2.5) return vec3(1.0, 0.28, 0.34);  // 2 紅：守衛
-  return vec3(0.7, 0.45, 1.0);                // 3 紫：幽影
+  if (k < 3.5) return vec3(0.7, 0.45, 1.0);   // 3 紫：幽影
+  return vec3(1.0, 0.92, 0.86);               // 4 白熱：尖嘯 / 失控尖叫
 }
 vec3 reveal(vec3 p) {
   vec3 acc = vec3(0.0), mine = vec3(0.0);   // mine = 你自己的藍色聲音（會被章節色調染色）
@@ -948,6 +991,22 @@ const sfx = {
   dread: () => { const t0 = now();   // 壞結局：往下沉的不和諧音
     [0, 1, 6, 7].forEach((n, i) => tone('sawtooth', midi(38 + n), midi(31 + n), 6, 0.05, (i % 2 ? 0.4 : -0.4), sfxBus, t0 + i * 0.5)); },
   choice: () => { tone('sine', 660, 660, 1.2, 0.08); tone('sine', 990, 990, 1.4, 0.04); },
+  // 被發現：不和諧的重擊
+  sting: () => { const t0 = now(); [0, 1, 6].forEach((n, i) => tone('sawtooth', midi(70 + n), midi(58 + n), 0.9, 0.06, (i - 1) * 0.5, sfxBus, t0));
+    noise(0.6, 0.12, 900, 0.8, 0, sfxBus, t0); tone('sine', 55, 30, 0.8, 0.35, 0, sfxBus, t0); },
+  // 尖嘯：撕裂的高音 + 低頻衝擊
+  scream: () => { const t0 = now(); tone('sawtooth', 900, 180, 1.1, 0.14, 0, sfxBus, t0); tone('square', 1350, 260, 0.9, 0.06, 0.2, sfxBus, t0);
+    noise(1.0, 0.25, 1500, 0.7, 0, sfxBus, t0); tone('sine', 70, 30, 1.0, 0.4, 0, sfxBus, t0); },
+  panic: () => { const t0 = now(); tone('sawtooth', 620, 380, 0.8, 0.1, 0, sfxBus, t0); noise(0.8, 0.12, 2200, 2, 0, sfxBus, t0); },
+  pant: () => noise(0.5, 0.05, 900, 1.2),
+  // 死亡驚嚇：噪音爆發 + 往下墜的不和諧尖叫
+  jumpscare: () => { const t0 = now(); noise(1.1, 0.5, 1800, 0.5, 0, sfxBus, t0);
+    [0, 1, 5, 6, 11].forEach(n => tone('sawtooth', midi(76 + n), midi(40 + n), 1.1, 0.07, Math.random() - 0.5, sfxBus, t0)); tone('sine', 50, 25, 1.2, 0.5, 0, sfxBus, t0); },
+  shatter: pos => { const s = spatial(pos, 14), t0 = now();
+    for (let i = 0; i < 6; i++) tone('triangle', 2000 + Math.random() * 3000, 600, 0.25, 0.06 * s.v + 0.02, s.pan, sfxBus, t0 + i * 0.03);
+    noise(0.4, 0.1, 5000, 1.5, s.pan, sfxBus, t0); },
+  stunHit: pos => { const s = spatial(pos, 14); tone('square', 300, 90, 0.2, 0.12 * s.v + 0.03, s.pan); },
+  ghost: pos => { const s = spatial(pos, 10); noise(0.5, 0.12 * s.v + 0.03, 3000, 6, s.pan); tone('sine', 1900, 1500, 0.4, 0.03, s.pan); },
   // 以下是「有位置」的聲音：戴耳機就能用耳朵判斷方向
   guardStep: (pos, hunt) => { const s = spatial(pos, 11); tone('triangle', 120, 65, 0.12, (hunt ? 0.2 : 0.12) * s.v, s.pan); },
   breath: pos => { const s = spatial(pos, 12); noise(1.2, 0.07 * s.v, 650, 1.4, s.pan); },
@@ -1133,6 +1192,7 @@ let cur = LEVELS[Math.min(progress.unlocked, LEVELS.length - 1)], level = cur.id
 let dyn, player, crystals, guards, exit, stones = [], frag = null;
 let collected, echoes, cd, stepT, glassT, playTime, stonesLeft, introT = 0, readT = 0;
 let spotted = false, lastEchoT = -99, deathMsg = '', dawn = null, dawnT = 0, exitPulseT = 0;
+let fear = 0, fearFx = 0, screamsLeft = 0, shake = 0, hitFlash = 0, dyingT = 0, killer = null, halluT = 3, pantT = 0, apparition = null;
 let lastCell = [-1, -1], playerMoving = false;
 const lastDir = new THREE.Vector3(0, 0, -1);
 const keys = {};
@@ -1209,8 +1269,14 @@ function resetLevel() {
   exit.userData.open = false;
   dyn.add(exit);
 
+  // 幻覺用的人影（平常隱藏）
+  apparition = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 1.0, 8), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  apparition.visible = false; apparition.userData.t = 0;
+  dyn.add(apparition);
+
   collected = 0; echoes = 0; cd = 0; stepT = 0; glassT = 0; playTime = 0;
   spotted = false; lastEchoT = -99; deathMsg = ''; exitPulseT = 0;
+  fear = 0; screamsLeft = C.screams; killer = null; halluT = 3; shake = 0; hitFlash = 0;
   stonesLeft = cur.stones + C.extraStones; lastCell = [pc, pr]; lastDir.set(0, 0, -1);
   camera.position.set(player.position.x, 13, player.position.z + 9);
   focus.copy(player.position);
@@ -1228,11 +1294,11 @@ function showMsg(text, color = '#dff6ff') {
 }
 function levelLabel(L) { return L.abyss ? `深淵 · ${L.name}` : `${CH_LABEL[L.ch]} · ${pad(L.j + 1)} ${L.name}`; }
 function updateHud() {
-  $('lv').textContent = levelLabel(cur);
+  $('lv').textContent = `${levelLabel(cur)}　·　${(DIFFS[progress.diff] || DIFFS.fear).name}`;
   $('fragHud').textContent = frag ? `殘響 ${frag.taken || progress.frags[level] ? '◈' : '◇'}` : '';
   $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected);
   const max = cur.stones + C.extraStones;
-  $('st').innerHTML = (max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(Math.max(0, max - stonesLeft))}` : '') +
+  $('st').innerHTML = `<span class="r">尖嘯 ${'✦'.repeat(screamsLeft) || '—'}</span><br>` + (max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(Math.max(0, max - stonesLeft))}` : '') +
     (run && run.lives ? `<br><span class="p">皮 ×${run.lives}</span>` : '');
   $('mutHud').innerHTML = run ? run.muts.map(i => MUTATIONS[i].name).join('<br>') : '';
 }
@@ -1263,12 +1329,21 @@ function buildTitle() {
   $('archBtn').textContent = `殘 響　${countFrags()} / ${STORY.length}`;
   $('galBtn').textContent = `結 局　${ENDING_ORDER.filter(k => progress.endings[k]).length} / ${ENDING_ORDER.length}`;
   $('totals').textContent = `徽記 ${countMarks()} / ${LEVELS.length * 3}`;
+  const dv = $('diff'); dv.innerHTML = '<span style="opacity:.5">難度</span>';
+  for (const [k, D] of Object.entries(DIFFS)) {
+    const b = el('button', 'dbtn' + (progress.diff === k ? ' on' : ''), D.name);
+    b.title = D.desc;
+    b.addEventListener('click', e => { e.stopPropagation(); progress.diff = k; saveProgress(); buildTitle(); });
+    dv.appendChild(b);
+  }
   const next = Math.min(unl, LEVELS.length - 1);
   $('titleCta').textContent = unl > 0 ? `點 擊 繼 續 ・ ${levelLabel(LEVELS[next])}` : '點 擊 開 始';
 }
 
 function applyMods() {
-  C = { ...CONFIG, hearMul: 1, extraStones: 0, humEvery: 2.6, exitPulse: false };
+  const D = DIFFS[progress.diff] || DIFFS.fear;
+  C = { ...CONFIG, hearMul: D.hear, extraStones: 0, humEvery: 2.6, exitPulse: false, guardSpeedMul: D.speed, fearMul: D.fear, screams: D.screams };
+  C.echoCooldown *= D.cd;
   if (run) for (const i of run.muts) MUTATIONS[i].apply(C);
 }
 function hideOverlays() {
@@ -1337,6 +1412,7 @@ function readFragment() {
   showCard({ tag: `殘響 ${pad(level + 1)} / ${STORY.length}` + (first ? '' : '　（已收錄）'), name: st.title, body: st.text, sign: st.sign });
   addPulse(frag.mesh.position, 6, 2.2, 1.0, 0, 0.7);
   sfx.memory(); music.duck(4);
+  screamsLeft++;   // 殘響讓你多一次尖嘯
   updateHud();
 }
 
@@ -1503,6 +1579,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && state !== 'title') goTitle();
   if (e.code === 'KeyR' && state === 'play') run ? beginLevel(cur) : startLevel(level);
   if (e.code === 'KeyE' && state === 'play') throwStone();
+  if (e.code === 'KeyQ' && state === 'play') scream();
   if (e.code === 'KeyM') { initAudio(); showMsg(music.toggle() ? '音 樂  開' : '音 樂  關'); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1513,18 +1590,89 @@ function blocked(x, z, r = 0.3) {
   for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (isWall(...toCell(x + ox, z + oz))) return true;
   return false;
 }
-function hear(origin, kind) {
+function hear(origin, kind, mult = 1) {
   for (const g of guards) {
-    const R = (g.cfg.hear[kind] || 0) * C.hearMul;
+    if (g.dead) continue;
+    const R = (g.cfg.hear[kind] || 0) * C.hearMul * mult;
     if (!R || flat(g.pos, origin) > R) continue;
     alertGuard(g, origin, kind === 'stone' ? '牠 被 石 頭 吸 引 了' : `${g.cfg.name} 聽 見 了 你`, kind);
   }
 }
 function alertGuard(g, origin, text, cause) {
+  if (g.dead) return;
   if (cause !== 'stone') spotted = true;
-  if (g.mode !== 'hunt') { sfx.alert(); showMsg(text, '#ff5a6a'); }
+  if (g.mode !== 'hunt' && !(g.stunT > 0)) {
+    sfx.alert(); showMsg(text, '#ff5a6a');
+    if (cause !== 'stone') spottedJolt();
+  }
   goTo(g, cellOf(origin), 'hunt');
   g.wait = 1.6;
+}
+// 被發現的瞬間：重擊音、鏡頭震動、紅光一閃、恐懼上升
+function spottedJolt() {
+  sfx.sting(); shake = Math.max(shake, 0.35); hitFlash = Math.max(hitFlash, 0.22); fear = Math.min(100, fear + 15);
+}
+
+// ---------- 攻擊：尖嘯（有代價的反擊） ----------
+function scream() {
+  if (introT > 0) return;
+  if (screamsLeft <= 0) { showMsg('你 的 喉 嚨 已 經 撕 裂 了', '#ff5a6a'); return; }
+  screamsLeft--; updateHud(); spotted = true;
+  addPulse(player.position, 14, 1.3, 1.8, 4, 0.5, true);
+  addPulse(player.position, CONFIG.screamRadius * 2, 1.0, 1.2, 2, 0.1);
+  shake = 0.8; hitFlash = 0.5; fear = Math.max(0, fear - 35);
+  sfx.scream();
+  let n = 0;
+  for (const g of guards) {
+    if (g.dead || flat(g.pos, player.position) > CONFIG.screamRadius) continue;
+    n++;
+    if (g.type === 'W' || g.type === 'M') {          // 蟲群、擬聲者：直接震碎
+      g.dead = true; g.mesh.visible = false;
+      addPulse(g.pos, 6, 1.2, 1.2, g.type === 'M' ? 1 : 2, 0.5); sfx.shatter(g.pos);
+    } else if (g.type === 'S') {                     // 幽影：殺不死，只能震退
+      const vx = g.pos.x - player.position.x, vz = g.pos.z - player.position.z, m = Math.hypot(vx, vz) || 1;
+      g.pos.x += vx / m * 6; g.pos.z += vz / m * 6; g.delay = 2.5;
+    } else { g.stunT = CONFIG.stunTime; g.path = []; g.mode = 'idle'; }   // 其他：暈眩
+  }
+  hear(player.position, 'echo', 2.5);   // 代價：整座城都聽見了
+  showMsg(n ? `尖 嘯 震 倒 了 ${n} 個 東 西 —— 但 牠 們 全 都 聽 見 了` : '尖 嘯 迴 盪 在 黑 暗 中 —— 牠 們 全 都 聽 見 了', '#ffffff');
+}
+
+// ---------- 恐懼：被追、靠近敵人、黑暗都會累積；靜止或靠近金光會平復 ----------
+function updateFear(dt, danger) {
+  const hunting = guards.some(g => !g.dead && !(g.stunT > 0) && g.mode === 'hunt' && g.type !== 'M' && flat(g.pos, player.position) < 12);
+  const nearGold = crystals.some(c => c.mesh.visible && flat(c.mesh.position, player.position) < 3.5);
+  const sneaking = keys.ShiftLeft || keys.ShiftRight;
+  const gain = danger * 14 + (hunting ? 6 : 0) + 0.8;
+  const calm = (!playerMoving ? 7 : 0) + (nearGold ? 10 : 0) + (sneaking && !hunting ? 2 : 0);
+  fear = Math.min(100, Math.max(0, fear + (gain * C.fearMul - calm) * dt));
+  if (fear > 70 && (pantT -= dt) <= 0) { pantT = 1.3 - fear / 200; sfx.pant(); }
+  if (fear >= 65 && (halluT -= dt) <= 0) { halluT = 2 + Math.random() * 3 * (1.6 - fear / 100); hallucinate(); }
+  if (fear >= 100) panic();
+}
+// 恐懼滿了：忍不住叫出聲（等於一次很大聲的回聲）
+function panic() {
+  fear = 55; echoes++; lastEchoT = time; spotted = true;
+  addPulse(player.position, C.echoSpeed * 1.2, C.echoLife, 1.3, 4, 0.5, true);
+  hear(player.position, 'echo', 1.5);
+  sfx.panic(); shake = Math.max(shake, 0.5); hitFlash = 0.35;
+  showMsg('你 忍 不 住 叫 出 聲 來', '#ff5a6a');
+}
+// 幻覺：不存在的腳步聲，或一閃而過的人影
+function hallucinate() {
+  const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 4;
+  const p = { x: player.position.x + Math.cos(a) * r, z: player.position.z + Math.sin(a) * r };
+  if (Math.random() < 0.6) { addPulse(p, 3, 1.1, 0.55, 2, 0.05); sfx.guardStep(p, Math.random() < 0.5); }
+  else { apparition.position.set(p.x, 0.55, p.z); apparition.userData.t = 0.35; apparition.visible = true; sfx.ghost(p); }
+}
+// 被抓：先播死亡驚嚇，再進結算
+function die(g, msg) {
+  deathMsg = msg;
+  if (run && run.lives > 0) return end(false);
+  state = 'dying'; dyingT = 1.1; killer = g; hitFlash = 1; shake = 1;
+  for (const k in keys) keys[k] = false;
+  $('hud').classList.add('hidden');
+  sfx.jumpscare();
 }
 
 function throwStone() {
@@ -1548,6 +1696,10 @@ function updateStones(dt) {
     if (s.t === 1) {
       dyn.remove(s.mesh); s.mesh.geometry.dispose();
       addPulse(s.to, 7, 1.6, 0.6, 0, 0.1);
+      for (const g of guards) {   // 直接砸中：暈眩 2 秒
+        if (g.dead || g.type === 'S' || g.type === 'M' || flat(g.pos, s.to) > 1.0) continue;
+        g.stunT = 2; g.path = []; g.mode = 'idle'; sfx.stunHit(g.pos); showMsg('擊 中 了', '#dff6ff');
+      }
       hear(s.to, 'stone'); sfx.clack(s.to);
     }
   }
@@ -1595,6 +1747,7 @@ function updatePlayer(dt) {
   for (const c of crystals) {
     if (c.mesh.visible && c.mesh.position.distanceTo(player.position) < 0.9) {
       c.mesh.visible = false; collected++; updateHud(); sfx.chime();
+      fear = Math.max(0, fear - 25);
       addPulse(c.mesh.position, 7, 1.6, 0.9, 1);
       if (collected === crystals.length) {
         exit.userData.open = true; exit.material.color.setRGB(1.5, 2.0, 2.2);
@@ -1631,8 +1784,17 @@ function idleBehavior(g) {
 function updateGuards(dt) {
   const echoActive = time - lastEchoT < C.echoLife;
   for (const g of guards) {
+    if (g.dead) continue;
     const d = flat(g.pos, player.position);
     let k;
+    if (g.stunT > 0) {   // 暈眩中：不會動、不會抓人
+      g.stunT -= dt;
+      const f = 0.35 + 0.25 * Math.sin(time * 20);
+      g.mesh.material.color.setRGB(f * 1.6, f * 1.6, f * 1.7);
+      g.mesh.rotation.z = Math.sin(time * 3) * 0.4;
+      if (g.stunT <= 0) { g.mesh.rotation.z = 0; if (g.type !== 'S') { goTo(g, cellOf(player.position), 'hunt'); g.huntT = 0; } }
+      continue;
+    }
 
     if (g.type === 'M') {
       // 擬聲者：假裝是音核。嗡鳴走音；被藍色回聲照到會現出紅色原形
@@ -1643,7 +1805,7 @@ function updateGuards(dt) {
       g.mesh.material.color.setRGB(...(exposed ? [2.4, 0.15, 0.2] : [2.2, 1.5, 0.5]));
       g.mesh.rotation.y += dt * (exposed ? 7 : 1.2);
       g.mesh.position.y = 0.9 + Math.sin(time * 2 + g.home[0]) * 0.12;
-      if (d < 0.8) { deathMsg = '那不是音核。'; return end(false); }
+      if (d < 0.8) return die(g, '那不是音核。');
       continue;
     }
 
@@ -1652,21 +1814,23 @@ function updateGuards(dt) {
       if (g.delay > 0) g.delay -= dt;
       else {
         const vx = player.position.x - g.pos.x, vz = player.position.z - g.pos.z, m = Math.hypot(vx, vz) || 1;
-        g.pos.x += vx / m * g.cfg.speed * dt; g.pos.z += vz / m * g.cfg.speed * dt;
+        g.pos.x += vx / m * g.cfg.speed * C.guardSpeedMul * dt; g.pos.z += vz / m * g.cfg.speed * C.guardSpeedMul * dt;
       }
       if ((g.stepT -= dt) <= 0) { g.stepT = 1.6; addPulse(g.pos, 2, 1.0, 0.35, 3, 0.05); }
       k = Math.max(revealAt(g.pos, [1]), d < 4 ? (4 - d) / 4 * 0.8 : 0);
       g.mesh.rotation.x += dt * 0.7;
     } else {
       if (g.cfg.chaseNear && d < g.cfg.chaseNear && (g.repath -= dt) <= 0) {
+        if (g.mode !== 'hunt') spottedJolt();
         g.repath = 0.35; spotted = true; goTo(g, cellOf(player.position), 'hunt'); g.wait = 1.6;
       }
       let moved = false;
+      g.huntT = g.mode === 'hunt' ? (g.huntT || 0) + dt : 0;   // 追得越久，跑得越快
       const canMove = !g.cfg.swarm || echoActive;   // 蟲群：只在回聲響著時移動
       if (g.path.length && canMove) {
         const [c, r] = g.path[0], tx = c * S, tz = r * S;
         const vx = tx - g.pos.x, vz = tz - g.pos.z, dist = Math.hypot(vx, vz);
-        const sp = (g.mode === 'hunt' ? g.cfg.hunt : g.cfg.speed) * dt;
+        const sp = (g.mode === 'hunt' ? g.cfg.hunt * (1 + Math.min(0.35, g.huntT * 0.07)) : g.cfg.speed) * C.guardSpeedMul * dt;
         if (dist <= sp) { g.pos.x = tx; g.pos.z = tz; g.path.shift(); }
         else { g.pos.x += vx / dist * sp; g.pos.z += vz / dist * sp; }
         moved = true;
@@ -1716,8 +1880,7 @@ function updateGuards(dt) {
     g.mesh.material.color.setRGB(k * cr, k * cg, k * cb);
     g.mesh.position.y = (g.type === 'H' ? 0.55 : 0.5) + Math.sin(time * 3 + g.home[0]) * 0.06;
     if (d < (g.type === 'L' ? 0.85 : 0.7)) {
-      deathMsg = g.type === 'S' ? '幽影吞沒了你。' : `你被${g.cfg.name}抓住了。`;
-      return end(false);
+      return die(g, g.type === 'S' ? '幽影吞沒了你。' : `你被${g.cfg.name}抓住了。`);
     }
   }
 }
@@ -1744,6 +1907,21 @@ function frame() {
     }
   }
   if (state === 'read' || state === 'choice') readT -= dt;
+  if (state === 'dying') {   // 死亡驚嚇：怪物衝到眼前
+    dyingT -= dt;
+    const m = killer.mesh;
+    m.scale.setScalar(Math.min(1.9, 1 + (1.1 - dyingT) * 1.2));
+    const on = Math.random() < 0.55;   // 紅光與全黑之間的頻閃
+    m.material.color.setRGB(on ? 2.2 : 0.02, on ? 0.05 : 0, on ? 0.08 : 0);
+    if (Math.random() < 0.25) addPulse(killer.pos, 10, 0.5, 1.2, 2, 0.6);
+    if (dyingT <= 0) { m.scale.setScalar(1); end(false); }
+  }
+  if (apparition && apparition.visible) {
+    apparition.userData.t -= dt;
+    const k = Math.max(0, apparition.userData.t / 0.35) * 1.4;
+    apparition.material.color.setRGB(k * 1.8, k * 1.7, k * 1.6);
+    if (apparition.userData.t <= 0) apparition.visible = false;
+  }
 
   for (const c of crystals) {
     if (!c.mesh.visible) continue;
@@ -1782,6 +1960,11 @@ function frame() {
     camera.position.set(CENTER.x + Math.cos(a) * R, R * 0.9, CENTER.z + Math.sin(a) * R);
     camera.lookAt(CENTER);
     U.uPlayer.value.set(9999, 0, 9999);
+  } else if (state === 'dying' && killer) {
+    const k = 1 - Math.exp(-dt * 9), kp = killer.pos;
+    camera.position.lerp(new THREE.Vector3(kp.x, 2.0, kp.z + 3.4), k);
+    focus.lerp(new THREE.Vector3(kp.x, 0.6, kp.z), k);
+    camera.lookAt(focus);
   } else {
     const k = 1 - Math.exp(-dt * 4);
     camera.position.lerp(new THREE.Vector3(player.position.x, 13, player.position.z + 9), k);
@@ -1789,17 +1972,30 @@ function frame() {
     camera.lookAt(focus);
     U.uPlayer.value.copy(player.position);
   }
+  if (shake > 0) {   // 鏡頭震動
+    camera.position.x += (Math.random() - 0.5) * shake * 0.6;
+    camera.position.y += (Math.random() - 0.5) * shake * 0.6;
+    shake = Math.max(0, shake - dt * 2.2);
+  }
 
   // 危險程度 → 配樂（心跳、和弦變亮、緊張顫音）；幽影 → 低語
   let danger = 0, shade = { v: 0, pan: 0 };
   if (state === 'play' && introT <= 0) {
     for (const g of guards) {
-      if (g.type === 'M') continue;
+      if (g.type === 'M' || g.dead || g.stunT > 0) continue;
       if (g.type === 'S') { if (g.delay <= 0) { const s = spatial(g.pos, 7); if (s.v > shade.v) shade = s; danger = Math.max(danger, s.v * 0.9); } continue; }
-      danger = Math.max(danger, g.mode === 'hunt' ? 1 : Math.max(0, 1 - flat(g.pos, player.position) / 7) * 0.7);
+      const gd = flat(g.pos, player.position);   // 追擊中的守衛越近越危險；遠處的追擊只帶來一點不安
+      danger = Math.max(danger, g.mode === 'hunt' ? Math.max(0.3, 1 - gd / 16) : Math.max(0, 1 - gd / 7) * 0.7);
     }
   }
-  music.update(dt, danger, shade);
+  if (state === 'play' && introT <= 0) updateFear(dt, danger);
+  music.update(dt, Math.max(danger, (state === 'play' ? fear / 100 : 0) * 0.8), shade);
+
+  const fearTarget = state === 'dying' ? 1 : state === 'play' && introT <= 0 ? fear / 100 : 0;
+  fearFx += (fearTarget - fearFx) * Math.min(1, dt * 3);
+  hitFlash = Math.max(0, hitFlash - dt * 1.8);
+  fx.uniforms.uTime.value = time; fx.uniforms.uFear.value = fearFx; fx.uniforms.uHit.value = hitFlash;
+  $('fearBar').style.width = `${fear}%`;
 
   uploadPulses();
   composer.render();
@@ -1813,7 +2009,8 @@ window.ECHO = {
   get guards() { return guards; }, get collected() { return collected; }, get stonesLeft() { return stonesLeft; },
   get introT() { return introT; }, get progress() { return progress; }, get time() { return time; },
   get frag() { return frag; }, get dawn() { return dawn; }, get run() { return run; }, get spotted() { return spotted; },
-  get cur() { return cur; }, get C() { return C; }, get pulses() { return pulses; }, get deathMsg() { return deathMsg; },
+  get cur() { return cur; }, get C() { return C; }, get fear() { return fear; }, setFear: v => { fear = v; },
+  get screamsLeft() { return screamsLeft; }, scream, get shake() { return shake; }, DIFFS, get killer() { return killer; }, get pulses() { return pulses; }, get deathMsg() { return deathMsg; },
   audio() {
     if (!analyser) return null;
     const a = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(a);
