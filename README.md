@@ -25,6 +25,11 @@ python agent_office/server.py --demo
 
 詳細用法（如何讓你的 agent 回報狀態、接上 Claude Code）見 [agent_office/README.md](agent_office/README.md)。
 
+## 遊戲開發：回聲病棟 ＆ 第七次葬禮
+
+`games/` 是兩款 Steam 恐怖遊戲的規劃總部：可玩的網頁原型、遊戲設計文件、里程碑、待辦清單與開發日誌。
+從 [games/README.md](games/README.md) 開始看。
+
 ## 快速開始
 
 ```bash
