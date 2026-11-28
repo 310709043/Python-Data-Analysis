@@ -48,6 +48,27 @@
     text-shadow: 0 0 24px var(--c); }
   #intro .desc { font-size: 15px; letter-spacing: .18em; line-height: 2.1; font-weight: 300; max-width: 90vw; }
   #intro .skip { margin-top: 36px; font-size: 11px; letter-spacing: .4em; opacity: .45; }
+  .dim { opacity: .55; }
+  .panel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.84); transition: opacity .8s; cursor: pointer; user-select: none; padding: 0 16px; z-index: 10; }
+  #archive { background: radial-gradient(ellipse at center, #060b0f, #000); }
+  .paper { max-width: min(560px, 92vw); text-align: left; }
+  .paper .ft { font-size: 12px; letter-spacing: .45em; opacity: .6; margin-bottom: 8px; }
+  .paper .fn { font-size: 26px; font-weight: 200; letter-spacing: .3em; color: #fff; text-shadow: 0 0 18px var(--c); margin-bottom: 26px; }
+  .paper .fb { font-size: 16px; line-height: 2.2; letter-spacing: .12em; font-weight: 300; white-space: pre-line; }
+  .paper .fs { margin-top: 22px; text-align: right; font-size: 13px; letter-spacing: .25em; color: var(--g); opacity: .85; }
+  .paper .cont { margin-top: 40px; text-align: center; font-size: 11px; letter-spacing: .4em; opacity: .45; animation: breath 2.4s ease-in-out infinite; }
+  #archive .paper { max-height: 82vh; overflow-y: auto; padding-right: 8px; }
+  .entry { padding: 18px 0; border-top: 1px solid rgba(127,233,255,.15); }
+  .entry .fn { font-size: 18px; margin-bottom: 10px; }
+  .entry .fb { font-size: 14px; line-height: 2; }
+  .entry .fs { margin-top: 8px; font-size: 12px; }
+  .entry.locked { opacity: .35; }
+  #archBtn { margin-top: 20px; background: none; border: none; color: #dff6ff; font: inherit; font-size: 12px;
+    letter-spacing: .4em; opacity: .7; cursor: pointer; padding: 6px 12px; }
+  #archBtn:hover { opacity: 1; color: var(--c); }
+  #fragHud { position: absolute; top: 46px; left: 30px; font-size: 11px; letter-spacing: .4em; opacity: .55; }
+  .ending { margin: 26px auto 0; line-height: 2.2; letter-spacing: .15em; font-size: 15px; max-width: 88vw; white-space: pre-line; }
   .stat { margin-top: 22px; letter-spacing: .25em; font-weight: 300; line-height: 2.1; }
 </style>
 <script type="importmap">
@@ -62,6 +83,7 @@
 
 <div id="hud" class="hidden">
   <div class="tl" id="lv"></div>
+  <div id="fragHud"></div>
   <div class="tr" id="cr"></div>
   <div class="br" id="st"></div>
   <div id="msg"></div>
@@ -76,6 +98,18 @@
   <div class="skip">按任意鍵開始</div>
 </div>
 
+<div id="frag" class="panel hidden"><div class="paper">
+  <div class="ft" id="fTag"></div><div class="fn" id="fName"></div>
+  <div class="fb" id="fBody"></div><div class="fs" id="fSign"></div>
+  <div class="cont">按 任 意 鍵 繼 續</div>
+</div></div>
+
+<div id="archive" class="panel hidden"><div class="paper">
+  <div class="fn" style="text-align:center;margin-bottom:12px">殘 響</div>
+  <div id="archList"></div>
+  <div class="cont">點 擊 關 閉</div>
+</div></div>
+
 <div id="title" class="overlay">
   <div class="logo">ECHO</div>
   <div class="sub">在黑暗中，聲音是你唯一的眼睛</div>
@@ -85,6 +119,7 @@
     找到所有 <span class="g">金色音核</span>，抵達出口 — 但牠們也聽得見你
   </div>
   <div id="levels"></div>
+  <button id="archBtn"></button>
   <div class="cta" id="titleCta">點 擊 開 始</div>
 </div>
 
@@ -129,11 +164,11 @@ const GUARD_TYPES = {
   S: { name: '幽影', speed: 0.85, delay: 3, color: [1.3, 0.7, 2.4], hear: {} },
 };
 
-// 地圖符號：# 牆　. 地板　~ 碎玻璃　P 玩家　C 音核　E 出口
+// 地圖符號：# 牆　. 地板　~ 碎玻璃　P 玩家　C 音核　E 出口　F 殘響（劇情碎片）
 //          G 巡守者　L 盲聽者　T 哨兵　S 幽影
 const LEVELS = [
   { name: '初聲', stones: 0, par: 5,
-    desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。',
+    desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。<br><span class="dim">有些角落藏著白色的殘響 — 只有回聲照得到。</span>',
     map: [
       '#############',
       '#P..#.......#',
@@ -144,7 +179,7 @@ const LEVELS = [
       '#####.#.###.#',
       '#C....#.....#',
       '#.#######.#.#',
-      '#.........#E#',
+      '#........F#E#',
       '#############',
     ] },
   { name: '巡守', stones: 0, par: 6,
@@ -161,14 +196,14 @@ const LEVELS = [
       '#.#.#.#.###.#.#',
       '#.#...#.....#.#',
       '#.#####.###.#.#',
-      '#C....#..G#..E#',
+      '#C...F#..G#..E#',
       '###############',
     ] },
   { name: '盲聽者', stones: 3, par: 5,
     desc: '<span style="color:#ffa64d">盲聽者</span>不會巡邏，但能聽見極遠的聲音。<br><span class="r">碎玻璃</span>就算潛行也會發出巨響。<br>按 <span class="c">E</span> 朝前方丟石頭，把牠引開。',
     map: [
       '###############',
-      '#P..~~~.#....C#',
+      '#P..~~~.#..F.C#',
       '#.#####.#.###.#',
       '#.#C....#...#.#',
       '#.#.#######.#.#',
@@ -189,7 +224,7 @@ const LEVELS = [
       '#.#####.#.###.#.#',
       '#.......#...#.#C#',
       '###.#######.#.###',
-      '#...#..~~.....#.#',
+      '#...#..~~.....#F#',
       '#.#.#.#####.#.#.#',
       '#.#....T......#.#',
       '#C#########.#...#',
@@ -208,7 +243,7 @@ const LEVELS = [
       '#.#####.###.###.#',
       '#.....#...#.#C#.#',
       '#####.###.#.#.#.#',
-      '#S....#...#...#E#',
+      '#S....#F..#...#E#',
       '#################',
     ] },
   { name: '終章', stones: 3, par: 8,
@@ -227,10 +262,30 @@ const LEVELS = [
       '#.###.###.#####.#.#',
       '#.#C#...#.....#...#',
       '#.#.###.#.###.###.#',
-      '#S......#...#....E#',
+      '#S......#..F#....E#',
       '###################',
     ] },
 ];
+
+// ---------- 劇情：每關一段「殘響」，全部找到會看見真結局 ----------
+const STORY = [
+  { title: '第一聲', sign: '—— 芯，七歲（錄音）',
+    text: '媽媽說，以前的城市是亮的。\n燈不用電，用歌點亮——每個人唱一句，整條街就亮起來。\n可是她說，現在不能唱了。\n「黑暗裡，有東西在聽。」' },
+  { title: '守夜人守則', sign: '—— 守夜人手冊，第 1 頁',
+    text: '第一條：不發出聲音。\n第二條：聽見聲音，前往確認。\n第三條：若是人，帶他回家。若不是人——\n（後面的字被刮掉了）\n頁邊有人用很小的字寫著：\n我們不是在抓你。我們只是比你更害怕。' },
+  { title: '調音師的信', sign: '—— 盲眼的調音師',
+    text: '我把眼睛交給了黑暗，換來這雙耳朵。\n現在我聽得見整座城的心跳。三百二十一個。\n一天比一天少。\n如果你聽到這封信，請走得輕一點。\n不是為了躲我，是為了躲「它」。' },
+  { title: '鐘樓日誌', sign: '—— 鐘樓哨兵 #3',
+    text: '［報時紀錄］\n第 9,412 日：無人聆聽。照常報時。\n第 9,413 日：無人聆聽。照常報時。\n第 9,414 日：偵測到歌聲。\n錯誤：協議規定，歌聲即危險。\n查詢：協議由誰撰寫？——資料遺失。' },
+  { title: '它', sign: '—— 無名的筆記',
+    text: '它不是黑暗。它是吃光的東西。\n最後一場慶典那晚，全城一起唱歌，亮得像白天——\n亮到它在很遠很遠的地方，也看見了我們。\n於是大人熄掉了每一盞燈。\n於是我們再也不唱歌。' },
+  { title: '最後一首歌', sign: '—— 芯',
+    text: '我把最後一首歌藏起來了，藏在一顆小小的光裡。\n它會醒來，會迷路，會害怕。\n但如果有一天，有人敢在黑暗裡再唱一次——\n那就是你，對吧？\n光不是用來躲的。' },
+];
+const ENDING = {
+  normal: '你走出了所有的黑暗。\n但這座城市，依然沉默。',
+  true: '你停下腳步。第一次，不是為了躲藏。\n你唱了。\n一盞燈亮了，然後是第二盞、第三盞。\n守夜人抬起頭，鐘樓敲響了第 9,415 日。\n遠方，它也看見了。\n但這一次，沒有人熄燈。',
+};
 
 const S = 2, WALL_H = 2.2;
 let MAP, ROWS, COLS, openCells;
@@ -244,6 +299,7 @@ const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // ---------- 存檔（只存在你的瀏覽器） ----------
 let progress = { unlocked: 0, best: {} };
 try { progress = { ...progress, ...JSON.parse(localStorage.getItem('echo.progress') || '{}') }; } catch {}
+progress.frags = progress.frags || {};
 const saveProgress = () => { try { localStorage.setItem('echo.progress', JSON.stringify(progress)); } catch {} };
 
 // ---------- 渲染器與後製 ----------
@@ -509,6 +565,10 @@ const sfx = {
   alert: () => { tone('sawtooth', 110, 55, 0.5, 0.1); noise(0.5, 0.05, 300, 2); },
   lose: () => { tone('sawtooth', 220, 40, 1.4, 0.22); noise(1.4, 0.08, 200, 1); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone('sine', f, f, 1.3, 0.16), i * 130)),
+  memory: () => { const r = music.root || 50, t0 = ac ? ac.currentTime : 0;   // 八音盒般的回憶旋律
+    [0, 7, 12, 15, 19, 24].forEach((n, i) => tone('sine', midi(r + 24 + n), midi(r + 24 + n), 2.2, 0.06, i % 2 ? 0.3 : -0.3, sfxBus, t0 + i * 0.16)); },
+  dawn: () => { const t0 = ac ? ac.currentTime : 0;   // 真結局：燈一盞盞亮起的大和弦
+    [0, 4, 7, 11, 14, 19, 24].forEach((n, i) => tone('sine', midi(62 + n), midi(62 + n), 7, 0.05, (i % 3 - 1) * 0.4, sfxBus, t0 + i * 0.4)); },
   // 以下是「有位置」的聲音：戴耳機就能用耳朵判斷方向
   guardStep: (pos, hunt) => { const s = spatial(pos, 11); tone('triangle', 120, 65, 0.12, (hunt ? 0.2 : 0.12) * s.v, s.pan); },
   breath: pos => { const s = spatial(pos, 12); noise(1.2, 0.07 * s.v, 650, 1.4, s.pan); },
@@ -669,9 +729,9 @@ function corridorEnds(c, r) {
 }
 
 // ---------- 遊戲狀態 ----------
-let state = 'title'; // title | play | win | lose
+let state = 'title'; // title | play | read（閱讀殘響）| win | lose
 let level = Math.min(progress.unlocked, LEVELS.length - 1);
-let dyn, player, crystals, guards, exit, stones = [];
+let dyn, player, crystals, guards, exit, stones = [], frag = null, readT = 0, dawn = false, dawnT = 0;
 let collected, echoes, cd, stepT, glassT, playTime, stonesLeft, introT = 0;
 let lastCell = [-1, -1], playerMoving = false;
 const lastDir = new THREE.Vector3(0, 0, -1);
@@ -708,6 +768,15 @@ function resetLevel() {
     dyn.add(m);
     return { mesh: m, hum: i * 0.9, note: midi(LEVEL_MUSIC[level][1] + 24 + [0, 7, 3, 10][i % 4]) };
   });
+
+  frag = null;
+  const fc = findAll('F')[0];
+  if (fc) {
+    const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.24), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    m.position.set(fc[0] * S, 0.7, fc[1] * S);
+    dyn.add(m);
+    frag = { mesh: m, taken: false };
+  }
 
   guards = [];
   for (const type of Object.keys(GUARD_TYPES)) {
@@ -748,6 +817,7 @@ function showMsg(text, color = '#dff6ff') {
 function updateHud() {
   $('lv').textContent = `${pad(level + 1)} · ${LEVELS[level].name}`;
   $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected);
+  $('fragHud').textContent = frag ? `殘響 ${frag.taken || progress.frags[level] ? '◈' : '◇'}` : '';
   const max = LEVELS[level].stones;
   $('st').textContent = max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(max - stonesLeft)}` : '';
 }
@@ -762,6 +832,8 @@ function buildLevelButtons() {
     b.addEventListener('click', e => { e.stopPropagation(); startLevel(i); });
     box.appendChild(b);
   });
+  const found = STORY.filter((_, i) => progress.frags[i]).length;
+  $('archBtn').textContent = `殘 響　${found} / ${STORY.length}`;
   const next = Math.min(progress.unlocked, LEVELS.length - 1);
   $('titleCta').textContent = progress.unlocked > 0 ? `點 擊 繼 續 ・ 第 ${next + 1} 關` : '點 擊 開 始';
 }
@@ -771,6 +843,7 @@ function startLevel(i) {
   initAudio();
   clearTimeout(endTimer); clearTimeout(msgTimer); $('msg').style.opacity = 0;
   music.setMood(LEVEL_MUSIC[i]);
+  $('frag').classList.add('hidden'); dawn = false;
   level = i;
   loadMap(i); resetLevel();
   state = 'play';
@@ -791,6 +864,7 @@ function endIntro() {
 function goTitle() {
   clearTimeout(endTimer);
   music.setMood(TITLE_MUSIC);
+  $('frag').classList.add('hidden'); dawn = false;
   state = 'title';
   $('end').classList.add('hidden'); $('hud').classList.add('hidden'); $('intro').classList.add('hidden');
   $('title').classList.remove('hidden');
@@ -808,10 +882,15 @@ function end(win) {
     if (!b || echoes < b.echoes || (echoes === b.echoes && playTime < b.time)) progress.best[level] = { echoes, time: +playTime.toFixed(1) };
     saveProgress();
   }
-  $('endTitle').textContent = win ? (last ? '重見光明' : '逃脫') : '被發現了';
+  const found = STORY.filter((_, i) => progress.frags[i]).length, trueEnd = win && last && found === STORY.length;
+  const fragLine = frag ? `<br>殘響 ${frag.taken ? '<span class="c">◈ 已找到</span>' : progress.frags[level] ? '◈ 已收錄' : '<span class="dim">◇ 未找到</span>'}` : '';
+  const ending = !(win && last) ? '' : trueEnd ? `<div class="ending">${ENDING.true}</div>`
+    : `<div class="ending">${ENDING.normal}${found < STORY.length ? `\n<span class="dim">還有 ${STORY.length - found} 段殘響，散落在黑暗裡……</span>` : ''}</div>`;
+  if (trueEnd) { dawn = true; setTimeout(() => sfx.dawn(), 700); }
+  $('endTitle').textContent = win ? (last ? (trueEnd ? '歌' : '重見光明') : '逃脫') : '被發現了';
   $('endTitle').style.textShadow = win ? '' : '0 0 24px var(--r), 0 0 70px rgba(255,90,106,.45)';
   $('endStat').innerHTML = `${pad(level + 1)} · ${L.name}<br>時間 ${playTime.toFixed(1)} 秒　回聲 ${echoes} 次（目標 ${L.par}）` +
-    (win ? `<br><span class="g">${rank}</span>` : '') + (win && last ? '<br>你走出了所有的黑暗。' : '');
+    fragLine + (win ? `<br><span class="g">${rank}</span>` : '') + ending;
   $('endCta').textContent = !win ? '點 擊 重 試 ・ ESC 回 主 選 單' : last ? '點 擊 回 到 主 選 單' : '點 擊 進 入 下 一 關';
   $('hud').classList.add('hidden');
   clearTimeout(endTimer);
@@ -826,11 +905,47 @@ addEventListener('pointerdown', () => initAudio(), { once: true });
 addEventListener('keydown', () => initAudio(), { once: true });
 $('title').addEventListener('click', () => startLevel(Math.min(progress.unlocked, LEVELS.length - 1)));
 $('end').addEventListener('click', endClick);
-addEventListener('pointerdown', () => { if (state === 'play') endIntro(); });
+addEventListener('pointerdown', () => { if (state === 'play') endIntro(); else if (state === 'read') closeFragment(); });
+
+// ---------- 殘響（劇情碎片） ----------
+function readFragment() {
+  frag.taken = true; frag.mesh.visible = false;
+  const first = !progress.frags[level];
+  progress.frags[level] = true; saveProgress();
+  const st = STORY[level];
+  $('fTag').textContent = `殘響 ${pad(level + 1)} / ${pad(STORY.length)}` + (first ? '' : '　（已收錄）');
+  $('fName').textContent = st.title; $('fBody').textContent = st.text; $('fSign').textContent = st.sign;
+  $('frag').classList.remove('hidden');
+  state = 'read'; readT = 0.8;
+  for (const k in keys) keys[k] = false;
+  addPulse(frag.mesh.position, 6, 2.2, 1.0, 0, 0.7);
+  sfx.memory(); music.duck(4);
+  updateHud();
+}
+function closeFragment() {
+  if (state !== 'read' || readT > 0) return;
+  $('frag').classList.add('hidden');
+  state = 'play';
+}
+function openArchive() {
+  $('archList').innerHTML = STORY.map((st, i) => progress.frags[i]
+    ? `<div class="entry"><div class="ft">${pad(i + 1)} · ${LEVELS[i].name}</div><div class="fn">${st.title}</div><div class="fb">${st.text}</div><div class="fs">${st.sign}</div></div>`
+    : `<div class="entry locked"><div class="ft">${pad(i + 1)} · ${i <= progress.unlocked ? LEVELS[i].name : '？？？'}</div><div class="fn">？？？</div><div class="fb">藏在這一關的某個角落。只有回聲照得到它。</div></div>`).join('');
+  $('archive').classList.remove('hidden');
+}
+const archiveOpen = () => !$('archive').classList.contains('hidden');
+const closeArchive = () => $('archive').classList.add('hidden');
+$('archBtn').addEventListener('click', e => { e.stopPropagation(); openArchive(); });
+$('archive').addEventListener('click', closeArchive);
 
 // ---------- 輸入 ----------
 const keys = {};
 addEventListener('keydown', e => {
+  if (state === 'read') {
+    if (e.code === 'Escape') goTitle(); else if (!e.repeat) closeFragment();
+    return;
+  }
+  if (archiveOpen()) { closeArchive(); return; }
   if (e.repeat && keys[e.code]) return;
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -939,6 +1054,7 @@ function updatePlayer(dt) {
       } else showMsg(`音 核  ${collected} / ${crystals.length}`, '#ffcf6b');
     }
   }
+  if (frag && !frag.taken && flat(frag.mesh.position, player.position) < 0.8) return readFragment();
   if (exit.userData.open && flat(exit.position, player.position) < 1) end(true);
 }
 
@@ -1064,6 +1180,23 @@ function frame() {
     }
   }
   exit.rotation.y += dt * (exit.userData.open ? 1.5 : 0.3);
+  if (state === 'read') readT -= dt;
+
+  // 殘響：平常看不見，只有藍色回聲掃過或走得很近時才會閃爍
+  if (frag && !frag.taken) {
+    const m = frag.mesh, d = flat(m.position, player.position);
+    const flick = 0.75 + 0.25 * Math.sin(time * 9) * Math.sin(time * 2.3);
+    const k = Math.max(revealAt(m.position, [0]) * 1.3, d < 2.5 ? (2.5 - d) / 2.5 * 0.9 : 0) * flick;
+    m.material.color.setRGB(1.7 * k, 1.9 * k, 2.3 * k);
+    m.rotation.x += dt * 0.9; m.rotation.y += dt * 1.3;
+    m.position.y = 0.7 + Math.sin(time * 1.5) * 0.08;
+  }
+  // 真結局：整座城市一盞一盞亮起來
+  if (dawn && (dawnT -= dt) <= 0) {
+    dawnT = 0.12;
+    const [c, r] = pick(openCells);
+    addPulse({ x: c * S, z: r * S }, 6, 3, 1.0, Math.random() < 0.7 ? 1 : 0, 0.5);
+  }
 
   if (state === 'title') {
     if ((titlePulseT -= dt) <= 0) {
@@ -1104,6 +1237,7 @@ window.ECHO = {
   get state() { return state; }, get level() { return level; }, get player() { return player; },
   get guards() { return guards; }, get collected() { return collected; }, get stonesLeft() { return stonesLeft; },
   get introT() { return introT; }, get progress() { return progress; }, get time() { return time; },
+  get frag() { return frag; }, get dawn() { return dawn; }, readFragment, closeFragment, openArchive, STORY,
   audio() {
     if (!analyser) return null;
     const a = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(a);
