@@ -10,7 +10,7 @@
 | 目標平台 | Steam（Windows），考慮先上搶先體驗 |
 | 目標售價 | US$17.99～19.99 |
 | 目標遊玩時數 | 首次通關約 15 小時，加上支線與「頭七」模式約 30 小時 |
-| 目前階段 | M0 網頁原型 v0.2 完成 → 副線 F1 |
+| 目前階段 | M0 網頁原型 v0.3 完成 → 副線 F1 |
 | 原型 | [`prototype/seventh-funeral.html`](prototype/seventh-funeral.html) · [線上版](https://claude.ai/artifact/QNMBgcRS23qPTdjPvhGaVx) |
 
 ## 一段話賣點

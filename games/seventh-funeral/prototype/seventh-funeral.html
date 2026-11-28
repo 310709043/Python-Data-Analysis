@@ -116,7 +116,7 @@ body{background:var(--ink);color:var(--paper);font-family:var(--body);overflow:h
 
 <div class="layer" id="titleLayer">
   <section class="card">
-    <div class="eyebrow">Steam 個人開發企劃 · 可玩示範 v0.2</div>
+    <div class="eyebrow">Steam 個人開發企劃 · 可玩示範 v0.3</div>
     <h1>第七次葬禮<span>THE SEVENTH FUNERAL</span></h1>
     <p class="lead">村裡的規矩：死人要辦七次葬禮，釘七根鎮魂釘，才不會回來。你躺在棺材裡，聽見嗩吶響了，有人在門外喊你的名字。不要回應。</p>
     <dl class="specs">
@@ -365,9 +365,37 @@ const portraitTex = (() => { const c = cv(64, 80), g = c.getContext('2d'); g.fil
   const d = g.getImageData(0, 0, 64, 80); for (let i = 0; i < d.data.length; i += 4) { const l = d.data[i] * .3 + d.data[i + 1] * .59 + d.data[i + 2] * .11; d.data[i] = d.data[i + 1] = d.data[i + 2] = l * .9 + 10; }
   g.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.encoding = THREE.sRGBEncoding; return t; })();
 
-function spriteMesh(t, w, h) {
+/* ----- animated sprite sheets drawn in Pixelwright (48x48 frames in one row, facing right) ----- */
+const SHEET_DATA = {
+  asheng: {b64: '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', meta: {"w":2352,"anims":{"idle":[[0,156],[48,156],[96,156],[144,156],[192,156],[240,156],[288,156],[336,156],[384,156],[432,156],[480,156],[528,156],[576,156],[624,156],[672,156],[720,156]],"walk":[[768,121],[816,121],[864,121],[912,121],[960,121],[1008,121],[1056,121],[1104,121],[1152,121],[1200,121],[1248,121]],"attack":[[1296,144],[1344,144],[1392,144]],"hurt":[[1440,111],[1488,111],[1536,111]],"death":[[1584,150],[1632,150],[1680,150],[1728,150],[1776,150],[1824,150],[1872,150],[1920,150],[1968,150],[2016,150],[2064,150],[2112,150],[2160,150],[2208,150],[2256,150],[2304,150]]}}, loop: {idle: true, walk: true}},
+  jiangshi: {b64: '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', meta: {"w":1056,"anims":{"idle":[[0,320],[48,180],[96,320],[144,180]],"hop":[[192,90],[240,70],[288,70],[336,90],[384,70],[432,70],[480,90],[528,80]],"hurt":[[576,60],[624,90],[672,120]],"death":[[720,120],[768,90],[816,80],[864,70],[912,90],[960,80],[1008,600]]}}, loop: {idle: true, hop: true}}
+};
+const SHEETS = {};
+for (const [k, d] of Object.entries(SHEET_DATA)) {
+  const img = new Image(), base = new THREE.Texture(img);
+  base.magFilter = base.minFilter = THREE.NearestFilter; base.generateMipmaps = false; base.encoding = THREE.sRGBEncoding;
+  const sh = SHEETS[k] = {img, base, w: d.meta.w, anims: d.meta.anims, loop: d.loop, ready: false, pending: []};
+  img.onload = () => { sh.ready = true; base.needsUpdate = true; sh.pending.forEach(t => t.needsUpdate = true); sh.pending = []; if (k === 'asheng') refreshPortrait(img); };
+  img.src = 'data:image/png;base64,' + d.b64;
+}
+function sheetTex(sh) { const t = sh.base.clone(); t.repeat.set(48 / sh.w, 1); if (sh.ready) t.needsUpdate = true; else sh.pending.push(t); return t; }
+const ANIM_SIZE = 1.8, ANIM_PAD = 4 / 48 * ANIM_SIZE;
+function makeAnim(key) { const sh = SHEETS[key], tex = sheetTex(sh), mesh = spriteMesh(tex, ANIM_SIZE, ANIM_SIZE, ANIM_PAD);
+  const a = {sh, tex, mesh, anim: null, i: 0, t: 0, done: false}; playAnim(a, 'idle'); return a; }
+function playAnim(a, name, restart) { if (!a.sh.anims[name] || (a.anim === name && !restart)) return; a.anim = name; a.i = 0; a.t = 0; a.done = false; a.tex.offset.x = a.sh.anims[name][0][0] / a.sh.w; }
+function stepAnim(a, ms) { const fr = a.sh.anims[a.anim]; if (!fr || a.done) return; a.t += ms;
+  while (a.t >= fr[a.i][1]) { a.t -= fr[a.i][1]; if (a.i < fr.length - 1) a.i++; else if (a.sh.loop[a.anim]) a.i = 0; else { a.done = true; break; } }
+  a.tex.offset.x = fr[a.i][0] / a.sh.w; }
+function snapTex(a) { const t = a.tex.clone(); t.needsUpdate = true; t.userData.temp = true; return t; }
+function refreshPortrait(img) { const c = portraitTex.image, g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#d8d4ca'; g.fillRect(0, 0, 64, 80);
+  g.drawImage(img, 17, 5, 16, 16, 0, 8, 64, 64);
+  const d = g.getImageData(0, 0, 64, 80); for (let i = 0; i < d.data.length; i += 4) { if (d.data[i + 3] === 0) { d.data[i] = d.data[i + 1] = d.data[i + 2] = 216; d.data[i + 3] = 255; continue; }
+    const l = d.data[i] * .3 + d.data[i + 1] * .59 + d.data[i + 2] * .11; d.data[i] = d.data[i + 1] = d.data[i + 2] = l * .9 + 10; }
+  g.putImageData(d, 0, 0); portraitTex.needsUpdate = true; }
+
+function spriteMesh(t, w, h, pad = 0) {
   const mat = new THREE.MeshStandardMaterial({map: t, alphaTest: .5, side: THREE.DoubleSide, roughness: 1, metalness: 0, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: .16});
-  const geo = new THREE.PlaneGeometry(w, h); geo.translate(0, h / 2, 0);
+  const geo = new THREE.PlaneGeometry(w, h); geo.translate(0, h / 2 - pad, 0);
   const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.rotation.x = .26;
   m.customDepthMaterial = new THREE.MeshDepthMaterial({depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: .5});
   return m;
@@ -440,7 +468,7 @@ const S = {mode: 'title', funeral: 1, room: 0, wave: 0, cleared: false, dmgMul: 
   shake: 0, hurt: 0, fade: 1, fadeTarget: 0, onFade: null, talked: false, waveTimer: -1};
 const P = {x: 0, z: 0, vx: 0, vz: 0, face: 1, mdx: 1, mdz: 0, hp: 5, maxHp: 5, inv: 0, atkT: 0, combo: 0, comboT: 0, buffer: 0, dashT: 0, dashCd: 0, ddx: 0, ddz: 0,
   wailCd: 0, ghostT: 0, ashT: 0, dieT: 0, wakeT: 0, moving: false};
-const pMesh = spriteMesh(SPR.player.tex, 1, 1.5), pShadow = blob(.42); scene.add(pMesh, pShadow);
+const pAnim = makeAnim('asheng'), pMesh = pAnim.mesh, pShadow = blob(.42); scene.add(pMesh, pShadow);
 let area = null, areaGroup = null, obstacles = [], bounds = {minX: -9, maxX: 9, minZ: -6, maxZ: 6}, lights = [], flames = [], smokers = [], npcs = [], gate = null, watchers = [], banners = [], embers = [];
 const enemies = [], eProj = [], pProj = [], zones = [], fx = [], parts = [];
 let bride = null;
@@ -664,7 +692,7 @@ function updateParts(dt) {
 }
 function addFx(mesh, life, update, keepGeo) { scene.add(mesh); fx.push({mesh, life, max: life, update, keepGeo}); }
 function updateFx(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; const k = 1 - f.life / f.max;
-  if (f.life <= 0) { scene.remove(f.mesh); if (!f.keepGeo) f.mesh.geometry.dispose(); f.mesh.material.dispose(); fx.splice(i, 1); continue; } f.update(f.mesh, k); } }
+  if (f.life <= 0) { scene.remove(f.mesh); if (!f.keepGeo) f.mesh.geometry.dispose(); if (f.mesh.material.map && f.mesh.material.map.userData.temp) f.mesh.material.map.dispose(); f.mesh.material.dispose(); fx.splice(i, 1); continue; } f.update(f.mesh, k); } }
 function slashFx(dir, reach, combo) {
   const arc = combo === 3 ? 2.5 : 2.0; const geo = new THREE.RingGeometry(reach * .3, reach, 28, 1, -arc / 2, arc); geo.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color: combo === 3 ? 0xffe6a8 : 0xf6ecd8, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide}));
@@ -677,7 +705,7 @@ function ringFx(x, z, R, color, life = .4) {
   m.position.set(x, .08, z); addFx(m, life, (mm, k) => { mm.scale.setScalar(.2 + R * Math.sqrt(k)); mm.material.opacity = 1 - k; });
 }
 const ghostPool = [];
-function ghost() { const m = new THREE.Mesh(pMesh.geometry, new THREE.MeshBasicMaterial({map: SPR.player.tex, color: 0x9fd6ff, transparent: true, opacity: .5, alphaTest: .4, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending}));
+function ghost() { const m = new THREE.Mesh(pMesh.geometry, new THREE.MeshBasicMaterial({map: snapTex(pAnim), color: 0x9fd6ff, transparent: true, opacity: .5, alphaTest: .4, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending}));
   m.position.copy(pMesh.position); m.rotation.copy(pMesh.rotation); m.scale.copy(pMesh.scale); addFx(m, .26, (mm, k) => { mm.material.opacity = .5 * (1 - k); }, true); }
 
 /* ambient falling joss paper */
@@ -871,7 +899,7 @@ function roomCleared() {
 }
 function freeSpot(minD) { for (let k = 0; k < 60; k++) { const x = bounds.minX + 1.2 + Math.random() * (bounds.maxX - bounds.minX - 2.4), z = bounds.minZ + 1.2 + Math.random() * (bounds.maxZ - bounds.minZ - 2.4);
   if (Math.hypot(x - P.x, z - P.z) < minD) continue; if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + .8)) continue; return {x, z}; } return {x: 0, z: -3}; }
-function playerDie() { if (S.calling) endCall(false); S.mode = 'dying'; P.dieT = 0; S.timeScale = .3; seq.mode = 'none'; sfx.gongBig(); ui.pad.hidden = true; }
+function playerDie() { if (S.calling) endCall(false); playAnim(pAnim, 'death', true); S.mode = 'dying'; P.dieT = 0; S.timeScale = .3; seq.mode = 'none'; sfx.gongBig(); ui.pad.hidden = true; }
 function showDeath() {
   S.mode = 'dead'; S.timeScale = 1;
   $('endEyebrow').textContent = `第${CN[Math.min(S.funeral, 10)]}次葬禮 · 結束`; $('endTitle').textContent = DEATH_LINES[Math.min(S.funeral, 7) - 1];
@@ -889,10 +917,10 @@ $('endBtn').onclick = () => { ui.end.hidden = true; if (S.endAction === 'death')
 
 /* ================= combat ================= */
 const ETYPES = {puppet: {spr: SPR.puppet, w: 1, h: 1.5, hp: 4, r: .38, speed: 2.7}, effigy: {spr: SPR.effigy, w: 1, h: 1.5, hp: 3, r: .36, speed: 2.3},
-  jiangshi: {spr: SPR.jiangshi, w: 1, h: 1.5, hp: 6, r: .36, speed: 3.3}, bride: {spr: SPR.bride, w: 1.1, h: 1.47, hp: 10, r: .38, speed: 2.8}, boss: {spr: SPR.boss, w: 2.7, h: 2.7, hp: 46, r: .95, speed: 2.0}};
+  jiangshi: {spr: SPR.jiangshi, sheet: 'jiangshi', w: ANIM_SIZE, h: ANIM_SIZE, hp: 6, r: .36, speed: 3.3}, bride: {spr: SPR.bride, w: 1.1, h: 1.47, hp: 10, r: .38, speed: 2.8}, boss: {spr: SPR.boss, w: 2.7, h: 2.7, hp: 46, r: .95, speed: 2.0}};
 function spawnEnemy(type, x, z, delay = 0) {
-  const T = ETYPES[type], mesh = spriteMesh(T.spr.tex, T.w, T.h), shadow = blob(T.w * .42); mesh.visible = false; scene.add(mesh, shadow);
-  const e = {type, mesh, shadow, x, z, hp: T.hp, maxHp: T.hp, r: T.r, speed: T.speed, state: 'spawn', t: .8 + delay, delay, cd: 1 + Math.random(), face: 1, kvx: 0, kvz: 0, flash: 0, alive: true, dieT: 0, h: T.h, strafe: Math.random() < .5 ? 1 : -1, summoned: false};
+  const T = ETYPES[type], an = T.sheet ? makeAnim(T.sheet) : null, mesh = an ? an.mesh : spriteMesh(T.spr.tex, T.w, T.h), shadow = blob(an ? .42 : T.w * .42); mesh.visible = false; scene.add(mesh, shadow);
+  const e = {type, an, mesh, shadow, x, z, hp: T.hp, maxHp: T.hp, r: T.r, speed: T.speed, state: 'spawn', t: .8 + delay, delay, cd: 1 + Math.random(), face: 1, kvx: 0, kvz: 0, flash: 0, alive: true, dieT: 0, h: T.h, strafe: Math.random() < .5 ? 1 : -1, summoned: false};
   if (type === 'boss') { const tg = new THREE.CircleGeometry(2.8, 48); tg.rotateX(-Math.PI / 2); e.tele = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({color: 0xff2a1a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false}));
     e.tele.position.y = .05; scene.add(e.tele);
     const lg = new THREE.PlaneGeometry(1, 1.8); lg.rotateX(-Math.PI / 2); lg.translate(.5, 0, 0); e.line = new THREE.Mesh(lg, new THREE.MeshBasicMaterial({color: 0xff2a1a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false}));
@@ -921,7 +949,7 @@ function seal(e) {
   e.sealed = dur; sfx.seal(); burst(e.x, 1.1, e.z, 8, 'paper');
   if (e.type === 'boss') { e.state = 'recover'; e.t = 0; e.tele.material.opacity = 0; e.line.material.opacity = 0; } else if (e.state !== 'spawn') { e.state = 'chase'; e.t = 0; }
   if (!e.tal) { e.tal = new THREE.Mesh(new THREE.PlaneGeometry(.2 * (e.type === 'boss' ? 1.8 : 1), .44 * (e.type === 'boss' ? 1.8 : 1)), new THREE.MeshBasicMaterial({map: talTex, side: THREE.DoubleSide}));
-    e.tal.position.set(.08, e.h * .8, .03); e.mesh.add(e.tal); }
+    e.tal.position.set(.06, e.an ? e.h * .62 : e.h * .8, .03); e.mesh.add(e.tal); }
   e.tal.visible = true;
   if (e.type === 'jiangshi') toast('定身符貼上了。它不動了。', 1400);
 }
@@ -932,7 +960,7 @@ function attack() {
   if (P.atkT > 0 || P.dashT > 0) { P.buffer = .2; return; }
   const dir = aimDir(); if (Math.abs(dir.x) > .15) P.face = dir.x > 0 ? 1 : -1;
   P.combo = P.comboT > 0 ? (P.combo % 3) + 1 : 1; P.comboT = .6; const c3 = P.combo === 3;
-  P.atkT = c3 ? .34 : .22; const reach = c3 ? 2.0 : 1.65, arc = c3 ? 2.5 : 2.0, dmg = (c3 ? 2 : 1) * S.dmgMul;
+  P.atkT = c3 ? .34 : .22; playAnim(pAnim, 'attack', true); const reach = c3 ? 2.0 : 1.65, arc = c3 ? 2.5 : 2.0, dmg = (c3 ? 2 : 1) * S.dmgMul;
   slashFx(dir, reach, P.combo); sfx.swing(P.combo); P.vx += dir.x * (c3 ? 6 : 4); P.vz += dir.z * (c3 ? 6 : 4);
   const ad = Math.atan2(dir.z, dir.x);
   for (const e of enemies) { if (!e.alive || e.state === 'spawn') continue; const dx = e.x - P.x, dz = e.z - P.z, d = Math.hypot(dx, dz);
@@ -952,15 +980,15 @@ function wail() {
 }
 function hitEnemy(e, dmg, nx, nz, kb) {
   if (!e.alive || e.state === 'spawn') return; if (e.state === 'stunned' || e.sealed > 0) dmg *= 1.5;
-  e.hp -= dmg; e.flash = .13; const m = e.type === 'boss' ? .12 : 1; e.kvx += nx * kb * m; e.kvz += nz * kb * m;
+  e.hp -= dmg; e.flash = .13; if (e.an && e.hp > 0 && !(e.sealed > 0)) { playAnim(e.an, 'hurt', true); e.hurtA = .27; } const m = e.type === 'boss' ? .12 : 1; e.kvx += nx * kb * m; e.kvz += nz * kb * m;
   S.hitstop = Math.max(S.hitstop, .05); sfx.hit(); burst(e.x, .9, e.z, 6, 'paper'); burst(e.x, .9, e.z, 5, 'spark');
   if (e.type === 'boss') ui.bossHp.style.width = Math.max(0, e.hp / e.maxHp * 100) + '%';
-  if (e.hp <= 0) { e.alive = false; e.dieT = 0; sfx.die(); burst(e.x, .8, e.z, 26, 'paper'); burst(e.x, .5, e.z, 4, 'smoke'); if (e.tele) { e.tele.material.opacity = 0; e.line.material.opacity = 0; } }
+  if (e.hp <= 0) { e.alive = false; e.dieT = 0; if (e.an) { playAnim(e.an, 'death', true); if (e.tal) e.tal.visible = false; } sfx.die(); burst(e.x, .8, e.z, 26, 'paper'); burst(e.x, .5, e.z, 4, 'smoke'); if (e.tele) { e.tele.material.opacity = 0; e.line.material.opacity = 0; } }
 }
 function hurtPlayer(src) {
   if (P.inv > 0 || P.dashT > 0 || S.mode !== 'run') return;
   if (S.boons.robe && Math.random() < .3) { P.inv = .5; sfx.dodge(); ringFx(P.x, P.z, 1.2, 0xffffff, .3); return; }
-  P.hp--; P.inv = .9; S.hurt = 1; S.shake = Math.max(S.shake, .35); S.hitstop = .08; sfx.hurt(); const dx = P.x - src.x, dz = P.z - src.z, d = Math.hypot(dx, dz) || 1;
+  P.hp--; P.hurtA = .33; playAnim(pAnim, 'hurt', true); P.inv = .9; S.hurt = 1; S.shake = Math.max(S.shake, .35); S.hitstop = .08; sfx.hurt(); const dx = P.x - src.x, dz = P.z - src.z, d = Math.hypot(dx, dz) || 1;
   P.vx += dx / d * 7; P.vz += dz / d * 7; burst(P.x, .9, P.z, 10, 'blood'); hudHp(); if (P.hp <= 0) playerDie();
 }
 const projGeo = new THREE.PlaneGeometry(1, 1);
@@ -976,6 +1004,7 @@ function collide(o, r) { let hit = false; const x0 = o.x, z0 = o.z;
   return hit; }
 
 function updateEnemy(e, dt) {
+  if (!e.alive && e.an) { e.dieT += dt; stepAnim(e.an, dt * 1000); e.shadow.material.opacity = Math.max(0, 1 - e.dieT / 1.6); e.mesh.material.emissiveIntensity = .16; return e.dieT > 1.6; }
   if (!e.alive) { e.dieT += dt; const k = Math.min(1, e.dieT / .45); e.mesh.scale.set(e.face * (1 + k * .4), 1 - k, 1); e.mesh.material.opacity = 1; e.shadow.material.opacity = 1 - k; return e.dieT > .5; }
   e.flash = Math.max(0, e.flash - dt); e.t -= dt; e.cd -= dt;
   const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1e-3, ux = dx / d, uz = dz / d;
@@ -990,9 +1019,9 @@ function updateEnemy(e, dt) {
     else if (e.t <= 0) e.state = 'chase';
   } else if (e.type === 'jiangshi') {
     e.hopT = (e.hopT || 0) - dt;
-    if (e.hopT <= 0) { e.big = d < 4 && Math.random() < .35; e.hopDur = e.big ? .95 : .62; e.hopT = e.hopDur; e.hdx = ux; e.hdz = uz; e.face = dx > 0 ? 1 : -1; if (e.big) sfx.windup(); else if (d < 9) sfx.land(); }
+    if (e.hopT <= 0) { e.big = d < 4 && Math.random() < .35; e.hopDur = e.big ? .95 : .62; e.hopT = e.hopDur; e.hdx = ux; e.hdz = uz; if (!(e.hurtA > 0)) playAnim(e.an, 'hop', true); e.face = dx > 0 ? 1 : -1; if (e.big) sfx.windup(); else if (d < 9) sfx.land(); }
     const ph = 1 - e.hopT / e.hopDur, air = e.big ? ph > .35 : ph < .62;
-    if (air) { const sp = e.big ? 7.5 : e.speed; mvx = e.hdx * sp; mvz = e.hdz * sp; const k = e.big ? (ph - .35) / .65 : ph / .62; e.hopY = Math.sin(k * Math.PI) * (e.big ? .75 : .32); }
+    if (air) { const sp = e.big ? 7.5 : e.speed; mvx = e.hdx * sp; mvz = e.hdz * sp; const k = e.big ? (ph - .35) / .65 : ph / .62; e.hopY = Math.sin(k * Math.PI) * (e.big ? .7 : .14); }
     if (e.big && ph < .35) tint = 1;
     if (d < e.r + .42 && e.cd <= 0) { hurtPlayer(e); e.cd = 1; }
   } else if (e.type === 'bride') {
@@ -1028,6 +1057,8 @@ function updateEnemy(e, dt) {
   const sp = e.state === 'spawn' ? Math.min(1, Math.max(0, 1 - (e.t - .0) / .8)) : 1;
   e.mesh.position.set(e.x, (sp - 1) * e.h + bob, e.z); e.mesh.scale.set(e.face * (1 + (tint ? Math.sin(T * 40) * .03 : 0)), 1 - (tint ? .06 : 0), 1);
   e.shadow.position.set(e.x, .015, e.z); e.shadow.visible = e.mesh.visible;
+  if (e.an) { e.hurtA = (e.hurtA || 0) - dt;
+    if (!sealed) { if (e.state === 'spawn') playAnim(e.an, 'idle'); else if (e.an.anim === 'hurt' && e.hurtA <= 0) playAnim(e.an, 'hop', true); stepAnim(e.an, dt * 1000 * (e.big && e.an.anim === 'hop' ? .66 : 1)); } }
   const mat = e.mesh.material;
   if (e.flash > 0) { mat.emissive.setHex(0xffffff); mat.emissiveIntensity = 1.3; }
   else if (sealed) { mat.emissive.setHex(0xffd27a); mat.emissiveIntensity = .35; e.mesh.position.x += Math.sin(T * 50) * .015; }
@@ -1083,12 +1114,15 @@ function updatePlayer(dt) {
 function addZone(x, z) { const g = new THREE.CircleGeometry(.45, 16); g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color: 0xff6a20, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false})); m.position.set(x, .03, z); scene.add(m);
   zones.push({x, z, life: 2, tick: 0, mesh: m}); }
-function drawPlayer() {
-  let y = 0, sx = 1, sy = 1, rz = 0;
+function drawPlayer(dt) {
+  let y = 0, sx = 1, sy = 1, rz = 0, anim = 'idle', speed = 1;
   if (S.mode === 'wake' || S.mode === 'title') { const k = clamp((P.wakeT - .6) / 1.2, 0, 1); rz = (1 - k) * -Math.PI / 2; y = .55 * (1 - k) + .1 * Math.sin(k * Math.PI); }
-  else if (S.mode === 'dying' || S.mode === 'dead') { const k = clamp(P.dieT / .8, 0, 1); rz = -k * 1.45; y = 0; }
-  else { if (P.moving && P.dashT <= 0) { y = Math.abs(Math.sin(T * 11)) * .07; sy = 1 + Math.sin(T * 22) * .02; } if (P.atkT > 0) { sx = 1.08; sy = .95; } if (P.dashT > 0) { sx = 1.2; sy = .85; } }
-  pMesh.position.set(P.x + (S.mode === 'wake' ? 0 : 0), y, P.z); pMesh.scale.set(P.face * sx, sy, 1); pMesh.rotation.z = rz;
+  else if (S.mode === 'dying' || S.mode === 'dead') { anim = 'death'; speed = S.mode === 'dying' ? 1.6 : 1; }
+  else { P.hurtA = (P.hurtA || 0) - dt;
+    if (P.hurtA > 0) anim = 'hurt'; else if (P.atkT > 0) { anim = 'attack'; speed = 1.7; } else if (P.moving || P.dashT > 0) anim = 'walk';
+    if (P.dashT > 0) { sx = 1.15; sy = .9; } }
+  playAnim(pAnim, anim); stepAnim(pAnim, dt * 1000 * speed);
+  pMesh.position.set(P.x, y, P.z); pMesh.scale.set(P.face * sx, sy, 1); pMesh.rotation.z = rz;
   pMesh.visible = !(P.inv > 0 && P.dashT <= 0 && S.mode === 'run' && Math.floor(T * 20) % 2 === 0);
   pShadow.position.set(P.x, .015, P.z);
 }
@@ -1132,7 +1166,7 @@ function frame() {
     }
   }
   if (S.mode === 'dying') { P.dieT += raw; if (P.dieT > 1.8 && !S.onFade) transition(showDeath); for (const e of enemies) if (e.alive) { e.mesh.material.emissiveIntensity = .16; } }
-  drawPlayer();
+  drawPlayer(dt);
   for (const n of npcs) { if (n.kind === 'mother') n.mesh.rotation.z = Math.sin(T * 9 + n.ph) * .025 * (Math.sin(T * .7) > 0 ? 1 : .2); if (n.kind === 'mourner') n.mesh.position.y = Math.abs(Math.sin(T * 2 + n.ph)) * .02; }
   if (gate && gate.barrier) gate.barrier.material.opacity = S.cleared ? .5 + Math.sin(T * 3) * .15 : .25 + Math.sin(T * 2) * .08;
   for (const l of lights) l.l.intensity = l.base * (1 + Math.sin(T * 9 + l.ph) * l.amp + Math.sin(T * 23 + l.ph) * l.amp * .8);
