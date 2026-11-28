@@ -56,15 +56,22 @@ def device_hash(x_device_id: str | None = Header(default=None)) -> str | None:
     return keyed_hash("device:" + x_device_id[:128])
 
 
-def get_current_user(
+def get_current_session(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
-) -> User:
+) -> AuthSession:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "missing_token")
     sess = db.get(AuthSession, token_hash(authorization.removeprefix("Bearer ").strip()))
     if sess is None or sess.expires_at <= clock.now():
         raise HTTPException(401, "invalid_token")
+    return sess
+
+
+def get_current_user(
+    sess: AuthSession = Depends(get_current_session),
+    db: Session = Depends(get_db),
+) -> User:
     user = db.get(User, sess.user_id)
     if user is None or user.deleted_at is not None:
         raise HTTPException(401, "invalid_token")

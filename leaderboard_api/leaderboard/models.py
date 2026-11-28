@@ -39,6 +39,8 @@ class User(Base):
     consent_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: clock.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # 上次排程計算時的「本月」名次，用來判斷排名有沒有上升（排名上升通知）。
+    last_month_rank: Mapped[int | None] = mapped_column(Integer)
 
 
 class OtpCode(Base):
@@ -65,6 +67,21 @@ class AuthSession(Base):
     device_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class DeviceSighting(Base):
+    """這個帳號用過的裝置（雜湊）。登入時記錄，登出不會刪除。
+
+    防作弊要靠它判斷「同一台裝置登入過雙方帳號」。如果只看登入 token，
+    作弊的人登出就能把痕跡清掉。刪除帳號時才會一起刪除。
+    """
+
+    __tablename__ = "device_sightings"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    device_hash: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class PartnerLink(Base):
@@ -127,3 +144,28 @@ class Encounter(Base):
     responded_at: Mapped[datetime | None] = mapped_column(DateTime)
     initiator_device_hash: Mapped[str | None] = mapped_column(String(64))
     partner_device_hash: Mapped[str | None] = mapped_column(String(64))
+
+
+class Notification(Base):
+    """站內通知。只存 id 參照，不存對方暱稱：對方刪除帳號後，通知裡就不會再顯示是誰。
+
+    kind:
+        partner_request / partner_accepted
+        encounter_pending / encounter_confirmed / encounter_expired
+        review_cleared / review_voided
+        age_verified / rank_up
+    data: JSON 字串，例如 {"date": "11/19"} 或 {"rank": 12}
+    """
+
+    __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notif_user_created", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(32))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    encounter_id: Mapped[int | None] = mapped_column(ForeignKey("encounters.id", ondelete="SET NULL"))
+    link_id: Mapped[int | None] = mapped_column(ForeignKey("partner_links.id", ondelete="SET NULL"))
+    data: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)

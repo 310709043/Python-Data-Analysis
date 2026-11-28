@@ -23,6 +23,7 @@ CREATE TABLE users (
 	consent_at TIMESTAMP WITHOUT TIME ZONE, 
 	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
 	deleted_at TIMESTAMP WITHOUT TIME ZONE, 
+	last_month_rank INTEGER, 
 	PRIMARY KEY (id), 
 	UNIQUE (nickname), 
 	UNIQUE (phone_hash)
@@ -41,6 +42,17 @@ CREATE TABLE auth_sessions (
 
 CREATE INDEX ix_auth_sessions_device_hash ON auth_sessions (device_hash);
 CREATE INDEX ix_auth_sessions_user_id ON auth_sessions (user_id);
+
+CREATE TABLE device_sightings (
+	user_id INTEGER NOT NULL, 
+	device_hash VARCHAR(64) NOT NULL, 
+	first_seen_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	last_seen_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	PRIMARY KEY (user_id, device_hash), 
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_device_sightings_device_hash ON device_sightings (device_hash);
 
 CREATE TABLE encounters (
 	id SERIAL NOT NULL, 
@@ -81,4 +93,23 @@ CREATE TABLE partner_links (
 	FOREIGN KEY(requested_by) REFERENCES users (id) ON DELETE CASCADE
 );
 
+
+CREATE TABLE notifications (
+	id SERIAL NOT NULL, 
+	user_id INTEGER NOT NULL, 
+	kind VARCHAR(32) NOT NULL, 
+	actor_id INTEGER, 
+	encounter_id INTEGER, 
+	link_id INTEGER, 
+	data VARCHAR(255), 
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	read_at TIMESTAMP WITHOUT TIME ZONE, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE, 
+	FOREIGN KEY(actor_id) REFERENCES users (id) ON DELETE SET NULL, 
+	FOREIGN KEY(encounter_id) REFERENCES encounters (id) ON DELETE SET NULL, 
+	FOREIGN KEY(link_id) REFERENCES partner_links (id) ON DELETE SET NULL
+);
+
+CREATE INDEX ix_notif_user_created ON notifications (user_id, created_at);
 

@@ -10,8 +10,10 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from . import clock
 from .config import PRIVACY_POLICY_VERSION
-from .models import AuthSession, Encounter, PartnerLink, User
+from .models import DeviceSighting, Encounter, PartnerLink, User
+from .notifications import encounter_date, notify
 
 # ── 時間規則 ────────────────────────────────────────────
 CONFIRM_WINDOW = timedelta(hours=24)  # 對方要在多久內確認
@@ -19,7 +21,7 @@ MAX_BACKDATE = timedelta(days=7)  # 最多補記幾天前的紀錄
 MAX_FUTURE_SKEW = timedelta(minutes=5)  # 容許的手機時鐘誤差
 MIN_INTERVAL = timedelta(minutes=30)  # 同一人兩筆紀錄的最短間隔
 DAILY_CAP = 5  # 同一人每天（台灣時間）最多幾筆
-LOCAL_UTC_OFFSET = timedelta(hours=8)  # 「每天」以台灣時間切換
+LOCAL_UTC_OFFSET = clock.LOCAL_UTC_OFFSET  # 「每天」以台灣時間切換
 
 # ── 排行榜 ─────────────────────────────────────────────
 LEADERBOARD_PROBATION = timedelta(days=30)  # 新帳號滿 30 天才上榜
@@ -67,11 +69,32 @@ def local_day_bounds(t: datetime) -> tuple[datetime, datetime]:
 
 
 def expire_stale(db: Session, now: datetime) -> None:
-    db.execute(
-        update(Encounter)
-        .where(Encounter.status == "pending", Encounter.expires_at <= now)
-        .values(status="expired")
-    )
+    """把超過確認期限的紀錄改成 expired，並通知發起人。
+
+    逐筆用「status 還是 pending 才更新」的條件更新，兩個請求同時跑時，
+    只有真的改到那一筆的請求會發通知，不會重複通知。
+    """
+    stale = db.scalars(
+        select(Encounter).where(Encounter.status == "pending", Encounter.expires_at <= now)
+    ).all()
+    for enc in stale:
+        res = db.execute(
+            update(Encounter)
+            .where(Encounter.id == enc.id, Encounter.status == "pending")
+            .values(status="expired")
+            .execution_options(synchronize_session=False)
+        )
+        if res.rowcount == 1:
+            notify(
+                db,
+                enc.initiator_id,
+                "encounter_expired",
+                actor_id=enc.partner_id,
+                encounter_id=enc.id,
+                data={"date": encounter_date(enc)},
+            )
+    if stale:
+        db.expire_all()
 
 
 # ── 硬性規則 ───────────────────────────────────────────
@@ -170,14 +193,8 @@ def check_capacity(db: Session, user_id: int, occurred_at: datetime, exclude_id:
 
 
 def user_devices(db: Session, user_id: int) -> set[str]:
-    """這個帳號用過的所有裝置雜湊（登入紀錄 + 記錄／確認時的裝置）。"""
-    devices = set(
-        db.scalars(
-            select(AuthSession.device_hash).where(
-                AuthSession.user_id == user_id, AuthSession.device_hash.is_not(None)
-            )
-        )
-    )
+    """這個帳號用過的所有裝置雜湊（登入紀錄 + 記錄／確認時的裝置）。登出不會清掉。"""
+    devices = set(db.scalars(select(DeviceSighting.device_hash).where(DeviceSighting.user_id == user_id)))
     devices |= set(
         db.scalars(
             select(Encounter.initiator_device_hash).where(
@@ -309,8 +326,8 @@ def detect_rings(db: Session, now: datetime) -> list[list[int]]:
 PERIODS = {"week": timedelta(days=7), "month": timedelta(days=30), "all": None}
 
 
-def leaderboard(db: Session, now: datetime, period: str, limit: int) -> list[tuple[int, str, int]]:
-    """回傳 [(名次, 暱稱, 次數)]。同分同名次。
+def leaderboard(db: Session, now: datetime, period: str, limit: int | None) -> list[tuple[int, int, str, int]]:
+    """回傳 [(名次, 使用者 id, 暱稱, 次數)]。同分同名次。limit=None 表示全部。
 
     只計算：雙方確認 + 沒被標記（或審核通過）+ 本人願意公開 + 年齡已驗證 + 帳號滿試用期。
     """
@@ -326,8 +343,8 @@ def leaderboard(db: Session, now: datetime, period: str, limit: int) -> list[tup
     ).subquery()
 
     count_col = func.count().label("n")
-    rows = db.execute(
-        select(User.nickname, count_col)
+    query = (
+        select(User.id, User.nickname, count_col)
         .join(sides, sides.c.uid == User.id)
         .where(
             User.show_on_leaderboard.is_(True),
@@ -337,12 +354,37 @@ def leaderboard(db: Session, now: datetime, period: str, limit: int) -> list[tup
         )
         .group_by(User.id, User.nickname)
         .order_by(count_col.desc(), User.id)
-        .limit(limit)
-    ).all()
+    )
+    if limit is not None:
+        query = query.limit(limit)
+    rows = db.execute(query).all()
 
     result, rank, prev = [], 0, None
-    for i, (nickname, n) in enumerate(rows, start=1):
+    for i, (uid, nickname, n) in enumerate(rows, start=1):
         if n != prev:
             rank, prev = i, n
-        result.append((rank, nickname, n))
+        result.append((rank, uid, nickname, n))
     return result
+
+
+def notify_rank_changes(db: Session, now: datetime) -> int:
+    """比較「本月」名次和上次排程算的名次，名次上升的人發一則通知。回傳發了幾則。
+
+    建議每天排程跑一次（呼叫 POST /admin/jobs/rank-notifications）。
+    第一次上榜只記錄名次、不發通知；掉出排行榜的人名次清空。
+    """
+    rows = leaderboard(db, now, "month", None)
+    on_board: set[int] = set()
+    sent = 0
+    for rank, uid, _nickname, _n in rows:
+        on_board.add(uid)
+        user = db.get(User, uid)
+        if user.last_month_rank is not None and rank < user.last_month_rank:
+            notify(db, uid, "rank_up", data={"rank": rank})
+            sent += 1
+        user.last_month_rank = rank
+    reset = update(User).where(User.last_month_rank.is_not(None))
+    if on_board:
+        reset = reset.where(User.id.not_in(on_board))
+    db.execute(reset.values(last_month_rank=None).execution_options(synchronize_session=False))
+    return sent
