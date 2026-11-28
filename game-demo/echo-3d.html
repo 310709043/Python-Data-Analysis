@@ -5,33 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ECHO 回聲 — 3D Demo</title>
 <style>
-  :root { --c: #7fe9ff; --g: #ffcf6b; --r: #ff5a6a; }
+  :root { --c: #7fe9ff; --g: #ffcf6b; --r: #ff5a6a; --p: #c49bff; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
     font-family: "Helvetica Neue", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: #dff6ff; }
   canvas { display: block; }
+  .g { color: var(--g); } .r { color: var(--r); } .p { color: var(--p); } .c { color: var(--c); }
   #vig { position: fixed; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.75)); }
   .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; background: radial-gradient(ellipse at center, rgba(0,0,0,.1), rgba(0,0,0,.8));
     transition: opacity .9s ease; cursor: pointer; user-select: none; }
-  .hidden { opacity: 0; pointer-events: none; }
+  .hidden { opacity: 0 !important; pointer-events: none !important; }
   .logo { font-weight: 200; font-size: min(15vw, 128px); letter-spacing: .5em; margin-right: -.5em; color: #fff;
     text-shadow: 0 0 24px var(--c), 0 0 70px rgba(127,233,255,.45); }
   .sub { margin-top: 6px; letter-spacing: .35em; font-weight: 300; opacity: .85; }
-  .keys { margin-top: 48px; font-size: 13px; letter-spacing: .15em; opacity: .65; line-height: 2.2; }
+  .keys { margin-top: 36px; font-size: 13px; letter-spacing: .15em; opacity: .65; line-height: 2.2; }
   .k { display: inline-block; border: 1px solid rgba(223,246,255,.35); padding: 0 8px; margin: 0 4px; border-radius: 3px; line-height: 1.6; }
-  .cta { margin-top: 44px; font-size: 13px; letter-spacing: .5em; animation: breath 2.4s ease-in-out infinite; }
+  .cta { margin-top: 36px; font-size: 13px; letter-spacing: .5em; animation: breath 2.4s ease-in-out infinite; }
   @keyframes breath { 50% { opacity: .25; } }
+  #levels { margin-top: 34px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+  .lv { background: rgba(0,0,0,.35); border: 1px solid rgba(127,233,255,.3); color: #dff6ff; padding: 10px 14px; min-width: 76px;
+    font: inherit; font-size: 12px; letter-spacing: .2em; cursor: pointer; transition: all .25s; }
+  .lv b { display: block; font-weight: 200; font-size: 20px; letter-spacing: .1em; margin-bottom: 2px; }
+  .lv:hover:not(:disabled) { border-color: var(--c); box-shadow: 0 0 16px rgba(127,233,255,.35); }
+  .lv:disabled { opacity: .25; cursor: default; }
+  .lv .done { color: var(--g); }
   #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .8s; }
-  .tl { position: absolute; top: 26px; left: 30px; font-size: 12px; letter-spacing: .6em; opacity: .6; }
+  .tl { position: absolute; top: 24px; left: 30px; font-size: 12px; letter-spacing: .45em; opacity: .7; }
   .tr { position: absolute; top: 20px; right: 30px; font-size: 22px; letter-spacing: .45em; color: var(--g);
     text-shadow: 0 0 12px rgba(255,207,107,.7); }
-  .bc { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 200px; }
+  .br { position: absolute; bottom: 32px; right: 30px; font-size: 12px; letter-spacing: .3em; opacity: .8; }
+  .bc { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 240px; }
   .bar { height: 2px; background: rgba(127,233,255,.15); }
   #cd { height: 100%; width: 100%; background: var(--c); box-shadow: 0 0 10px var(--c); }
-  .hint { margin-top: 12px; font-size: 11px; letter-spacing: .3em; opacity: .5; text-align: center; }
+  .hint { margin-top: 12px; font-size: 11px; letter-spacing: .25em; opacity: .5; text-align: center; white-space: nowrap; }
   #msg { position: absolute; top: 17%; width: 100%; text-align: center; font-size: 14px; letter-spacing: .45em;
     opacity: 0; transition: opacity .6s; }
+  #intro { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; pointer-events: none; transition: opacity 1s; background: rgba(0,0,0,.55); }
+  #intro .num { font-size: 13px; letter-spacing: .8em; opacity: .6; margin-right: -.8em; }
+  #intro .name { font-size: min(10vw, 64px); font-weight: 200; letter-spacing: .4em; margin: 12px -.4em 18px 0; color: #fff;
+    text-shadow: 0 0 24px var(--c); }
+  #intro .desc { font-size: 15px; letter-spacing: .18em; line-height: 2.1; font-weight: 300; max-width: 90vw; }
+  #intro .skip { margin-top: 36px; font-size: 11px; letter-spacing: .4em; opacity: .45; }
   .stat { margin-top: 22px; letter-spacing: .25em; font-weight: 300; line-height: 2.1; }
 </style>
 <script type="importmap">
@@ -45,27 +61,36 @@
 <div id="vig"></div>
 
 <div id="hud" class="hidden">
-  <div class="tl">E C H O</div>
-  <div class="tr" id="cr">◇◇◇</div>
+  <div class="tl" id="lv"></div>
+  <div class="tr" id="cr"></div>
+  <div class="br" id="st"></div>
   <div id="msg"></div>
-  <div class="bc"><div class="bar"><div id="cd"></div></div><div class="hint">SPACE 回聲 ・ SHIFT 潛行</div></div>
+  <div class="bc"><div class="bar"><div id="cd"></div></div>
+    <div class="hint">SPACE 回聲 ・ SHIFT 潛行 ・ E 丟石頭 ・ R 重來</div></div>
+</div>
+
+<div id="intro" class="hidden">
+  <div class="num" id="inNum"></div>
+  <div class="name" id="inName"></div>
+  <div class="desc" id="inDesc"></div>
+  <div class="skip">按任意鍵開始</div>
 </div>
 
 <div id="title" class="overlay">
   <div class="logo">ECHO</div>
   <div class="sub">在黑暗中，聲音是你唯一的眼睛</div>
   <div class="keys">
-    <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 發出回聲　<span class="k">SHIFT</span> 潛行（無腳步聲）<br>
-    找到三顆 <span style="color:var(--g)">金色音核</span>，抵達出口<br>
-    但小心 — <span style="color:var(--r)">守衛</span> 也聽得見你
+    <span class="k">WASD</span> 移動　<span class="k">SPACE</span> 回聲　<span class="k">SHIFT</span> 潛行　<span class="k">E</span> 丟石頭<br>
+    找到所有 <span class="g">金色音核</span>，抵達出口 — 但牠們也聽得見你
   </div>
-  <div class="cta">點 擊 開 始</div>
+  <div id="levels"></div>
+  <div class="cta" id="titleCta">點 擊 開 始</div>
 </div>
 
 <div id="end" class="overlay hidden">
   <div class="logo" id="endTitle" style="font-size:min(9vw,72px)"></div>
   <div class="stat" id="endStat"></div>
-  <div class="cta">點 擊 重 新 開 始</div>
+  <div class="cta" id="endCta"></div>
 </div>
 
 <script type="module">
@@ -77,53 +102,150 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // =====================================================================
-//  ECHO 回聲 — 3D 玩法原型
+//  ECHO 回聲 — 3D 玩法原型（6 關 + 4 種守衛）
 //  核心創意：世界完全黑暗，「聲音」就是視覺。
-//    - 你的回聲會照亮四周，但守衛也會循聲而來（看得見 vs. 被聽見 的取捨）
-//    - 金色音核會自己發出嗡鳴，讓你判斷方向
-//    - 守衛的腳步聲是紅色波紋，你能「聽」到牠們在哪
-//  新手修改建議：先只改 CONFIG 和 MAP，存檔後重新整理。
+//  新手修改建議：先改 CONFIG、GUARD_TYPES 的數字，或在 LEVELS 畫新地圖。
 // =====================================================================
 const CONFIG = {
   moveSpeed: 4.2,       // 一般移動速度
-  sneakSpeed: 2.0,      // 潛行速度（不會有腳步聲）
+  sneakSpeed: 2.0,      // 潛行速度（沒有腳步聲）
   echoSpeed: 9,         // 回聲擴散速度
   echoLife: 2.8,        // 回聲持續秒數
   echoCooldown: 1.2,    // 回聲冷卻秒數
-  echoHearing: 13,      // 守衛能聽見回聲的距離
-  stepHearing: 4,       // 守衛能聽見腳步的距離
-  guardSpeed: 2.0,      // 守衛巡邏速度
-  guardHuntSpeed: 3.5,  // 守衛追擊速度
-  bloom: 0.95,          // 發光強度（高級感的關鍵之一）
+  stoneRange: 7,        // 石頭最遠丟多遠
+  bloom: 0.95,          // 發光強度
 };
 
-// 地圖：# 牆　. 地板　P 玩家　C 音核　G 守衛　E 出口
-const MAP = [
-  '###############',
-  '#P....#.......#',
-  '#.###.#.#####.#',
-  '#.#C..#...#C..#',
-  '#.#####.#.#.###',
-  '#.......#.#...#',
-  '###.#####.###.#',
-  '#...#..G#...#.#',
-  '#.#.#.#.###.#.#',
-  '#.#...#.....#.#',
-  '#.#####.###.#.#',
-  '#C....#..G#..E#',
-  '###############',
+// 守衛種類。hear = 各種聲音能被聽見的距離（沒寫 = 聽不見）
+const GUARD_TYPES = {
+  G: { name: '巡守者', speed: 2.0, hunt: 3.5, chaseNear: 2.8, color: [2.4, 0.35, 0.45],
+       hear: { echo: 13, step: 4, glass: 9, stone: 10 } },
+  L: { name: '盲聽者', speed: 2.0, hunt: 4.3, chaseNear: 0, color: [2.4, 0.75, 0.25],
+       hear: { echo: 24, step: 7.5, glass: 15, stone: 15 } },
+  T: { name: '哨兵', speed: 1.5, hunt: 3.6, chaseNear: 0, color: [2.4, 0.25, 1.0],
+       hear: { echo: 13, step: 4, glass: 9, stone: 10 },
+       sweep: { every: 3.4, speed: 5.5, life: 2.4, range: 12 } },
+  S: { name: '幽影', speed: 0.85, delay: 3, color: [1.3, 0.7, 2.4], hear: {} },
+};
+
+// 地圖符號：# 牆　. 地板　~ 碎玻璃　P 玩家　C 音核　E 出口
+//          G 巡守者　L 盲聽者　T 哨兵　S 幽影
+const LEVELS = [
+  { name: '初聲', stones: 0, par: 5,
+    desc: '按 <span class="c">SPACE</span> 發出回聲，照亮黑暗。<br>找到所有<span class="g">金色音核</span>，出口才會開啟。',
+    map: [
+      '#############',
+      '#P..#.......#',
+      '#.#.#.#####.#',
+      '#.#...#...#.#',
+      '#.#####.#.#.#',
+      '#.....#.#C#.#',
+      '#####.#.###.#',
+      '#C....#.....#',
+      '#.#######.#.#',
+      '#.........#E#',
+      '#############',
+    ] },
+  { name: '巡守', stones: 0, par: 6,
+    desc: '<span class="r">紅色波紋</span>是守衛的腳步聲。<br>回聲和你的腳步都會引來牠們 — 按住 <span class="c">SHIFT</span> 潛行。',
+    map: [
+      '###############',
+      '#P....#.......#',
+      '#.###.#.#####.#',
+      '#.#C..#...#C..#',
+      '#.#####.#.#.###',
+      '#.......#.#...#',
+      '###.#####.###.#',
+      '#...#..G#...#.#',
+      '#.#.#.#.###.#.#',
+      '#.#...#.....#.#',
+      '#.#####.###.#.#',
+      '#C....#..G#..E#',
+      '###############',
+    ] },
+  { name: '盲聽者', stones: 3, par: 5,
+    desc: '<span style="color:#ffa64d">盲聽者</span>不會巡邏，但能聽見極遠的聲音。<br><span class="r">碎玻璃</span>就算潛行也會發出巨響。<br>按 <span class="c">E</span> 朝前方丟石頭，把牠引開。',
+    map: [
+      '###############',
+      '#P..~~~.#....C#',
+      '#.#####.#.###.#',
+      '#.#C....#...#.#',
+      '#.#.#######.#.#',
+      '#.....~L~.....#',
+      '###.#######.###',
+      '#...#.....#...#',
+      '#.###.#.#.#.#.#',
+      '#~~...#C#...#E#',
+      '###############',
+    ] },
+  { name: '哨兵', stones: 2, par: 6,
+    desc: '<span style="color:#ff6adf">哨兵</span>會沿著走廊來回，並發出<span class="r">紅色掃描波</span>。<br>波紋經過你的瞬間 — 停下，別動。',
+    map: [
+      '#################',
+      '#P......#.......#',
+      '#.#####.#.#####.#',
+      '#.#C...T........#',
+      '#.#####.#.###.#.#',
+      '#.......#...#.#C#',
+      '###.#######.#.###',
+      '#...#..~~.....#.#',
+      '#.#.#.#####.#.#.#',
+      '#.#....T......#.#',
+      '#C#########.#...#',
+      '#...........#.#E#',
+      '#################',
+    ] },
+  { name: '幽影', stones: 2, par: 6,
+    desc: '<span class="p">幽影</span>會穿牆而來，回聲照不到它。<br>只有<span class="g">金光</span>能讓它現形。別停下腳步。',
+    map: [
+      '#################',
+      '#P....#....#...C#',
+      '#.###.#.##.#.#.##',
+      '#.#C#...#..#.#..#',
+      '#.#.#####.##.##.#',
+      '#.#.....G.......#',
+      '#.#####.###.###.#',
+      '#.....#...#.#C#.#',
+      '#####.###.#.#.#.#',
+      '#S....#...#...#E#',
+      '#################',
+    ] },
+  { name: '終章', stones: 3, par: 8,
+    desc: '所有的聲音，都在等你犯錯。',
+    map: [
+      '###################',
+      '#P....#.....~~...C#',
+      '#.###.#.###.###.#.#',
+      '#.#C#...#.T.....#.#',
+      '#.#.#####.#####.#.#',
+      '#...#...#.....#.#.#',
+      '###.#.#.#.###.#...#',
+      '#...~.#.L.#C#.###.#',
+      '#.#####.###.#...#.#',
+      '#.....#...G.....#.#',
+      '#.###.###.#####.#.#',
+      '#.#C#...#.....#...#',
+      '#.#.###.#.###.###.#',
+      '#S......#...#....E#',
+      '###################',
+    ] },
 ];
 
 const S = 2, WALL_H = 2.2;
-const ROWS = MAP.length, COLS = MAP[0].length;
+let MAP, ROWS, COLS, openCells;
+const CENTER = new THREE.Vector3();
 const isWall = (c, r) => r < 0 || r >= ROWS || c < 0 || c >= COLS || MAP[r][c] === '#';
 const toCell = (x, z) => [Math.round(x / S), Math.round(z / S)];
-const openCells = [];
-MAP.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== '#') openCells.push([c, r]); }));
+const cellOf = v => toCell(v.x, v.z);
 const findAll = ch => openCells.filter(([c, r]) => MAP[r][c] === ch);
-const CENTER = new THREE.Vector3((COLS - 1) * S / 2, 0, (ROWS - 1) * S / 2);
+const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
-// ---------- 渲染器與後製（Bloom 泛光） ----------
+// ---------- 存檔（只存在你的瀏覽器） ----------
+let progress = { unlocked: 0, best: {} };
+try { progress = { ...progress, ...JSON.parse(localStorage.getItem('echo.progress') || '{}') }; } catch {}
+const saveProgress = () => { try { localStorage.setItem('echo.progress', JSON.stringify(progress)); } catch {} };
+
+// ---------- 渲染器與後製 ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -131,12 +253,11 @@ document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
-const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), CONFIG.bloom, 0.55, 0.08);
-composer.addPass(bloom);
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), CONFIG.bloom, 0.55, 0.08));
 composer.addPass(new OutputPass());
 
 addEventListener('resize', () => {
@@ -144,19 +265,22 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
 });
 
-// ---------- 聲波著色器：所有物體共用同一組「聲波」資料 ----------
-const MAXP = 16;
+// ---------- 聲波著色器 ----------
+const MAXP = 20;
 const U = {
   uTime: { value: 0 },
-  uP: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(0, 0, 0, -999)) }, // xyz=位置, w=開始時間
-  uQ: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(1, 1, 0, 0)) },    // 速度, 壽命, 強度, 顏色種類
+  uP: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(0, 0, 0, -999)) }, // xyz 位置, w 開始時間
+  uQ: { value: Array.from({ length: MAXP }, () => new THREE.Vector4(1, 1, 0, 0)) },    // 速度, 壽命, 強度, 顏色
   uPlayer: { value: new THREE.Vector3() },
 };
 
 const REVEAL = /* glsl */`
 uniform float uTime; uniform vec4 uP[${MAXP}]; uniform vec4 uQ[${MAXP}]; uniform vec3 uPlayer;
 vec3 pulseColor(float k) {
-  return k < 0.5 ? vec3(0.45, 0.9, 1.0) : (k < 1.5 ? vec3(1.0, 0.72, 0.32) : vec3(1.0, 0.28, 0.34));
+  if (k < 0.5) return vec3(0.45, 0.9, 1.0);   // 0 藍：你的聲音
+  if (k < 1.5) return vec3(1.0, 0.72, 0.32);  // 1 金：音核
+  if (k < 2.5) return vec3(1.0, 0.28, 0.34);  // 2 紅：守衛
+  return vec3(0.7, 0.45, 1.0);                // 3 紫：幽影
 }
 vec3 reveal(vec3 p) {
   vec3 acc = vec3(0.0);
@@ -177,46 +301,65 @@ vec3 reveal(vec3 p) {
 const VERT = /* glsl */`varying vec3 vW;
 void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 
-// mode 0 = 純發光（邊線）, 1 = 地板格線, 2 = 牆面掃描線
+// mode 0 邊線, 1 地板格線, 2 牆面掃描線, 3 碎玻璃裂紋
 function surfaceMat(base, mode) {
   return new THREE.ShaderMaterial({
     uniforms: { ...U, uBase: { value: base }, uMode: { value: mode } },
     vertexShader: VERT,
+    polygonOffset: mode === 3, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     fragmentShader: REVEAL + /* glsl */`
       uniform float uBase; uniform float uMode; varying vec3 vW;
       void main() {
-        float pat = 1.0;
+        float pat = 1.0; vec3 tint = vec3(1.0);
         if (uMode > 0.5 && uMode < 1.5) {
           vec2 f = abs(fract((vW.xz + 1.0) / 2.0) - 0.5);
           pat = mix(0.06, 1.0, smoothstep(0.46, 0.5, max(f.x, f.y)));
-        } else if (uMode > 1.5) {
+        } else if (uMode > 1.5 && uMode < 2.5) {
           pat = mix(0.15, 1.0, smoothstep(0.85, 1.0, fract(vW.y * 3.0)));
+        } else if (uMode > 2.5) {
+          float a = abs(fract((vW.x + vW.z) * 1.3) - 0.5);
+          float b = abs(fract((vW.x - vW.z * 0.6) * 2.1) - 0.5);
+          pat = mix(0.1, 1.0, max(smoothstep(0.44, 0.5, a), smoothstep(0.46, 0.5, b)));
+          tint = vec3(1.0, 0.6, 0.65);
         }
-        gl_FragColor = vec4(reveal(vW) * uBase * pat, 1.0);
+        gl_FragColor = vec4(reveal(vW) * uBase * pat * tint, 1.0);
       }`,
   });
 }
 
-// ---------- 建立關卡（牆合併成一個物件，效能好） ----------
-{
-  const box = new THREE.BoxGeometry(S, WALL_H, S);
-  const edges = new THREE.EdgesGeometry(box);
-  const walls = [], lines = [];
+// ---------- 關卡靜態場景 ----------
+let staticGroup;
+function disposeTree(o) { o.traverse(n => { n.geometry?.dispose(); n.material?.dispose?.(); }); }
+
+function loadMap(i) {
+  MAP = LEVELS[i].map; ROWS = MAP.length; COLS = MAP[0].length;
+  openCells = [];
+  MAP.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== '#') openCells.push([c, r]); }));
+  CENTER.set((COLS - 1) * S / 2, 0, (ROWS - 1) * S / 2);
+
+  if (staticGroup) { scene.remove(staticGroup); disposeTree(staticGroup); }
+  staticGroup = new THREE.Group(); scene.add(staticGroup);
+
+  const box = new THREE.BoxGeometry(S, WALL_H, S), edges = new THREE.EdgesGeometry(box);
+  const tile = new THREE.PlaneGeometry(S * 0.96, S * 0.96).rotateX(-Math.PI / 2);
+  const walls = [], lines = [], glass = [];
   MAP.forEach((row, r) => [...row].forEach((ch, c) => {
-    if (ch !== '#') return;
-    const m = new THREE.Matrix4().makeTranslation(c * S, WALL_H / 2, r * S);
-    walls.push(box.clone().applyMatrix4(m));
-    lines.push(edges.clone().applyMatrix4(m));
+    if (ch === '#') {
+      const m = new THREE.Matrix4().makeTranslation(c * S, WALL_H / 2, r * S);
+      walls.push(box.clone().applyMatrix4(m)); lines.push(edges.clone().applyMatrix4(m));
+    } else if (ch === '~') glass.push(tile.clone().translate(c * S, 0.02, r * S));
   }));
-  scene.add(new THREE.Mesh(mergeGeometries(walls), surfaceMat(0.3, 2)));
-  scene.add(new THREE.LineSegments(mergeGeometries(lines), surfaceMat(2.2, 0)));
+  staticGroup.add(new THREE.Mesh(mergeGeometries(walls), surfaceMat(0.3, 2)));
+  staticGroup.add(new THREE.LineSegments(mergeGeometries(lines), surfaceMat(2.2, 0)));
+  if (glass.length) staticGroup.add(new THREE.Mesh(mergeGeometries(glass), surfaceMat(1.6, 3)));
+  [box, edges, tile].forEach(g => g.dispose());
 
   const floor = new THREE.PlaneGeometry(COLS * S, ROWS * S).rotateX(-Math.PI / 2);
   floor.translate(CENTER.x, 0, CENTER.z);
-  scene.add(new THREE.Mesh(floor, surfaceMat(0.7, 1)));
+  staticGroup.add(new THREE.Mesh(floor, surfaceMat(0.7, 1)));
 
-  // 漂浮塵埃：被聲波掃過時會閃爍
-  const N = 700, pos = new Float32Array(N * 3);
+  // 漂浮塵埃
+  const N = COLS * ROWS * 4, pos = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) {
     pos[i * 3] = Math.random() * COLS * S - 1;
     pos[i * 3 + 1] = 0.2 + Math.random() * 2.6;
@@ -224,7 +367,7 @@ function surfaceMat(base, mode) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  scene.add(new THREE.Points(g, new THREE.ShaderMaterial({
+  staticGroup.add(new THREE.Points(g, new THREE.ShaderMaterial({
     uniforms: { ...U },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: /* glsl */`uniform float uTime; varying vec3 vW;
@@ -244,7 +387,9 @@ function surfaceMat(base, mode) {
 let time = 0;
 let pulses = [];
 function addPulse(p, speed, life, strength, type, y = 0.4) {
-  pulses.push({ x: p.x, y, z: p.z, t0: time, speed, life, strength, type });
+  const q = { x: p.x, y, z: p.z, t0: time, speed, life, strength, type };
+  pulses.push(q);
+  return q;
 }
 function uploadPulses() {
   pulses = pulses.filter(q => time - q.t0 < q.life);
@@ -255,11 +400,11 @@ function uploadPulses() {
     else U.uP.value[i].w = -999;
   }
 }
-// 與著色器相同的公式，用來決定守衛是否被照亮
-function revealAt(p) {
+// 跟著色器同一套公式：某個位置目前被某些顏色的聲波照得多亮
+function revealAt(p, types) {
   let s = 0;
   for (const q of pulses) {
-    if (q.type !== 0) continue;
+    if (!types.includes(q.type)) continue;
     const age = time - q.t0; if (age < 0 || age > q.life) continue;
     const r = age * q.speed, d = Math.hypot(p.x - q.x, p.z - q.z);
     let f = 1 - age / q.life; f *= f;
@@ -268,7 +413,7 @@ function revealAt(p) {
   return Math.min(s, 1.5);
 }
 
-// ---------- 音效（Web Audio 即時合成，不需要音檔） ----------
+// ---------- 音效（即時合成，不需要音檔） ----------
 let ac, master;
 function initAudio() {
   if (ac) return ac.resume();
@@ -282,7 +427,7 @@ function initAudio() {
   delay.connect(lp); lp.connect(fb); fb.connect(delay); lp.connect(wet); wet.connect(ac.destination);
 }
 function tone(type, f0, f1, dur, vol) {
-  if (!ac) return;
+  if (!ac || vol < 0.002) return;
   const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
   o.type = type;
   o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
@@ -293,16 +438,17 @@ function tone(type, f0, f1, dur, vol) {
 const sfx = {
   ping: () => { tone('sine', 1400, 700, 0.9, 0.3); tone('sine', 2100, 1050, 0.6, 0.08); },
   step: () => tone('triangle', 180, 90, 0.08, 0.05),
+  glass: () => { tone('square', 3200, 500, 0.18, 0.05); tone('sawtooth', 2600, 900, 0.28, 0.05); },
+  clack: () => { tone('triangle', 1000, 320, 0.12, 0.14); setTimeout(() => tone('triangle', 760, 300, 0.1, 0.08), 90); },
+  throw: () => tone('sine', 500, 900, 0.15, 0.05),
+  sweep: v => tone('sine', 240, 200, 0.9, 0.09 * v),
   chime: () => { tone('sine', 880, 880, 0.7, 0.2); setTimeout(() => tone('sine', 1320, 1320, 0.9, 0.2), 120); },
   alert: () => tone('sawtooth', 110, 55, 0.5, 0.1),
   lose: () => tone('sawtooth', 220, 40, 1.4, 0.22),
   win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone('sine', f, f, 1.3, 0.16), i * 130)),
 };
 
-// ---------- 遊戲物件 ----------
-let state = 'title'; // title | play | win | lose
-let dyn, player, crystals, guards, exit, collected, echoes, cd, stepT, playTime;
-
+// ---------- 路徑搜尋 ----------
 function bfs(a, b) {
   const key = (c, r) => r * COLS + c, prev = new Map([[key(...a), null]]), q = [a];
   while (q.length) {
@@ -319,10 +465,47 @@ function bfs(a, b) {
   for (let cur = b; cur && !(cur[0] === a[0] && cur[1] === a[1]); cur = prev.get(key(...cur))) path.unshift(cur);
   return path;
 }
+// 哨兵的巡邏路線：所在位置最長的一條直走廊
+function corridorEnds(c, r) {
+  let best = null;
+  for (const [dc, dr] of [[1, 0], [0, 1]]) {
+    let a = [c, r], b = [c, r];
+    while (!isWall(a[0] - dc, a[1] - dr)) a = [a[0] - dc, a[1] - dr];
+    while (!isWall(b[0] + dc, b[1] + dr)) b = [b[0] + dc, b[1] + dr];
+    const len = Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
+    if (!best || len > best.len) best = { a, b, len };
+  }
+  return [best.a, best.b];
+}
 
-function reset() {
-  if (dyn) scene.remove(dyn);
+// ---------- 遊戲狀態 ----------
+let state = 'title'; // title | play | win | lose
+let level = Math.min(progress.unlocked, LEVELS.length - 1);
+let dyn, player, crystals, guards, exit, stones = [];
+let collected, echoes, cd, stepT, glassT, playTime, stonesLeft, introT = 0;
+let lastCell = [-1, -1], playerMoving = false;
+const lastDir = new THREE.Vector3(0, 0, -1);
+
+function guardMesh(type, color) {
+  const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  if (type === 'L') {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 12), mat);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.035, 8, 48), mat);
+    ring.rotation.x = Math.PI / 2; m.add(ring);
+    return m;
+  }
+  if (type === 'T') { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.42), mat); m.scale.y = 1.7; return m; }
+  if (type === 'S') {
+    mat.transparent = true; mat.blending = THREE.AdditiveBlending; mat.depthWrite = false;
+    return new THREE.Mesh(new THREE.DodecahedronGeometry(0.42), mat);
+  }
+  return new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), mat);
+}
+
+function resetLevel() {
+  if (dyn) { scene.remove(dyn); disposeTree(dyn); }
   dyn = new THREE.Group(); scene.add(dyn);
+  pulses = []; stones = [];
 
   const [pc, pr] = findAll('P')[0];
   player = new THREE.Mesh(new THREE.SphereGeometry(0.28, 32, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 2.0, 2.2) }));
@@ -336,12 +519,20 @@ function reset() {
     return { mesh: m, hum: i * 0.9 };
   });
 
-  guards = findAll('G').map(([c, r]) => {
-    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    m.position.set(c * S, 0.5, r * S);
-    dyn.add(m);
-    return { mesh: m, pos: m.position, path: [], mode: 'wander', wait: 1 + Math.random(), stepT: Math.random(), flash: 0, repath: 0 };
-  });
+  guards = [];
+  for (const type of Object.keys(GUARD_TYPES)) {
+    for (const [c, r] of findAll(type)) {
+      const cfg = GUARD_TYPES[type], mesh = guardMesh(type);
+      mesh.position.set(c * S, 0.5, r * S);
+      dyn.add(mesh);
+      guards.push({
+        type, cfg, mesh, pos: mesh.position, home: [c, r], path: [], mode: 'idle',
+        wait: 0.5 + Math.random(), stepT: Math.random(), flash: 0, repath: 0,
+        delay: cfg.delay || 0, sweepT: 1.5 + Math.random(), sweep: null,
+        route: type === 'T' ? corridorEnds(c, r) : null, routeIdx: 0,
+      });
+    }
+  }
 
   const [ec, er] = findAll('E')[0];
   exit = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 16, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.12, 0.14, 0.16) }));
@@ -349,88 +540,197 @@ function reset() {
   exit.userData.open = false;
   dyn.add(exit);
 
-  collected = 0; echoes = 0; cd = 0; stepT = 0; playTime = 0;
+  collected = 0; echoes = 0; cd = 0; stepT = 0; glassT = 0; playTime = 0;
+  stonesLeft = LEVELS[level].stones; lastCell = [pc, pr]; lastDir.set(0, 0, -1);
+  camera.position.set(player.position.x, 13, player.position.z + 9);
+  focus.copy(player.position);
   updateHud();
 }
 
 // ---------- UI ----------
 const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
 let msgTimer;
 function showMsg(text, color = '#dff6ff') {
   const el = $('msg'); el.textContent = text; el.style.color = color; el.style.opacity = 1;
   clearTimeout(msgTimer); msgTimer = setTimeout(() => el.style.opacity = 0, 2200);
 }
-function updateHud() { $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected); }
-
-function start() {
-  initAudio(); reset(); state = 'play';
-  $('title').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden');
-  showMsg('按 SPACE 發出回聲');
+function updateHud() {
+  $('lv').textContent = `${pad(level + 1)} · ${LEVELS[level].name}`;
+  $('cr').textContent = '◆'.repeat(collected) + '◇'.repeat(crystals.length - collected);
+  const max = LEVELS[level].stones;
+  $('st').textContent = max ? `石頭  ${'●'.repeat(stonesLeft)}${'○'.repeat(max - stonesLeft)}` : '';
 }
+
+function buildLevelButtons() {
+  const box = $('levels'); box.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    b.className = 'lv'; b.disabled = i > progress.unlocked;
+    const done = progress.best[i] ? ' <span class="done">◆</span>' : '';
+    b.innerHTML = `<b>${pad(i + 1)}</b>${L.name}${done}`;
+    b.addEventListener('click', e => { e.stopPropagation(); startLevel(i); });
+    box.appendChild(b);
+  });
+  const next = Math.min(progress.unlocked, LEVELS.length - 1);
+  $('titleCta').textContent = progress.unlocked > 0 ? `點 擊 繼 續 ・ 第 ${next + 1} 關` : '點 擊 開 始';
+}
+
+let endTimer;
+function startLevel(i) {
+  initAudio();
+  clearTimeout(endTimer); clearTimeout(msgTimer); $('msg').style.opacity = 0;
+  level = i;
+  loadMap(i); resetLevel();
+  state = 'play';
+  introT = 3.5;
+  $('inNum').textContent = `LEVEL ${pad(i + 1)}`;
+  $('inName').textContent = LEVELS[i].name;
+  $('inDesc').innerHTML = LEVELS[i].desc;
+  $('intro').classList.remove('hidden');
+  $('title').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden');
+}
+function endIntro() {
+  if (introT <= 0) return;
+  introT = 0;
+  $('intro').classList.add('hidden');
+  addPulse(player.position, CONFIG.echoSpeed, CONFIG.echoLife, 0.8, 0, 0.5); // 開場免費的回聲，不會被聽見
+  sfx.ping();
+}
+function goTitle() {
+  clearTimeout(endTimer);
+  state = 'title';
+  $('end').classList.add('hidden'); $('hud').classList.add('hidden'); $('intro').classList.add('hidden');
+  $('title').classList.remove('hidden');
+  buildLevelButtons();
+}
+
 function end(win) {
   state = win ? 'win' : 'lose';
   win ? sfx.win() : sfx.lose();
-  const rank = echoes <= 6 ? '靜 默 大 師' : echoes <= 12 ? '夜 行 者' : '迴 響 者';
-  $('endTitle').textContent = win ? '逃脫' : '被發現了';
+  const L = LEVELS[level], last = level === LEVELS.length - 1;
+  const rank = echoes <= L.par ? '靜 默 大 師' : echoes <= L.par * 2 ? '夜 行 者' : '迴 響 者';
+  if (win) {
+    progress.unlocked = Math.max(progress.unlocked, Math.min(level + 1, LEVELS.length - 1));
+    const b = progress.best[level];
+    if (!b || echoes < b.echoes || (echoes === b.echoes && playTime < b.time)) progress.best[level] = { echoes, time: +playTime.toFixed(1) };
+    saveProgress();
+  }
+  $('endTitle').textContent = win ? (last ? '重見光明' : '逃脫') : '被發現了';
   $('endTitle').style.textShadow = win ? '' : '0 0 24px var(--r), 0 0 70px rgba(255,90,106,.45)';
-  $('endStat').innerHTML = `時間 ${playTime.toFixed(1)} 秒<br>使用回聲 ${echoes} 次` + (win ? `<br><span style="color:var(--g)">${rank}</span>` : '');
+  $('endStat').innerHTML = `${pad(level + 1)} · ${L.name}<br>時間 ${playTime.toFixed(1)} 秒　回聲 ${echoes} 次（目標 ${L.par}）` +
+    (win ? `<br><span class="g">${rank}</span>` : '') + (win && last ? '<br>你走出了所有的黑暗。' : '');
+  $('endCta').textContent = !win ? '點 擊 重 試 ・ ESC 回 主 選 單' : last ? '點 擊 回 到 主 選 單' : '點 擊 進 入 下 一 關';
   $('hud').classList.add('hidden');
-  setTimeout(() => $('end').classList.remove('hidden'), 600);
+  clearTimeout(endTimer);
+  endTimer = setTimeout(() => { if (state === 'win' || state === 'lose') $('end').classList.remove('hidden'); }, 600);
 }
-$('title').addEventListener('click', start);
-$('end').addEventListener('click', () => { if (state === 'win' || state === 'lose') start(); });
+function endClick() {
+  if (state === 'lose') startLevel(level);
+  else if (state === 'win') level === LEVELS.length - 1 ? goTitle() : startLevel(level + 1);
+}
+
+$('title').addEventListener('click', () => startLevel(Math.min(progress.unlocked, LEVELS.length - 1)));
+$('end').addEventListener('click', endClick);
+addEventListener('pointerdown', () => { if (state === 'play') endIntro(); });
 
 // ---------- 輸入 ----------
 const keys = {};
 addEventListener('keydown', e => {
+  if (e.repeat && keys[e.code]) return;
   keys[e.code] = true;
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
-  if (e.code === 'Enter' && state !== 'play') start();
+  if (state === 'play' && introT > 0) { endIntro(); return; }
+  if (e.code === 'Enter') { if (state === 'title') $('title').click(); else if (state !== 'play') endClick(); }
+  if (e.code === 'Escape' && state !== 'title') goTitle();
+  if (e.code === 'KeyR' && state === 'play') startLevel(level);
+  if (e.code === 'KeyE' && state === 'play') throwStone();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
-// ---------- 遊戲邏輯 ----------
+// ---------- 玩家 ----------
 function blocked(x, z, r = 0.3) {
   for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (isWall(...toCell(x + ox, z + oz))) return true;
   return false;
 }
 
-function hear(origin, radius) {
+function hear(origin, kind) {
   for (const g of guards) {
-    if (g.pos.distanceTo(origin) > radius) continue;
-    if (g.mode !== 'hunt') { sfx.alert(); showMsg('守 衛 聽 見 了 你', '#ff5a6a'); }
-    g.mode = 'hunt';
-    const cur = toCell(g.pos.x, g.pos.z);
-    g.path = [cur, ...bfs(cur, toCell(origin.x, origin.z))];
+    const R = g.cfg.hear[kind];
+    if (!R || flat(g.pos, origin) > R) continue;
+    alertGuard(g, origin, kind === 'stone' ? '守 衛 被 石 頭 吸 引 了' : `${g.cfg.name} 聽 見 了 你`);
   }
+}
+function alertGuard(g, origin, text) {
+  if (g.mode !== 'hunt') { sfx.alert(); showMsg(text, '#ff5a6a'); }
+  goTo(g, cellOf(origin), 'hunt');
+  g.wait = 1.6;
+}
+
+function throwStone() {
+  if (stonesLeft <= 0 || introT > 0) return;
+  stonesLeft--; updateHud(); sfx.throw();
+  const from = player.position.clone(), to = from.clone();
+  for (let d = 0; d < CONFIG.stoneRange; d += 0.2) {
+    const nx = from.x + lastDir.x * d, nz = from.z + lastDir.z * d;
+    if (blocked(nx, nz, 0.15)) break;
+    to.set(nx, 0.1, nz);
+  }
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 2, 2.2) }));
+  m.position.copy(from); dyn.add(m);
+  stones.push({ mesh: m, from, to, t: 0, dur: 0.25 + from.distanceTo(to) * 0.05 });
+}
+
+function updateStones(dt) {
+  for (const s of stones) {
+    s.t = Math.min(1, s.t + dt / s.dur);
+    s.mesh.position.lerpVectors(s.from, s.to, s.t);
+    s.mesh.position.y = 0.4 + 4 * 1.2 * s.t * (1 - s.t);
+    if (s.t === 1) {
+      dyn.remove(s.mesh); s.mesh.geometry.dispose();
+      addPulse(s.to, 7, 1.6, 0.6, 0, 0.1);
+      hear(s.to, 'stone'); sfx.clack();
+    }
+  }
+  stones = stones.filter(s => s.t < 1);
 }
 
 function updatePlayer(dt) {
   const dx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
   const dz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
   const sneak = keys.ShiftLeft || keys.ShiftRight;
-  const moving = dx || dz;
-  if (moving) {
+  playerMoving = !!(dx || dz);
+  if (playerMoving) {
     const m = Math.hypot(dx, dz), sp = (sneak ? CONFIG.sneakSpeed : CONFIG.moveSpeed) * dt;
+    lastDir.set(dx / m, 0, dz / m);
     const nx = player.position.x + dx / m * sp, nz = player.position.z + dz / m * sp;
     if (!blocked(nx, player.position.z)) player.position.x = nx;
     if (!blocked(player.position.x, nz)) player.position.z = nz;
-    if (!sneak && (stepT -= dt) <= 0) {
+
+    const cell = cellOf(player.position), onGlass = MAP[cell[1]][cell[0]] === '~';
+    const entered = cell[0] !== lastCell[0] || cell[1] !== lastCell[1];
+    lastCell = cell;
+    if (onGlass) {
+      glassT -= dt;
+      if (entered || glassT <= 0) {
+        glassT = 0.42;
+        addPulse(player.position, 8, 1.3, 1.0, 0, 0.05);
+        hear(player.position, 'glass'); sfx.glass();
+      }
+    } else if (!sneak && (stepT -= dt) <= 0) {
       stepT = 0.42;
       addPulse(player.position, 5, 0.9, 0.4, 0, 0.05);
-      hear(player.position, CONFIG.stepHearing);
-      sfx.step();
+      hear(player.position, 'step'); sfx.step();
     }
   }
-  player.scale.setScalar(sneak ? 0.8 : 1);
+  player.scale.setScalar(keys.ShiftLeft || keys.ShiftRight ? 0.8 : 1);
 
   cd = Math.max(0, cd - dt);
   if (keys.Space && cd === 0) {
     cd = CONFIG.echoCooldown; echoes++;
     addPulse(player.position, CONFIG.echoSpeed, CONFIG.echoLife, 1.0, 0, 0.5);
-    hear(player.position, CONFIG.echoHearing);
-    sfx.ping();
+    hear(player.position, 'echo'); sfx.ping();
   }
   $('cd').style.width = `${(1 - cd / CONFIG.echoCooldown) * 100}%`;
 
@@ -444,42 +744,97 @@ function updatePlayer(dt) {
       } else showMsg(`音 核  ${collected} / ${crystals.length}`, '#ffcf6b');
     }
   }
-  if (exit.userData.open && Math.hypot(exit.position.x - player.position.x, exit.position.z - player.position.z) < 1) end(true);
+  if (exit.userData.open && flat(exit.position, player.position) < 1) end(true);
+}
+
+// ---------- 守衛 AI ----------
+function goTo(g, target, mode, maxSteps = Infinity) {
+  const cur = cellOf(g.pos);
+  g.path = [cur, ...bfs(cur, target).slice(0, maxSteps)];
+  g.mode = mode;
+}
+
+function idleBehavior(g) {
+  const cur = cellOf(g.pos);
+  if (g.type === 'G') {
+    goTo(g, openCells[Math.floor(Math.random() * openCells.length)], 'patrol', 6);
+    g.wait = 0.6 + Math.random();
+  } else if (g.type === 'L') {
+    if (cur[0] !== g.home[0] || cur[1] !== g.home[1]) goTo(g, g.home, 'return');
+    else g.mode = 'idle';
+    g.wait = 0.5;
+  } else if (g.type === 'T') {
+    const t = g.route[g.routeIdx];
+    if (cur[0] === t[0] && cur[1] === t[1]) g.routeIdx ^= 1;
+    goTo(g, g.route[g.routeIdx], 'patrol');
+    g.wait = 0.4;
+  }
 }
 
 function updateGuards(dt) {
-  const pc = toCell(player.position.x, player.position.z);
   for (const g of guards) {
-    const d = Math.hypot(g.pos.x - player.position.x, g.pos.z - player.position.z);
-    // 太靠近時直接追擊
-    if (d < 2.8 && (g.repath -= dt) <= 0) {
-      g.repath = 0.35; g.mode = 'hunt';
-      const cur = toCell(g.pos.x, g.pos.z);
-      g.path = [cur, ...bfs(cur, pc)];
+    const d = flat(g.pos, player.position);
+    let k;
+
+    if (g.type === 'S') {
+      // 幽影：穿牆、緩慢、永遠朝你飄來；只有金光和近距離能看見
+      if (g.delay > 0) g.delay -= dt;
+      else {
+        const vx = player.position.x - g.pos.x, vz = player.position.z - g.pos.z, m = Math.hypot(vx, vz) || 1;
+        g.pos.x += vx / m * g.cfg.speed * dt; g.pos.z += vz / m * g.cfg.speed * dt;
+      }
+      if ((g.stepT -= dt) <= 0) { g.stepT = 1.6; addPulse(g.pos, 2, 1.0, 0.35, 3, 0.05); }
+      k = Math.max(revealAt(g.pos, [1]), d < 4 ? (4 - d) / 4 * 0.8 : 0);
+      g.mesh.rotation.x += dt * 0.7;
+    } else {
+      if (g.cfg.chaseNear && d < g.cfg.chaseNear && (g.repath -= dt) <= 0) {
+        g.repath = 0.35; goTo(g, cellOf(player.position), 'hunt'); g.wait = 1.6;
+      }
+      let moved = false;
+      if (g.path.length) {
+        const [c, r] = g.path[0], tx = c * S, tz = r * S;
+        const vx = tx - g.pos.x, vz = tz - g.pos.z, dist = Math.hypot(vx, vz);
+        const sp = (g.mode === 'hunt' ? g.cfg.hunt : g.cfg.speed) * dt;
+        if (dist <= sp) { g.pos.x = tx; g.pos.z = tz; g.path.shift(); }
+        else { g.pos.x += vx / dist * sp; g.pos.z += vz / dist * sp; }
+        moved = true;
+      } else if ((g.wait -= dt) <= 0) idleBehavior(g);
+
+      // 腳步聲（紅色波紋）；盲聽者站著時發出微弱呼吸聲
+      if ((g.stepT -= dt) <= 0) {
+        if (moved) { g.stepT = g.mode === 'hunt' ? 0.45 : 0.85; addPulse(g.pos, 3, 1.1, 0.55, 2, 0.05); }
+        else { g.stepT = 2.2; addPulse(g.pos, 1.6, 1.4, 0.35, 2, 0.05); }
+        g.flash = 1;
+      }
+
+      // 哨兵掃描：紅色波紋經過你時，你在移動就會被發現
+      if (g.cfg.sweep) {
+        const sw = g.cfg.sweep;
+        if ((g.sweepT -= dt) <= 0) {
+          g.sweepT = sw.every;
+          addPulse(g.pos, sw.speed, sw.life, 0.9, 2, 0.6);
+          g.sweep = { x: g.pos.x, z: g.pos.z, t0: time, done: false };
+          g.flash = 1.5;
+          sfx.sweep(Math.max(0, 1 - d / 16));
+        }
+        if (g.sweep && !g.sweep.done) {
+          const r = (time - g.sweep.t0) * sw.speed;
+          if (r > sw.range) g.sweep.done = true;
+          else if (playerMoving && Math.abs(flat(g.sweep, player.position) - r) < 0.6) {
+            g.sweep.done = true;
+            alertGuard(g, player.position, '被 哨 兵 掃 描 到 了');
+          }
+        }
+      }
+      g.flash = Math.max(0, g.flash - dt * 3);
+      k = Math.max(revealAt(g.pos, [0]), g.flash * 0.5, d < 3 ? (3 - d) / 3 * 0.6 : 0);
+      g.mesh.rotation.y += dt * (g.mode === 'hunt' ? 4 : 1.2);
     }
-    if (g.path.length) {
-      const [c, r] = g.path[0], tx = c * S, tz = r * S;
-      const vx = tx - g.pos.x, vz = tz - g.pos.z, dist = Math.hypot(vx, vz);
-      const sp = (g.mode === 'hunt' ? CONFIG.guardHuntSpeed : CONFIG.guardSpeed) * dt;
-      if (dist <= sp) { g.pos.x = tx; g.pos.z = tz; g.path.shift(); }
-      else { g.pos.x += vx / dist * sp; g.pos.z += vz / dist * sp; }
-    } else if ((g.wait -= dt) <= 0) {
-      g.mode = 'wander'; g.wait = 0.6 + Math.random();
-      const cur = toCell(g.pos.x, g.pos.z);
-      g.path = bfs(cur, openCells[Math.floor(Math.random() * openCells.length)]).slice(0, 6);
-    }
-    // 守衛的腳步聲（紅色波紋）
-    if ((g.stepT -= dt) <= 0) {
-      g.stepT = g.mode === 'hunt' ? 0.45 : 0.85;
-      addPulse(g.pos, 3, 1.1, 0.55, 2, 0.05);
-      g.flash = 1;
-    }
-    g.flash = Math.max(0, g.flash - dt * 3);
-    const k = Math.max(revealAt(g.pos), g.flash * 0.5, d < 3 ? (3 - d) / 3 * 0.6 : 0);
-    g.mesh.material.color.setRGB(k * 2.4, k * 0.35, k * 0.45);
-    g.mesh.rotation.y += dt * (g.mode === 'hunt' ? 4 : 1.2);
-    g.mesh.position.y = 0.5 + Math.sin(time * 3 + g.pos.x) * 0.06;
-    if (d < 0.7) return end(false);
+
+    const [cr, cg, cb] = g.cfg.color;
+    g.mesh.material.color.setRGB(k * cr, k * cg, k * cb);
+    g.mesh.position.y = 0.5 + Math.sin(time * 3 + g.home[0]) * 0.06;
+    if (d < (g.type === 'L' ? 0.85 : 0.7)) return end(false);
   }
 }
 
@@ -487,7 +842,7 @@ function updateGuards(dt) {
 const clock = new THREE.Clock();
 const focus = new THREE.Vector3();
 let titlePulseT = 0;
-reset();
+loadMap(level); resetLevel(); buildLevelButtons();
 
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -495,12 +850,15 @@ function frame() {
   U.uTime.value = time;
 
   if (state === 'play') {
-    playTime += dt;
-    updatePlayer(dt);
-    if (state === 'play') updateGuards(dt);
+    if (introT > 0) { introT -= dt; if (introT <= 0) { introT = 0.001; endIntro(); } }
+    else {
+      playTime += dt;
+      updatePlayer(dt);
+      updateStones(dt);
+      if (state === 'play') updateGuards(dt);
+    }
   }
 
-  // 音核：旋轉、漂浮、定期發出金色嗡鳴
   for (const c of crystals) {
     if (!c.mesh.visible) continue;
     c.mesh.rotation.y += dt * 1.2;
@@ -509,15 +867,14 @@ function frame() {
   }
   exit.rotation.y += dt * (exit.userData.open ? 1.5 : 0.3);
 
-  // 攝影機
   if (state === 'title') {
     if ((titlePulseT -= dt) <= 0) {
       titlePulseT = 1.5;
       const [c, r] = openCells[Math.floor(Math.random() * openCells.length)];
       addPulse({ x: c * S, z: r * S }, 8, 2.8, 1.0, 0, 0.5);
     }
-    const a = time * 0.08;
-    camera.position.set(CENTER.x + Math.cos(a) * 22, 20, CENTER.z + Math.sin(a) * 22);
+    const a = time * 0.08, R = Math.max(COLS, ROWS) * S * 0.85;
+    camera.position.set(CENTER.x + Math.cos(a) * R, R * 0.9, CENTER.z + Math.sin(a) * R);
     camera.lookAt(CENTER);
     U.uPlayer.value.set(9999, 0, 9999);
   } else {
@@ -534,9 +891,13 @@ function frame() {
 }
 requestAnimationFrame(frame);
 
-// 方便除錯用（在瀏覽器 Console 輸入 ECHO 可查看狀態）
-window.ECHO = { get state() { return state; }, get player() { return player; }, get guards() { return guards; },
-  get collected() { return collected; }, crystals: () => crystals, exit: () => exit, start, bfs, MAP };
+// 除錯用：在瀏覽器 Console 輸入 ECHO 可查看狀態
+window.ECHO = {
+  get state() { return state; }, get level() { return level; }, get player() { return player; },
+  get guards() { return guards; }, get collected() { return collected; }, get stonesLeft() { return stonesLeft; },
+  get introT() { return introT; }, get progress() { return progress; }, get time() { return time; },
+  crystals: () => crystals, exit: () => exit, startLevel, endIntro, goTitle, bfs, LEVELS, get MAP() { return MAP; },
+};
 </script>
 </body>
 </html>
